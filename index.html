@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V6</title>
+    <title>HANA Counter V5</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -20,72 +20,72 @@
             background: var(--bg-color); color: var(--text-white);
             font-family: sans-serif; margin: 0; padding: 0;
             user-select: none; -webkit-user-select: none;
-            touch-action: pan-y; /* スクロールは許可 */
+            touch-action: pan-y;
         }
 
-        /* --- 虹色テキストの定義 --- */
+        /* 虹色アニメーション強化 */
         .rainbow {
-            display: inline-block;
-            font-weight: bold;
-            background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+            background: linear-gradient(to right, #ff3333, #ffee33, #33ff33, #33ffff, #3333ff, #ff33ff, #ff3333);
             background-size: 200% auto;
-            -webkit-background-clip: text; /* Safari/Chrome用 */
-            background-clip: text;
-            -webkit-text-fill-color: transparent; /* Safari/Chrome用文字色透過 */
-            color: transparent; 
-            animation: rainbow_anim 3s linear infinite;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+            display: inline-block;
+            animation: rainbow_move 3s linear infinite;
         }
-        @keyframes rainbow_anim { to { background-position: 200% center; } }
+        @keyframes rainbow_move { to { background-position: 200% center; } }
 
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 15px; background: #000; position: sticky; top: 0; z-index: 100;
+            padding: 8px 15px; background: #000; position: sticky; top: 0; z-index: 100;
         }
-        .header-icon { font-size: 20px; cursor: pointer; color: white; padding: 5px; }
-        .header-title { font-size: 15px; font-weight: bold; border-bottom: 2px solid white; }
+        .header-icon { font-size: 22px; cursor: pointer; color: white; padding: 5px; }
+        .header-title { font-size: 16px; font-weight: bold; border-bottom: 2px solid white; }
 
-        .container { padding: 4px 10px 80px; }
+        .container { padding: 5px 10px 80px; }
         .section-title { text-align: center; margin: 6px 0 2px; font-size: 11px; color: white; font-weight: bold; }
 
-        .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 5px; }
+        .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 6px; }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-2 { grid-template-columns: 1fr 1fr; }
         
         .cell {
-            background: var(--cell-bg); padding: 5px 2px; text-align: center;
+            background: var(--cell-bg); padding: 6px 2px; text-align: center;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            min-height: 38px;
+            min-height: 40px;
         }
-        .label { font-size: 10px; color: white; margin-bottom: 0px; pointer-events: none; }
-        .value { font-size: 20px; font-weight: bold; line-height: 1.2; color: white; pointer-events: none; }
+        .label { font-size: 11px; color: white; margin-bottom: 1px; pointer-events: none; }
+        .value { font-size: 22px; font-weight: bold; line-height: 1; pointer-events: none; color: white; }
 
-        .touch-active { background: #666 !important; }
-        .minus-mode { background: #900 !important; }
+        .touch-active { background: #666666 !important; }
+        .minus-mode { background: #aa0000 !important; }
 
         .val-input {
             width: 100%; background: transparent; color: white; border: none;
-            text-align: center; font-size: 20px; font-weight: bold; outline: none;
+            text-align: center; font-size: 22px; font-weight: bold; outline: none;
         }
 
         /* モーダル */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.96); z-index: 200; overflow-y: auto;
+            background: rgba(0,0,0,0.95); z-index: 200; overflow-y: auto;
         }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #000; }
-        .modal-body { padding: 5px 15px 40px; max-width: 600px; margin: 0 auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #000; }
+        .modal-body { padding: 10px 15px 50px; max-width: 600px; margin: 0 auto; }
 
-        /* 詳細テーブル（文字とコロンを確実に白く） */
+        .switch-btn { width: 100%; padding: 12px; background: #333; color: white; border: 1px solid #555; margin-bottom: 10px; }
+        .machine-select { width: 100%; padding: 12px; background: #333; color: white; border: 1px solid #555; margin-bottom: 10px; font-size: 16px; }
+
+        /* 詳細テーブル（白文字統一） */
         .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; color: white; }
-        .detail-table th { background: #222; text-align: left; padding: 7px; border-bottom: 1px solid #444; font-weight: normal; }
-        .detail-table td { padding: 7px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; color: #fff !important; }
-        .lamp-detail { font-size: 11px; }
-        .white-symbol { color: #ffffff !important; font-weight: bold; margin: 0 2px; }
+        .detail-table th { background: #222; text-align: left; padding: 8px; border-bottom: 1px solid #444; font-weight: normal; }
+        .detail-table td { padding: 8px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; color: white; }
+        .lamp-detail span { margin-left: 4px; }
 
         /* 推測バー */
-        .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
-        .bar-bg { flex: 1; height: 8px; background: #333; margin: 0 10px; }
+        .bar-row { display: flex; align-items: center; margin: 8px 0; font-size: 13px; color: white; }
+        .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 10px; }
         .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.4s; }
     </style>
 </head>
@@ -98,7 +98,7 @@
 </div>
 
 <div class="container" id="main-ui">
-    <p style="text-align:center; padding-top:40px;">Loading...</p>
+    <p style="text-align:center; padding-top:50px;">起動中...</p>
 </div>
 
 <div id="setting-modal" class="modal">
@@ -108,38 +108,39 @@
     </div>
     <div class="modal-body">
         <p class="section-title">＜機種選択＞</p>
-        <select id="machine-select" style="width:100%; padding:10px; background:#333; color:white;" onchange="updateMachine()">
+        <select id="machine-select" class="machine-select" onchange="updateMachine()">
             <option value="king">キングハナハナ</option>
             <option value="new">ニューキングハナハナ</option>
         </select>
-        <p class="section-title">＜入力モード＞</p>
-        <button id="mode-toggle" style="width:100%; padding:10px; background:#333; color:white; border:1px solid #555;" onclick="toggleMode()">カウンター入力</button>
-        <p class="section-title">＜打ち始めデータ＞</p>
+        <p class="section-title">＜入力切り替え＞</p>
+        <button id="mode-toggle" class="switch-btn" onclick="toggleMode()">カウンター入力</button>
+        <p class="section-title">＜打ち始め＞</p>
         <div class="grid grid-3">
             <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()"></div>
             <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()"></div>
             <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()"></div>
         </div>
-        <button onclick="closeModal('setting-modal')" style="width:100%; padding:15px; background:#000; color:#0f0; border:1px solid #0f0; margin-top:10px;">決定</button>
-        <button onclick="resetAll()" style="width:100%; padding:10px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px;">全リセット</button>
+        <button onclick="closeModal('setting-modal')" style="width:100%; padding:15px; background:transparent; color:#0f0; border:1px solid #0f0; margin-top:10px;">決定</button>
+        <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:15px;">全リセット</button>
     </div>
 </div>
 
 <div id="predict-modal" class="modal">
     <div class="modal-header">
-        <div style="width:24px;"></div><div style="font-weight:bold; color:white;">推測結果</div>
+        <div style="width:24px;"></div><div style="font-weight:bold; color:white;">設定推測</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title">＜設定期待度＞</p>
+        <p class="section-title">＜推測結果＞</p>
         <div id="predict-bars"></div>
-        <p class="section-title" style="margin-top:15px;">＜詳細データ＞</p>
+        <p class="section-title" style="margin-top:20px;">＜詳細データ＞</p>
         <table class="detail-table" id="detail-rows"></table>
     </div>
 </div>
 
 <script>
-    const INITIAL_DATA = {
+    // --- データの安全な読み込み ---
+    const DEFAULTS = {
         machine: 'king', mode: 'tap',
         start: { g:0, b:0, r:0 },
         cur: { g:0, b:0, r:0, bell:0, suika:0, hazure:0, retro_d:0, retro:0 },
@@ -148,11 +149,13 @@
 
     let data;
     try {
-        const saved = localStorage.getItem('hana_v6_data');
-        data = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(INITIAL_DATA));
-        if(!data.lamps) data.lamps = INITIAL_DATA.lamps; // 破損対策
+        const saved = localStorage.getItem('hana_v5_data');
+        data = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
+        // データの欠損をチェックして補完
+        if (!data.lamps) data.lamps = DEFAULTS.lamps;
+        if (!data.cur) data.cur = DEFAULTS.cur;
     } catch (e) {
-        data = JSON.parse(JSON.stringify(INITIAL_DATA));
+        data = JSON.parse(JSON.stringify(DEFAULTS));
     }
 
     const PARAMS = {
@@ -168,7 +171,7 @@
     }
 
     function save() {
-        localStorage.setItem('hana_v6_data', JSON.stringify(data));
+        localStorage.setItem('hana_v5_data', JSON.stringify(data));
         updateView();
     }
 
@@ -184,7 +187,7 @@
 
     function updateView() {
         document.getElementById('disp-machine').innerText = (data.machine === 'king' ? 'キングハナハナ' : 'ニューキングハナハナ');
-        document.getElementById('mode-toggle').innerText = (data.mode === 'tap' ? 'カウンター入力' : '数値入力モード');
+        document.getElementById('mode-toggle').innerText = (data.mode === 'tap' ? 'カウンター入力' : '数値入力');
         renderMain();
     }
 
@@ -198,54 +201,55 @@
                 <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
             </div>
             <p class="section-title">＜現在＞</p>
-            <div class="grid grid-3">${mkCell('g','ゲーム数',c.g,50)}${mkCell('b','BIG',c.b)}${mkCell('r','REG',c.r)}</div>
-            <p class="section-title">＜通常ベル / BIG中スイカ＞</p>
-            <div class="grid grid-2">${mkCell('bell','ベル',c.bell)}${mkCell('suika','スイカ',c.suika)}</div>
-            <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkLamp('big')}</div>
-            <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkLamp('regS')}</div>
-            <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkLamp('regT')}</div>
+            <div class="grid grid-3">${mkC('g','ゲーム数',c.g,50)}${mkC('b','BIG',c.b)}${mkC('r','REG',c.r)}</div>
+            <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
+            <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
+            <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
+            <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
+            <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
             <p class="section-title">＜レトロサウンド＞</p>
-            <div class="grid grid-2">${mkCell('retro_d','条件達成',c.retro_d)}${mkCell('retro','発生',c.retro)}</div>
-            <p class="section-title">＜BIG：純ハズレ＞</p><div class="grid">${mkCell('hazure','',c.hazure)}</div>
+            <div class="grid grid-2">${mkC('retro_d','発生条件達成',c.retro_d)}${mkC('retro','発生回数',c.retro)}</div>
+            <p class="section-title">＜BIG：純ハズレ＞</p><div class="grid">${mkC('hazure','',c.hazure)}</div>
         `;
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
     }
 
-    function mkCell(id, label, val, step=1) {
+    function mkC(id, label, val, step=1) {
         if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();"></div>`;
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
     }
 
-    function mkLamp(type) {
-        const names = ['青','黄','緑','赤','虹'];
-        const colors = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
-        return names.map((name, i) => {
+    function mkL(type) {
+        const labs = ['青','黄','緑','赤','虹'];
+        const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
+        return labs.map((l, i) => {
             const val = data.lamps[type][i];
-            const clsAttr = colors[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${colors[i]}"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${clsAttr}>${name}</div><input type="number" class="val-input" value="${val}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();"></div>`;
-            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${clsAttr}>${name}</div><div class="value">${val}</div></div>`;
+            const cls = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i]}"`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${val}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();"></div>`;
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${val}</div></div>`;
         }).join('');
     }
 
     function attachEvents() {
         document.querySelectorAll('.cell').forEach(el => {
             if(!el.classList.contains('t-btn') && !el.classList.contains('t-lamp')) return;
-            let sy, sx, isCancel, timer;
+            let startY, startX, isCancel, timer;
             el.ontouchstart = (e) => {
-                sy = e.touches[0].clientY; sx = e.touches[0].clientX; isCancel = false;
+                startY = e.touches[0].clientY; startX = e.touches[0].clientX; isCancel = false;
                 el.classList.add('touch-active');
                 timer = setTimeout(() => { if(!isCancel) el.classList.add('minus-mode'); }, 600);
             };
             el.ontouchmove = (e) => {
-                if(Math.abs(e.touches[0].clientY - sy) > 6 || Math.abs(e.touches[0].clientX - sx) > 6) {
-                    isCancel = true; el.classList.remove('touch-active','minus-mode'); clearTimeout(timer);
-                }
+                const dy = Math.abs(e.touches[0].clientY - startY);
+                const dx = Math.abs(e.touches[0].clientX - startX);
+                if(dy > 8 || dx > 8) { isCancel = true; el.classList.remove('touch-active','minus-mode'); clearTimeout(timer); }
             };
             el.ontouchend = () => {
                 clearTimeout(timer);
                 if(isCancel) return;
-                const step = Number(el.dataset.step || 1) * (el.classList.contains('minus-mode') ? -1 : 1);
+                const isM = el.classList.contains('minus-mode');
+                const step = Number(el.dataset.step || 1) * (isM ? -1 : 1);
                 if(el.dataset.id) data.cur[el.dataset.id] = Math.max(0, data.cur[el.dataset.id] + step);
                 else data.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, data.lamps[el.dataset.type][el.dataset.idx] + step);
                 el.classList.remove('touch-active','minus-mode');
@@ -256,18 +260,17 @@
 
     function openModal(id) { document.getElementById(id).style.display = 'block'; if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    function resetAll() { if(confirm("全データを消去します。よろしいですか？")) { localStorage.removeItem('hana_v6_data'); location.reload(); } }
+    function resetAll() { if(confirm("データを全て消去して初期状態に戻しますか？")) { localStorage.removeItem('hana_v5_data'); location.reload(); } }
 
-    function getP(n, d) { return (n<=0 || d<=0) ? "---" : `1/${(d/n).toFixed(1)}`; }
+    function getP(n, d) { return (n<=0 || d<=0) ? "0/0" : `1/${(d/n).toFixed(1)}`; }
 
     function calc() {
         const c = data.cur; const s = data.start;
         const tg = s.g + c.g; const tb = s.b + c.b; const tr = s.r + c.r;
         
-        // 推測計算
         let likeli = [1,1,1,1,1,1]; const p = PARAMS[data.machine];
-        if(c.g > 10) {
-            for(let i=0; i<6; i++) {
+        for(let i=0; i<6; i++) {
+            if(c.g>10) {
                 likeli[i] *= Math.pow(1/p.b[i], c.b) * Math.pow(1-1/p.b[i], Math.max(0, c.g-c.b));
                 likeli[i] *= Math.pow(1/p.r[i], c.r) * Math.pow(1-1/p.r[i], Math.max(0, c.g-c.r));
                 likeli[i] *= Math.pow(1/p.bell[i], c.bell) * Math.pow(1-1/p.bell[i], Math.max(0, c.g-c.bell));
@@ -281,26 +284,28 @@
             <div class="bar-row"><div>設定${i+1}</div><div class="bar-bg"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div><div style="width:40px; text-align:right;">${v.toFixed(1)}%</div></div>
         `).join('');
 
-        const mkLD = (arr) => {
-            const names = ['青','黄','緑','赤','虹'];
+        const mkLampD = (arr) => {
+            const labs = ['青','黄','緑','赤','虹'];
             const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
-            return arr.map((v, i) => `<span class="${cols[i]==='rainbow'?'rainbow':''}" style="${cols[i]!=='rainbow'?'color:'+cols[i]:''}">${names[i]}</span><span class="white-symbol">:</span>${v}`).join(' ');
+            return arr.map((v, i) => `<span class="${cols[i]==='rainbow'?'rainbow':''}" style="${cols[i]!=='rainbow'?'color:'+cols[i]:''}">${labs[i]}</span><span>:${v}</span>`).join(' ');
         };
 
         document.getElementById('detail-rows').innerHTML = `
-            <tr><th>総ゲーム数</th><td>${tg}G</td></tr>
-            <tr><th>BIG / REG</th><td>${tb} / ${tr}</td></tr>
-            <tr><th>ボーナス合算</th><td>${tb+tr} <span class="white-symbol">(${getP(tb+tr, tg)})</span></td></tr>
-            <tr><th>通常ベル</th><td>${c.bell} <span class="white-symbol">(${getP(c.bell, c.g)})</span></td></tr>
-            <tr><th>BIG中スイカ</th><td>${c.suika} <span class="white-symbol">(${getP(c.suika, c.b*24)})</span></td></tr>
-            <tr><th>BIG筐体ランプ</th><td class="lamp-detail">${mkLD(data.lamps.big)}</td></tr>
-            <tr><th>REGサイド</th><td class="lamp-detail">${mkLD(data.lamps.regS)}</td></tr>
-            <tr><th>REG筐体ランプ</th><td class="lamp-detail">${mkLD(data.lamps.regT)}</td></tr>
-            <tr><th>レトロサウンド</th><td>${c.retro} / ${c.retro_d}</td></tr>
-            <tr><th>BIG純ハズレ</th><td>${c.hazure}</td></tr>
+            <tr><th>通常時回転数</th><td>${tg}回転</td></tr>
+            <tr><th>ボーナス回転数</th><td>${tb+tr}回転</td></tr>
+            <tr><th>BIG回数</th><td>${tb}回 (${getP(tb,tg)})</td></tr>
+            <tr><th>REG回数</th><td>${tr}回 (${getP(tr,tg)})</td></tr>
+            <tr><th>通常時：ベル</th><td>${c.bell}回 (${getP(c.bell,c.g)})</td></tr>
+            <tr><th>BIG：スイカ</th><td>${c.suika}回 (${getP(c.suika,c.b*24)})</td></tr>
+            <tr><th>BIG：筐体ランプ</th><td class="lamp-detail">${mkLampD(data.lamps.big)}</td></tr>
+            <tr><th>REG：サイドランプ</th><td class="lamp-detail">${mkLampD(data.lamps.regS)}</td></tr>
+            <tr><th>REG：筐体ランプ</th><td class="lamp-detail">${mkLampD(data.lamps.regT)}</td></tr>
+            <tr><th>レトロサウンド</th><td>${c.retro}回 (${c.retro}/${c.retro_d})</td></tr>
+            <tr><th>BIG：純ハズレ</th><td>${c.hazure}回 (${getP(c.hazure,c.b*24)})</td></tr>
         `;
     }
 
+    // 起動
     window.onload = init;
 </script>
 </body>
