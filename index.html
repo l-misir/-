@@ -334,6 +334,299 @@
             <tr><th>REG：筐体ランプ</th><td class="lamp-detail">${lampStr(l.regT)}</td></tr>
             <tr><th>レトロサウンド</th><td>${c.retro}回 (${c.retro}/${c.retro_d})</td></tr>
             <tr><th>BIG：純ハズレ</th><td>${c.hazure}回 ${getProb(c.hazure, c.b*24)}</td></tr>
+        `;<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>HANA Counter Final Edition</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --cell-bg: #444444;
+            --grid-line: #111111;
+            --text-white: #ffffff;
+            --lamp-blue: #33aaff;
+            --lamp-yellow: #ffdd44;
+            --lamp-green: #44ff44;
+            --lamp-red: #ff4444;
+        }
+
+        html, body {
+            background: var(--bg-color); color: var(--text-white);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0; padding: 0; -webkit-text-size-adjust: 100%;
+            user-select: none; -webkit-user-select: none;
+            touch-action: pan-y;
+        }
+
+        /* 虹色テキスト設定 */
+        .rainbow {
+            background: linear-gradient(to right, #ff2222, #ffee22, #22ff22, #22ffff, #2222ff, #ff22ff, #ff2222);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+            display: inline-block;
+            animation: rainbow_move 3s linear infinite;
+        }
+        @keyframes rainbow_move { to { background-position: 200% center; } }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 15px; background: #000; position: sticky; top: 0; z-index: 100;
+        }
+        .header-icon { font-size: 20px; padding: 5px; cursor: pointer; color: white; }
+        .header-title { font-size: 16px; font-weight: bold; border-bottom: 2px solid white; }
+
+        .container { padding: 5px 10px 60px 10px; }
+        /* タイトルの余白を極小に */
+        .section-title { text-align: center; margin: 8px 0 3px; font-size: 12px; color: var(--text-white); font-weight: bold; }
+
+        .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 8px; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        
+        /* セルの高さを圧縮 */
+        .cell {
+            background: var(--cell-bg); padding: 8px 2px; text-align: center;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 42px;
+        }
+        .label { font-size: 11px; color: var(--text-white); margin-bottom: 2px; pointer-events: none; }
+        .value { font-size: 22px; font-weight: bold; line-height: 1; pointer-events: none; }
+
+        /* タップ動作 */
+        .touch-active { background: #666 !important; }
+        .minus-mode { background: #880000 !important; }
+
+        .val-input {
+            width: 100%; background: transparent; color: white; border: none;
+            text-align: center; font-size: 22px; font-weight: bold; outline: none;
+        }
+
+        /* モーダル */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10,10,10,0.98); z-index: 200; overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #000; }
+        .close-btn { font-size: 24px; color: white; }
+        .modal-body { padding: 10px 15px 40px; max-width: 600px; margin: 0 auto; }
+
+        .switch-btn { width: 100%; padding: 12px; background: #333; color: #fff; border: 1px solid #555; margin-bottom: 15px; }
+        .machine-select { width: 100%; padding: 12px; background: #333; color: #fff; border: 1px solid #555; margin-bottom: 15px; font-size: 16px; }
+
+        /* 詳細テーブル（文字色白） */
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; color: white; }
+        .detail-table th { background: #222; text-align: left; padding: 8px; border-bottom: 1px solid #444; font-weight: normal; }
+        .detail-table td { padding: 8px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; }
+        .lamp-detail { font-size: 11px; }
+        .lamp-detail span { margin-left: 4px; }
+        .white-text { color: white !important; }
+
+        /* 推測バー */
+        .bar-row { display: flex; align-items: center; margin: 10px 0; font-size: 13px; color: white; }
+        .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 10px; }
+        .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.4s; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-icon" onclick="openModal('predict-modal')">🔍</div>
+    <div class="header-title" id="disp-machine">キングハナハナ</div>
+    <div class="header-icon" onclick="openModal('setting-modal')">⚙️</div>
+</div>
+
+<div class="container" id="main-ui">
+    </div>
+
+<div id="setting-modal" class="modal">
+    <div class="modal-header">
+        <div style="width:24px;"></div><div style="font-weight:bold;">設定</div>
+        <div class="close-btn" onclick="closeModal('setting-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="section-title">＜機種選択＞</p>
+        <select id="machine-select" class="machine-select" onchange="updateMachine()">
+            <option value="king">キングハナハナ</option>
+            <option value="new">ニューキングハナハナ</option>
+        </select>
+        <p class="section-title">＜入力切り替え＞</p>
+        <button id="mode-toggle" class="switch-btn" onclick="toggleMode()">カウンター入力</button>
+        <p class="section-title">＜打ち始め＞</p>
+        <div class="grid grid-3">
+            <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()"></div>
+            <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()"></div>
+            <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()"></div>
+        </div>
+        <button onclick="closeModal('setting-modal')" style="width:100%; padding:15px; background:transparent; color:#0f0; border:1px solid #0f0; margin-top:10px;">データ保存</button>
+        <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:15px;">リセット</button>
+    </div>
+</div>
+
+<div id="predict-modal" class="modal">
+    <div class="modal-header">
+        <div style="width:24px;"></div><div style="font-weight:bold;">推測</div>
+        <div class="close-btn" onclick="closeModal('predict-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="section-title">＜推測設定＞</p>
+        <div id="predict-bars"></div>
+        <p class="section-title" style="margin-top:20px;">＜詳細＞</p>
+        <table class="detail-table" id="detail-rows"></table>
+    </div>
+</div>
+
+<script>
+    let data = JSON.parse(localStorage.getItem('hana_v4_data')) || {
+        machine: 'king', mode: 'tap',
+        start: { g:0, b:0, r:0 },
+        cur: { g:0, b:0, r:0, bell:0, suika:0, hazure:0, retro_d:0, retro:0 },
+        lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] }
+    };
+
+    const PARAMS = {
+        king: { b:[292,282,273,264,252,234], r:[489,455,422,399,368,336], bell:[7.2,7.15,7.1,7.05,7,6.7] }
+    };
+
+    function init() {
+        document.getElementById('machine-select').value = data.machine;
+        document.getElementById('start-g').value = data.start.g;
+        document.getElementById('start-b').value = data.start.b;
+        document.getElementById('start-r').value = data.start.r;
+        updateView();
+    }
+
+    function saveStart() {
+        data.start.g = Number(document.getElementById('start-g').value);
+        data.start.b = Number(document.getElementById('start-b').value);
+        data.start.r = Number(document.getElementById('start-r').value);
+        save();
+    }
+
+    function save() {
+        localStorage.setItem('hana_v4_data', JSON.stringify(data));
+        updateView();
+    }
+
+    function updateMachine() { data.machine = document.getElementById('machine-select').value; save(); }
+    function toggleMode() { data.mode = (data.mode === 'tap' ? 'input' : 'tap'); save(); }
+
+    function updateView() {
+        document.getElementById('disp-machine').innerText = (data.machine === 'king' ? 'キングハナハナ' : 'ニューキングハナハナ');
+        document.getElementById('mode-toggle').innerText = (data.mode === 'tap' ? 'カウンター入力' : '数値入力');
+        renderMain();
+    }
+
+    function renderMain() {
+        const c = data.cur; const s = data.start;
+        const html = `
+            <p class="section-title">＜打ち始め＞</p>
+            <div class="grid grid-3">
+                <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+            </div>
+            <p class="section-title">＜現在＞</p>
+            <div class="grid grid-3">${mkC('g','ゲーム数',c.g,50)}${mkC('b','BIG',c.b)}${mkC('r','REG',c.r)}</div>
+            <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
+            <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
+            <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
+            <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
+            <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
+            <p class="section-title">＜レトロサウンド＞</p>
+            <div class="grid grid-2">${mkC('retro_d','発生条件達成',c.retro_d)}${mkC('retro','発生回数',c.retro)}</div>
+            <p class="section-title">＜BIG：純ハズレ＞</p><div class="grid">${mkC('hazure','',c.hazure)}</div>
+        `;
+        document.getElementById('main-ui').innerHTML = html;
+        if(data.mode === 'tap') attachEvents();
+    }
+
+    function mkC(id, label, val, step=1) {
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();"></div>`;
+        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+    }
+    function mkL(type) {
+        const labs = ['青','黄','緑','赤','虹'];
+        const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
+        return labs.map((l, i) => {
+            const val = data.lamps[type][i];
+            const colorClass = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i]}"`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${colorClass}>${l}</div><input type="number" class="val-input" value="${val}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();"></div>`;
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${colorClass}>${l}</div><div class="value">${val}</div></div>`;
+        }).join('');
+    }
+
+    function attachEvents() {
+        document.querySelectorAll('.cell').forEach(el => {
+            if(!el.classList.contains('t-btn') && !el.classList.contains('t-lamp')) return;
+            let startY, isScroll, timer;
+            el.ontouchstart = (e) => {
+                startY = e.touches[0].clientY; isScroll = false;
+                el.classList.add('touch-active');
+                timer = setTimeout(() => { if(!isScroll) el.classList.add('minus-mode'); }, 500);
+            };
+            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY - startY) > 10) { isScroll = true; el.classList.remove('touch-active','minus-mode'); clearTimeout(timer); } };
+            el.ontouchend = () => {
+                clearTimeout(timer);
+                if(isScroll) return;
+                const isM = el.classList.contains('minus-mode');
+                const step = Number(el.dataset.step || 1) * (isM ? -1 : 1);
+                if(el.dataset.id) data.cur[el.dataset.id] += step;
+                else data.lamps[el.dataset.type][el.dataset.idx] += step;
+                el.classList.remove('touch-active','minus-mode');
+                save();
+            };
+        });
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'block'; if(id==='predict-modal') calc(); }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function resetAll() { if(confirm("全データをリセットしますか？")) { localStorage.clear(); location.reload(); } }
+
+    function getP(n, d) { return (n<=0 || d<=0) ? "0/0" : `1/${(d/n).toFixed(1)}`; }
+
+    function calc() {
+        const c = data.cur; const s = data.start;
+        const tg = s.g + c.g; const tb = s.b + c.b; const tr = s.r + c.r;
+        
+        let likeli = [1,1,1,1,1,1]; const p = PARAMS[data.machine];
+        for(let i=0; i<6; i++) {
+            if(c.g>0) {
+                likeli[i] *= Math.pow(1/p.b[i], c.b) * Math.pow(1-1/p.b[i], c.g-c.b);
+                likeli[i] *= Math.pow(1/p.r[i], c.r) * Math.pow(1-1/p.r[i], c.g-c.r);
+                likeli[i] *= Math.pow(1/p.bell[i], c.bell) * Math.pow(1-1/p.bell[i], c.g-c.bell);
+            }
+        }
+        const sum = likeli.reduce((a,b)=>a+b,0) || 1;
+        const probs = likeli.map(v=>(v/sum)*100);
+        const max = Math.max(...probs) || 1;
+
+        document.getElementById('predict-bars').innerHTML = probs.map((v,i)=>`
+            <div class="bar-row"><div>設定${i+1}</div><div class="bar-bg"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div><div style="width:40px; text-align:right;">${v.toFixed(1)}%</div></div>
+        `).join('');
+
+        const mkLampDetail = (arr) => {
+            const labs = ['青','黄','緑','赤','虹'];
+            const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
+            return arr.map((v, i) => `<span class="${cols[i]==='rainbow'?'rainbow':''}" style="${cols[i]!=='rainbow'?'color:'+cols[i]:''}">${labs[i]}</span><span class="white-text">:${v}</span>`).join(' ');
+        };
+
+        document.getElementById('detail-rows').innerHTML = `
+            <tr><th>通常時回転数</th><td>${tg}回転</td></tr>
+            <tr><th>ボーナス回転数</th><td>${tb+tr}回転</td></tr>
+            <tr><th>BIG回数</th><td>${tb}回 (${getP(tb,tg)})</td></tr>
+            <tr><th>REG回数</th><td>${tr}回 (${getP(tr,tg)})</td></tr>
+            <tr><th>通常時：ベル</th><td>${c.bell}回 (${getP(c.bell,c.g)})</td></tr>
+            <tr><th>BIG：スイカ</th><td>${c.suika}回 (${getP(c.suika,c.b*24)})</td></tr>
+            <tr><th>BIG：筐体ランプ</th><td class="lamp-detail">${mkLampDetail(data.lamps.big)}</td></tr>
+            <tr><th>REG：サイドランプ</th><td class="lamp-detail">${mkLampDetail(data.lamps.regS)}</td></tr>
+            <tr><th>REG：筐体ランプ</th><td class="lamp-detail">${mkLampDetail(data.lamps.regT)}</td></tr>
+            <tr><th>レトロサウンド</th><td>${c.retro}回 (${c.retro}/${c.retro_d})</td></tr>
+            <tr><th>BIG：純ハズレ</th><td>${c.hazure}回 (${getP(c.hazure,c.b*24)})</td></tr>
         `;
     }
 
