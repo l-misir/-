@@ -657,44 +657,32 @@
 
     // --- Google Sheets連携 ---
     function saveToSheet() {
-    if(GAS_URL === "" || GAS_URL.includes("https://script.google.com/macros/s/AKfycbw3KRUxUE7OLBs1jfd3_sbc0gYX2Gee507FFOfQEhgH3RV_yVvsiO9k628TOM8BbQXo/exec")) {
-        alert("GASのURLが設定されていません。");
+    if(GAS_URL === "https://script.google.com/macros/s/AKfycbxG7of3ZnUZAEtdGJSm6Mps-gW-MbTKBuBYfKsR5YDMS6-wDU5J9S9QexoQ6Xp5zsNl/exec") {
+        alert("GASのURLが設定されていません。コード内の変数を書き換えてください。");
         return;
     }
-
-    const btn = event.target;
-    btn.innerText = "送信中...";
-    btn.disabled = true;
-
+    
     const payload = {
-        date: new Date().toLocaleString('ja-JP'),
+        date: new Date().toLocaleString(),
         data: data
     };
 
-    // GAS専用の送信設定（no-corsモード）
-    fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'no-cors', // セキュリティ制限を回避する魔法のモード
-        cache: 'no-cache',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    .then(() => {
-        // no-corsモードでは中身の成否が判定できないため、送信できた時点で成功とする
-        alert('送信リクエストを完了しました。\nスプレッドシートを確認してください。');
-        btn.innerText = "データ保存 (GAS)";
-        btn.disabled = false;
-    })
-    .catch(err => {
-        alert('エラーが発生しました: ' + err.message);
-        btn.innerText = "データ保存 (GAS)";
-        btn.disabled = false;
-    });
+    const url = GAS_URL + '?data=' + encodeURIComponent(JSON.stringify(payload));
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(result => {
+            if(result.success) {
+                alert('保存完了: ' + result.message);
+            } else {
+                alert('エラー: ' + result.message);
+            }
+        })
+        .catch(err => {
+            alert('送信エラー: ' + err);
+        });
 }
 
 </script>
 </body>
-
 </html>
-
-
