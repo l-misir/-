@@ -657,46 +657,37 @@
 
     // --- Google Sheets連携 ---
     function saveToSheet() {
-    if(GAS_URL === "https://script.google.com/macros/s/AKfycbw3KRUxUE7OLBs1jfd3_sbc0gYX2Gee507FFOfQEhgH3RV_yVvsiO9k628TOM8BbQXo/exec" || GAS_URL === "") {
+    if(GAS_URL === "" || GAS_URL.includes("https://script.google.com/macros/s/AKfycbw3KRUxUE7OLBs1jfd3_sbc0gYX2Gee507FFOfQEhgH3RV_yVvsiO9k628TOM8BbQXo/exec")) {
         alert("GASのURLが設定されていません。");
         return;
     }
-    
-    // 送信データ作成
+
+    const btn = event.target;
+    btn.innerText = "送信中...";
+    btn.disabled = true;
+
     const payload = {
         date: new Date().toLocaleString('ja-JP'),
         data: data
     };
 
-    // ボタンを無効化して連打防止
-    const btn = event.target;
-    const originalText = btn.innerText;
-    btn.innerText = "送信中...";
-    btn.disabled = true;
-
-    // Google Apps Scriptへ送信 (mode: 'no-cors' を避けて確実にSuccessを受け取る設定)
+    // GAS専用の送信設定（no-corsモード）
     fetch(GAS_URL, {
         method: 'POST',
-        mode: 'cors', // ここをcorsに固定
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'text/plain', // GAS側で受け取りやすい形式
-        },
+        mode: 'no-cors', // セキュリティ制限を回避する魔法のモード
+        cache: 'no-cache',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     })
-    .then(response => {
-        if (response.ok) return response.text();
-        throw new Error('ネットワーク応答が正常ではありません');
-    })
-    .then(txt => {
-        alert('保存完了！スプレッドシートを確認してください。');
-        btn.innerText = originalText;
+    .then(() => {
+        // no-corsモードでは中身の成否が判定できないため、送信できた時点で成功とする
+        alert('送信リクエストを完了しました。\nスプレッドシートを確認してください。');
+        btn.innerText = "データ保存 (GAS)";
         btn.disabled = false;
     })
     .catch(err => {
-        console.error(err);
-        alert('送信失敗。電波の良い場所で試すか、URLを再確認してください。\nエラー内容: ' + err.message);
-        btn.innerText = originalText;
+        alert('エラーが発生しました: ' + err.message);
+        btn.innerText = "データ保存 (GAS)";
         btn.disabled = false;
     });
 }
@@ -705,4 +696,5 @@
 </body>
 
 </html>
+
 
