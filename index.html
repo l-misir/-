@@ -656,33 +656,17 @@
     }
 
     // --- Google Sheets連携 ---
-    function saveToSheet() {
-    if(GAS_URL === "https://script.google.com/macros/s/AKfycbxG7of3ZnUZAEtdGJSm6Mps-gW-MbTKBuBYfKsR5YDMS6-wDU5J9S9QexoQ6Xp5zsNl/exec") {
-        alert("GASのURLが設定されていません。コード内の変数を書き換えてください。");
-        return;
-    }
-    
-    const payload = {
-        date: new Date().toLocaleString(),
-        data: data
-    };
-
-    const url = GAS_URL + '?data=' + encodeURIComponent(JSON.stringify(payload));
-    
-    fetch(url)
-        .then(res => res.json())
-        .then(result => {
-            if(result.success) {
-                alert('保存完了: ' + result.message);
-            } else {
-                alert('エラー: ' + result.message);
-            }
-        })
-        .catch(err => {
-            alert('送信エラー: ' + err);
-        });
+    function testSave() {
+    fetch(GAS_URL === "https://script.google.com/macros/s/AKfycbxG7of3ZnUZAEtdGJSm6Mps-gW-MbTKBuBYfKsR5YDMS6-wDU5J9S9QexoQ6Xp5zsNl/exec", {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({test: 'hello'})
+    })
+    .then(() => alert('送信成功'))
+    .catch(err => alert('エラー: ' + err));
 }
 
 </script>
 </body>
 </html>
+
