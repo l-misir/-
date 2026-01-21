@@ -31,17 +31,7 @@
         .header-title { font-size: 15px; font-weight: bold; border-bottom: 2px solid white; }
         .container { padding: 5px 10px 80px; }
         .main-grid-wrapper { display: flex; flex-direction: column; }
-        /* 修正: landscape時の表示崩れを防ぎ、画面いっぱいに広げる */
-        #main-ui { display: flex; flex-direction: column; width: 100%; }
-        @media (orientation: landscape) { 
-            #main-ui { 
-                display: grid; 
-                grid-template-columns: 1fr 1fr; 
-                gap: 15px; 
-                align-items: start; 
-            } 
-        }
-        .main-column { display: flex; flex-direction: column; width: 100%; }
+        @media (orientation: landscape) { .main-grid-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: start; } }
         .section-title {text-align: center; margin: 6px 0 2px; font-size: 11px !important; font-weight: bold; line-height: 1.2; transform: translateZ(0);}
         .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 5px; }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
@@ -209,40 +199,97 @@
     }
 
     function renderMain() {
-        const c = data.cur; const s = data.start;
-        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
-        
-        // 内容を2つの div (main-column) で囲むことで、横画面時に左右に分かれます
-        const html = `
-            <div class="main-column">
-                <p class="section-title">＜打ち始め＞</p>
-                <div class="grid grid-3">
-                    <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
-                    <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
-                    <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-                </div>
-                <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
-                <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
-                
-                <p class="section-title">＜レトロサウンド＞</p>
-                <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
-                
-                <p class="section-title">＜BIG：純ハズレ＞</p>
-                <div class="grid">${mkC('jyun','',c.jyun)}</div>
-            </div>
-            
-            <div class="main-column">
-                <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
-                <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
-                
-                <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
-                <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
-                <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
-            </div>
+      const c = data.cur;
+      const s = data.start;
+
+      const isLandscape = window.innerWidth > window.innerHeight;
+
+      const vG = data.viewMode === 'total' ? c.g : Math.max(0, c.g - s.g);
+      const vB = data.viewMode === 'total' ? c.b : Math.max(0, c.b - s.b);
+      const vR = data.viewMode === 'total' ? c.r : Math.max(0, c.r - s.r);
+
+      let html = "";
+
+      if (!isLandscape) {
+        html = `
+          <p class="section-title">＜打ち始め＞</p>
+          <div class="grid grid-3">
+            <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+            <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+            <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+          </div>
+
+          <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
+          <div class="grid grid-3">
+            ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
+          </div>
+
+          <p class="section-title">＜通常時：ベル＞</p>
+          <div class="grid">${mkC('bell','',c.bell)}</div>
+
+          <p class="section-title">＜BIG：スイカ＞</p>
+          <div class="grid">${mkC('suika','',c.suika)}</div>
+
+          <p class="section-title">＜BIG：レトロサウンド＞</p>
+          <div class="grid grid-2">
+            ${mkC('retro_d','条件達成',c.retro_d)}
+            ${mkC('retro','発生',c.retro)}
+          </div>
+
+          <p class="section-title">＜BIG：筐体ランプ＞</p>
+          <div class="grid grid-5">${mkL('big')}</div>
+
+          <p class="section-title">＜REG：サイドランプ＞</p>
+          <div class="grid grid-5">${mkL('regS')}</div>
+
+          <p class="section-title">＜REG：筐体ランプ＞</p>
+          <div class="grid grid-5">${mkL('regT')}</div>
         `;
-        document.getElementById('main-ui').innerHTML = html;
-        if(data.mode === 'tap') attachEvents();
-        updateHeader();
+      } 
+      else {
+        html = `
+          <div class="main-grid-wrapper">
+            <div>
+              <p class="section-title">＜打ち始め＞</p>
+              <div class="grid grid-3">
+                <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+              </div>
+
+              <p class="section-title">＜通常時：ベル＞</p>
+              <div class="grid">${mkC('bell','',c.bell)}</div>
+
+              <p class="section-title">＜BIG：レトロサウンド＞</p>
+              <div class="grid grid-2">
+                ${mkC('retro_d','条件達成',c.retro_d)}
+                ${mkC('retro','発生',c.retro)}
+              </div>
+
+              <p class="section-title">＜REG：サイドランプ＞</p>
+              <div class="grid grid-5">${mkL('regS')}</div>
+            </div>
+
+            <div>
+              <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
+              <div class="grid grid-3">
+                ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
+              </div>
+
+              <p class="section-title">＜BIG：スイカ＞</p>
+              <div class="grid">${mkC('suika','',c.suika)}</div>
+
+              <p class="section-title">＜BIG：筐体ランプ＞</p>
+              <div class="grid grid-5">${mkL('big')}</div>
+
+              <p class="section-title">＜REG：筐体ランプ＞</p>
+              <div class="grid grid-5">${mkL('regT')}</div>
+            </div>
+          </div>
+        `;
+      }
+      document.getElementById('main-ui').innerHTML = html;
+      if(data.mode === 'tap') attachEvents();
     }
 
     function mkC(id, label, val, step=1) {
