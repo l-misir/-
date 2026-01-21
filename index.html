@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V13</title>
+    <title>HANA Counter V14</title>
     <style>
         :root {
             --bg-color: #1a1a1a; --cell-bg: #444444; --grid-line: #111111;
@@ -22,20 +22,24 @@
             -webkit-text-fill-color: transparent; font-weight: bold; animation: rainbow_move 3s linear infinite;
         }
         @keyframes rainbow_move { to { background-position: 200% center; } }
+        
+        /* ヘッダーのコンパクト化 */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 15px; background: #000; position: sticky; top: 0; z-index: 100;
+            padding: 4px 12px; /* パディング縮小 */
+            background: #000; position: sticky; top: 0; z-index: 100;
             border-bottom: 1px solid #333;
+            height: 40px; box-sizing: border-box;
         }
-        .header-icon { font-size: 22px; cursor: pointer; color: white; padding: 5px; }
-        .header-title { font-size: 15px; font-weight: bold; border-bottom: 2px solid white; }
+        .header-icon { font-size: 20px; cursor: pointer; color: white; padding: 5px; }
+        .header-title { font-size: 14px; font-weight: bold; border-bottom: 2px solid white; }
+        
         .container { padding: 5px 10px 80px; width: 100%; box-sizing: border-box; }
 
         /* レイアウト制御 (CSS Grid) */
         .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
         .col-left, .col-right { display: flex; flex-direction: column; width: 100%; }
         
-        /* 横画面時のみ2列にする */
         @media (orientation: landscape) {
             .main-layout {
                 display: grid;
@@ -58,10 +62,34 @@
         .selected-lamp { border: 2px solid #fff; background: #666; }
         .active-mode { background: var(--active-btn) !important; color: white; }
         .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
+        
+        /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; }
         .modal.active { display: flex; }
-        .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #000; border-bottom: 1px solid #333; }
+        
+        /* モーダルヘッダーもコンパクトに */
+        .modal-header { 
+            flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; 
+            padding: 4px 12px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box;
+        }
         .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 40px; }
+
+        /* 横画面時のモーダル内調整（文字サイズ・余白縮小） */
+        @media (orientation: landscape) {
+            .modal-body { padding: 5px 15px 20px; }
+            .modal-body .section-title { margin: 4px 0 1px; font-size: 10px; }
+            .modal-body .cell { min-height: 30px; padding: 2px; }
+            .modal-body .value { font-size: 16px; }
+            .modal-body .label { font-size: 9px; }
+            .modal-body .val-input { font-size: 16px; }
+            .modal-body button { padding: 8px; margin-top: 10px; font-size: 12px; }
+            .detail-table th, .detail-table td { padding: 6px 4px; font-size: 11px; }
+            .bar-row { margin: 2px 0; font-size: 11px; }
+            .bar-bg { height: 8px; }
+            .expect-box { padding: 5px; margin-bottom: 8px; }
+            .expect-row { font-size: 11px; margin-bottom: 2px; }
+        }
+
         .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
         .bar-label { width: 40px; }
         .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
@@ -77,6 +105,8 @@
         .sub-graph-row.open { display: table-row; }
         .white-txt { color: #fff !important; font-weight: normal; }
         .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
+        
+        select { color: white; }
     </style>
 </head>
 <body>
@@ -97,15 +127,22 @@
         <div class="header-icon" onclick="closeModal('setting-modal')">✕</div>
     </div>
     <div class="modal-body">
+        <p class="section-title">＜機種選択＞</p>
+        <div class="grid">
+            <select class="val-input" style="background:#333; padding:5px;" id="machine-select" onchange="updateMachine()">
+                <option value="king">キングハナハナ</option>
+                <option value="newking">ニューキングハナハナ(予定)</option>
+            </select>
+        </div>
         <p class="section-title">＜表示・出力データ＞</p>
         <div class="grid grid-2">
-            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label" style="font-size:14px; color:white;">個人</div></div>
-            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label" style="font-size:14px; color:white;">全て</div></div>
+            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label">個人</div></div>
+            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label">全て</div></div>
         </div>
         <p class="section-title">＜入力モード＞</p>
         <div class="grid grid-2">
-            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label" style="font-size:14px; color:white;">タップ</div></div>
-            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label" style="font-size:14px; color:white;">数値入力</div></div>
+            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label">タップ</div></div>
+            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label">数値入力</div></div>
         </div>
         <p class="section-title">＜打ち始めデータ＞</p>
         <div class="grid grid-3">
@@ -116,7 +153,7 @@
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
         <button onclick="exportData()" class="export-btn">データ出力(コピー)</button>
-        <button onclick="resetAll()" style="width:100%; padding:10px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px;">全リセット</button>
+        <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px; font-weight:bold;">リセット</button>
     </div>
 </div>
 
@@ -127,7 +164,7 @@
     </div>
     <div class="modal-body">
         <p class="section-title">＜設定推測＞</p>
-        <div id="predict-bars" style="margin-bottom:15px;"></div>
+        <div id="predict-bars" style="background:#222; padding:10px; border-radius:5px;"></div>
         <p class="section-title">＜期待値＞</p>
         <div class="expect-box" id="expect-info"></div>
         <p class="section-title">＜詳細データ (タップで個別推測)＞</p>
@@ -145,32 +182,41 @@
     };
 
     const PAYOUT = [97.0, 99.0, 101.0, 104.0, 107.0, 110.0];
-    const PARAMS = {
-        b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
-        r: [489.1, 451.9, 417.4, 385.5, 352.3, 332.7],
-        gassan: [183.1, 173.8, 165.1, 156.0, 144.5, 136.2],
-        bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
-        suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
-        retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
-        lampB: [
-            [0.40, 0.30, 0.20, 0.08, 0.02], [0.35, 0.30, 0.22, 0.10, 0.03], [0.30, 0.28, 0.25, 0.12, 0.05],
-            [0.25, 0.25, 0.30, 0.14, 0.06], [0.20, 0.22, 0.35, 0.16, 0.07], [0.15, 0.18, 0.40, 0.18, 0.09]
-        ],
-        sideR: [
-            [0.60, 0.30, 0.08, 0.015, 0.005], [0.30, 0.60, 0.05, 0.040, 0.01], [0.50, 0.25, 0.20, 0.040, 0.01],
-            [0.25, 0.50, 0.15, 0.080, 0.02], [0.40, 0.20, 0.30, 0.070, 0.03], [0.25, 0.25, 0.25, 0.15, 0.10]
-        ]
+    
+    // 機種ごとのパラメーター定義（現在はnewkingはkingのコピー。後で数値を書き換えればOK）
+    const ALL_PARAMS = {
+        king: {
+            b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
+            r: [489.1, 451.9, 417.4, 385.5, 352.3, 332.7],
+            gassan: [183.1, 173.8, 165.1, 156.0, 144.5, 136.2],
+            bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
+            suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
+            retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
+            lampB: [[0.4,0.3,0.2,0.08,0.02],[0.35,0.3,0.22,0.1,0.03],[0.3,0.28,0.25,0.12,0.05],[0.25,0.25,0.3,0.14,0.06],[0.2,0.22,0.35,0.16,0.07],[0.15,0.18,0.4,0.18,0.09]],
+            sideR: [[0.6,0.3,0.08,0.015,0.005],[0.3,0.6,0.05,0.04,0.01],[0.5,0.25,0.2,0.04,0.01],[0.25,0.5,0.15,0.08,0.02],[0.4,0.2,0.3,0.07,0.03],[0.25,0.25,0.25,0.15,0.1]]
+        },
+        newking: {
+            // 土台としてキングと同じ値をセット。実装時に書き換えてください。
+            b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
+            r: [489.1, 451.9, 417.4, 385.5, 352.3, 332.7],
+            gassan: [183.1, 173.8, 165.1, 156.0, 144.5, 136.2],
+            bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
+            suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
+            retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
+            lampB: [[0.4,0.3,0.2,0.08,0.02],[0.35,0.3,0.22,0.1,0.03],[0.3,0.28,0.25,0.12,0.05],[0.25,0.25,0.3,0.14,0.06],[0.2,0.22,0.35,0.16,0.07],[0.15,0.18,0.4,0.18,0.09]],
+            sideR: [[0.6,0.3,0.08,0.015,0.005],[0.3,0.6,0.05,0.04,0.01],[0.5,0.25,0.2,0.04,0.01],[0.25,0.5,0.15,0.08,0.02],[0.4,0.2,0.3,0.07,0.03],[0.25,0.25,0.25,0.15,0.1]]
+        }
     };
 
     let data = loadData();
 
     function loadData() {
         try {
-            const saved = localStorage.getItem('hana_v13_data');
+            const saved = localStorage.getItem('hana_v14_data');
             let d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
-            // データの整合性チェック（欠損キーの補完）
             if(!d.lamps) d.lamps = JSON.parse(JSON.stringify(DEFAULTS.lamps));
             if(!d.cur) d.cur = JSON.parse(JSON.stringify(DEFAULTS.cur));
+            if(!d.machine) d.machine = 'king'; // 新規項目
             if(d.cur.retro_d === undefined) d.cur.retro_d = 0;
             return d;
         } catch(e) {
@@ -178,14 +224,15 @@
         }
     }
 
-    function save() { localStorage.setItem('hana_v13_data', JSON.stringify(data)); renderMain(); }
+    function save() { localStorage.setItem('hana_v14_data', JSON.stringify(data)); renderMain(); }
     
     function init() {
         document.getElementById('start-g').value = data.start.g;
         document.getElementById('start-b').value = data.start.b;
         document.getElementById('start-r').value = data.start.r;
+        document.getElementById('machine-select').value = data.machine || 'king';
         renderMorningSelector();
-        renderMain(); // 初期表示で必ずメイン画面を描画
+        renderMain(); // 確実に描画
     }
 
     function getVal(key) { return (data.viewMode === 'total' && data.start[key] !== undefined) ? data.cur[key] + data.start[key] : data.cur[key]; }
@@ -202,8 +249,9 @@
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
     function setMorning(val) { data.morning = (data.morning === val) ? -1 : val; save(); renderMorningSelector(); }
-    function setViewMode(m) { data.viewMode = m; save(); }
-    function setInputMode(m) { data.mode = m; save(); }
+    function setViewMode(m) { data.viewMode = m; save(); updateHeader(); }
+    function setInputMode(m) { data.mode = m; save(); updateHeader(); }
+    function updateMachine() { data.machine = document.getElementById('machine-select').value; save(); updateHeader(); }
     function saveStart() {
         data.start.g = Number(document.getElementById('start-g').value) || 0;
         data.start.b = Number(document.getElementById('start-b').value) || 0;
@@ -211,12 +259,10 @@
         save();
     }
 
-    // 画面描画（最優先）
     function renderMain() {
         const c = data.cur; const s = data.start;
         const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         
-        // CSS Gridによる横画面自動対応レイアウト
         const html = `
         <div class="main-layout">
             <div class="col-left">
@@ -251,10 +297,7 @@
         if(data.mode === 'tap') attachEvents();
         updateHeader();
         
-        // 計算は描画後に行う（エラーで止まるのを防ぐ）
-        try {
-            setTimeout(calc, 0);
-        } catch(e) { console.error(e); }
+        try { setTimeout(calc, 0); } catch(e) {}
     }
 
     function mkC(id, label, val, step=1) {
@@ -274,7 +317,9 @@
     }
 
     function updateHeader() {
-        document.getElementById('disp-machine').innerText = "キングハナハナ";
+        const machineNames = {king: "キングハナハナ", newking: "ニューキング(予)"};
+        document.getElementById('disp-machine').innerText = machineNames[data.machine] || "キングハナハナ";
+        
         document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
         document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
@@ -336,11 +381,12 @@
 
     function calc() {
         const c = data.cur; const s = data.start;
-        // 個人データの算出
-        const actG = Math.max(0, c.g - (c.b * 20 + c.r * 10)); // 通常時回転数
-        const actB = c.b; // BIG回数
+        // 機種データ取得
+        const PARAMS = ALL_PARAMS[data.machine] || ALL_PARAMS.king;
+
+        const actG = Math.max(0, c.g - (c.b * 20 + c.r * 10)); 
+        const actB = c.b; 
         
-        // BIG/REG/合算の確率計算用
         let calcG, calcB, calcR;
         if (data.viewMode === 'personal') {
             calcG = Math.max(0, c.g - s.g);
@@ -363,7 +409,6 @@
         const lBigL = calcMultiLikelihood(bigLamps, PARAMS.lampB);
         const lSidL = calcMultiLikelihood(data.lamps.regS, PARAMS.sideR);
 
-        // REG筐体ランプ濃厚フィルタ
         let lRegL = [1,1,1,1,1,1];
         const t = data.lamps.regT;
         if(t[4] > 0) lRegL = [0,0,0,0,0,1];
@@ -380,7 +425,6 @@
         let expSet = 0; pcts.forEach((p, i) => expSet += p * (i+1));
         const expRate = pcts.reduce((a, b, i) => a + (b * PAYOUT[i]), 0);
         
-        // 期待獲得枚数
         const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         const diff = (vG * 3) * (expRate/100 - 1);
 
@@ -432,7 +476,7 @@
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v13_data'); location.reload(); } }
+    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v14_data'); location.reload(); } }
 
     window.onload = init;
 </script>
