@@ -304,16 +304,33 @@
 
     function calc() {
         const c = data.cur;
+        const s = data.start;
         let bigLamps = [...data.lamps.big]; if(data.morning >= 1) bigLamps[data.morning-1]++;
 
-        const lB = calcLikelihood(c.g, c.b, PARAMS.b);
-        const lR = calcLikelihood(c.g, c.r, PARAMS.r);
-        const lG = calcLikelihood(c.g, c.b + c.r, PARAMS.gassan);
-        const lBell = calcLikelihood(c.g, c.bell, PARAMS.bell);
-        const lSui = calcLikelihood(c.b * 20, c.suika, PARAMS.suika);
+        // BIG/REG/合算の確率計算用データ（表示モードで変わる）
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            // 個人モード：打ち始めを引いた値で計算
+            calcG = Math.max(0, c.g - s.g);
+            calcB = Math.max(0, c.b - s.b);
+            calcR = Math.max(0, c.r - s.r);
+        } else {
+            // 全てモード：現在値そのまま
+            calcG = c.g;
+            calcB = c.b;
+            calcR = c.r;
+        }
+        
+        // その他の項目は常に個人の実データで計算
+        const actualG = c.g; // 通常時回転数
+        const actualB = c.b; // BIG回数
+        
+        const lB = calcLikelihood(calcG, calcB, PARAMS.b);
+        const lR = calcLikelihood(calcG, calcR, PARAMS.r);
+        const lG = calcLikelihood(calcG, calcB + calcR, PARAMS.gassan);
+        const lBell = calcLikelihood(actualG, c.bell, PARAMS.bell);
+        const lSui = calcLikelihood(actualB * 20, c.suika, PARAMS.suika);
         const lRet = calcLikelihood(c.retro_d, c.retro, PARAMS.retro);
-        const lBigL = calcMultiLikelihood(bigLamps, PARAMS.lampB);
-        const lSidL = calcMultiLikelihood(data.lamps.regS, PARAMS.sideR);
         
         // REG筐体ランプ演出フィルタ
         let lRegL = [1,1,1,1,1,1];
