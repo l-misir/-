@@ -78,6 +78,10 @@
     <div class="main-grid-wrapper" id="main-ui"></div>
 </div>
 
+<div id="main-area">
+</div>
+
+
 <div id="setting-modal" class="modal">
     <div class="modal-header">
         <div style="width:24px;"></div><div style="font-weight:bold; color:white;">設定</div>
@@ -217,7 +221,7 @@
       const c = data.current;
       const s = data.start;
 
-      const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+      const isLandscape = window.innerWidth > window.innerHeight;
 
       const vG = data.viewMode === 'total' ? c.g : Math.max(0, c.g - s.g);
       const vB = data.viewMode === 'total' ? c.b : Math.max(0, c.b - s.b);
@@ -226,7 +230,6 @@
       let html = "";
 
       if (!isLandscape) {
-        // ===== 縦画面 =====
         html = `
           <p class="section-title">＜打ち始め＞</p>
           <div class="grid grid-3">
@@ -235,7 +238,7 @@
             <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
           </div>
 
-          <p class="section-title">＜現在＞</p>
+          <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
           <div class="grid grid-3">
             ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
           </div>
@@ -262,7 +265,6 @@
           <div class="grid grid-5">${mkL('regT')}</div>
         `;
       } else {
-        // ===== 横画面 =====
         html = `
           <div class="main-grid-wrapper">
             <div>
@@ -305,7 +307,12 @@
         `;
       }
 
-      document.getElementById("main-area").innerHTML = html;
+      const el = document.getElementById("main-area");
+      if (!el) {
+        console.error("main-area が見つかりません");
+        return;
+      }
+      el.innerHTML = html;
     }
 
     function attachEvents() {
