@@ -78,10 +78,6 @@
     <div class="main-grid-wrapper" id="main-ui"></div>
 </div>
 
-<div id="main-area">
-</div>
-
-
 <div id="setting-modal" class="modal">
     <div class="modal-header">
         <div style="width:24px;"></div><div style="font-weight:bold; color:white;">設定</div>
@@ -306,13 +302,8 @@
           </div>
         `;
       }
-
-      const el = document.getElementById("main-area");
-      if (!el) {
-        console.error("main-area が見つかりません");
-        return;
-      }
-      el.innerHTML = html;
+      document.getElementById('main-ui').innerHTML = html;
+      if(data.mode === 'tap') attachEvents();
     }
 
     function attachEvents() {
