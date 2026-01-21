@@ -32,7 +32,7 @@
         .container { padding: 5px 10px 80px; }
         .main-grid-wrapper { display: flex; flex-direction: column; }
         @media (orientation: landscape) { .main-grid-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; } }
-        .section-title { text-align: center; margin: 6px 0 2px; font-size: 11px; font-weight: bold; }
+        .section-title {text-align: center; margin: 6px 0 2px; font-size: 11px !important; font-weight: bold; line-height: 1.2;}
         .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 5px; }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
@@ -376,8 +376,8 @@
             { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:lB },
             { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG)})</span>`, l:lR },
             { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG)})</span>`, l:lG },
-            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, normalG)})</span>`, l:lBell },
-            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, bigGameG)})</span>`, l:lSui },
+            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actualG)})</span>`, l:lBell },
+            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actualB)})</span>`, l:lSui },
             { id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps), l:lBigL },
             { id:'sl', lab:'REG：サイドランプ', val:mkLmpT(data.lamps.regS), l:lSidL },
             { id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT), l:lRegL },
@@ -415,6 +415,30 @@
     function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v11_data'); location.reload(); } }
 
     window.onload = init;
+
+    window.addEventListener("orientationchange", () => {
+        setTimeout(() => {
+            updateView();
+
+            const pm = document.getElementById("predict-modal");
+            if (pm && pm.classList.contains("active")) {
+                calc();
+            }
+        }, 300);
+    });
+
+    window.addEventListener("resize", () => {
+        clearTimeout(window.__rzTimer);
+        window.__rzTimer = setTimeout(() => {
+            updateView();
+
+            const pm = document.getElementById("predict-modal");
+            if (pm && pm.classList.contains("active")) {
+                calc();
+            }
+        }, 300);
+    });
+
 </script>
 </body>
 </html>
