@@ -199,6 +199,9 @@
     }
 
     function renderMain() {
+      const c = data.current;
+      const s = data.start;
+
       const isLandscape = window.matchMedia("(orientation: landscape)").matches;
 
       const vG = data.viewMode === 'total' ? c.g : Math.max(0, c.g - s.g);
