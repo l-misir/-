@@ -167,7 +167,7 @@
     }
 
     function updateView() {
-        document.getElementById('disp-machine').innerText = "キングハナハナ系";
+        document.getElementById('disp-machine').innerText = "キングハナハナ";
         document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
         document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
@@ -438,10 +438,10 @@
             { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG)})</span>`, l:lG },
             { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actualG)})</span>`, l:lBell },
             { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actualB)})</span>`, l:lSui },
+            { id:'ret', lab:'BIG：レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet },
             { id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps), l:lBigL },
             { id:'sl', lab:'REG：サイドランプ', val:mkLmpT(data.lamps.regS), l:lSidL },
             { id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT), l:lRegL },
-            { id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet }
         ];
         document.getElementById('detail-rows').innerHTML = rows.map(r => `
             <tr onclick="toggleGraph('${r.id}')"><th>${r.lab}</th><td>${r.val}</td></tr>
