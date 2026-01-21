@@ -265,7 +265,7 @@
       else {
         html = `
           <div class="main-grid-wrapper">
-            <div>
+            <div style="width:100%">
               <p class="section-title">＜打ち始め＞</p>
               <div class="grid grid-3">
                 <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
@@ -286,7 +286,7 @@
               <div class="grid grid-5">${mkL('regS')}</div>
             </div>
 
-            <div>
+            <div style="width:100%">
               <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
               <div class="grid grid-3">
                 ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
