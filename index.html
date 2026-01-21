@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V10</title>
+    <title>HANA Counter V11</title>
     <style>
         :root {
             --bg-color: #1a1a1a; --cell-bg: #444444; --grid-line: #111111;
@@ -53,7 +53,7 @@
         .bar-label { width: 40px; }
         .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
         .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
-        .bar-val { width: 45px; text-align: right; }
+        .bar-val { width: 45px; text-align: right; font-variant-numeric: tabular-nums; }
         .expect-box { background: #222; padding: 10px; border: 1px solid #444; margin-bottom: 15px; }
         .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
         .expect-val { font-weight: bold; color: #0f0; }
@@ -139,41 +139,24 @@
         bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
         suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
         retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
-        // 青, 黄, 緑, 赤, 虹
         lampB: [
-            [0.50, 0.30, 0.15, 0.045, 0.005],
-            [0.45, 0.30, 0.18, 0.060, 0.010],
-            [0.40, 0.30, 0.20, 0.080, 0.020],
-            [0.35, 0.25, 0.25, 0.120, 0.030],
-            [0.30, 0.20, 0.30, 0.150, 0.050],
-            [0.25, 0.20, 0.30, 0.150, 0.100]
+            [0.40, 0.30, 0.20, 0.08, 0.02], [0.35, 0.30, 0.22, 0.10, 0.03], [0.30, 0.28, 0.25, 0.12, 0.05],
+            [0.25, 0.25, 0.30, 0.14, 0.06], [0.20, 0.22, 0.35, 0.16, 0.07], [0.15, 0.18, 0.40, 0.18, 0.09]
         ],
         sideR: [
-            [0.60, 0.30, 0.08, 0.019, 0.001],
-            [0.30, 0.60, 0.05, 0.045, 0.005],
-            [0.50, 0.25, 0.20, 0.040, 0.010],
-            [0.25, 0.50, 0.15, 0.080, 0.020],
-            [0.40, 0.20, 0.30, 0.070, 0.030],
-            [0.20, 0.20, 0.20, 0.200, 0.200]
-        ],
-        lampT: [
-            [0.80, 0.15, 0.04, 0.009, 0.001],
-            [0.75, 0.18, 0.05, 0.015, 0.005],
-            [0.70, 0.20, 0.06, 0.030, 0.010],
-            [0.60, 0.25, 0.08, 0.050, 0.020],
-            [0.50, 0.25, 0.12, 0.080, 0.050],
-            [0.40, 0.20, 0.20, 0.100, 0.100]
+            [0.60, 0.30, 0.08, 0.015, 0.005], [0.30, 0.60, 0.05, 0.040, 0.01], [0.50, 0.25, 0.20, 0.040, 0.01],
+            [0.25, 0.50, 0.15, 0.080, 0.02], [0.40, 0.20, 0.30, 0.070, 0.03], [0.25, 0.25, 0.25, 0.15, 0.10]
         ]
     };
 
     let data = loadData();
 
     function loadData() {
-        const saved = localStorage.getItem('hana_v10_data');
+        const saved = localStorage.getItem('hana_v11_data');
         return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
     }
 
-    function save() { localStorage.setItem('hana_v10_data', JSON.stringify(data)); updateView(); }
+    function save() { localStorage.setItem('hana_v11_data', JSON.stringify(data)); updateView(); }
     
     function init() {
         document.getElementById('start-g').value = data.start.g;
@@ -193,6 +176,7 @@
     }
 
     function getVal(key) { return (data.viewMode === 'total' && data.start[key] !== undefined) ? data.cur[key] + data.start[key] : data.cur[key]; }
+    function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(1)}`; }
 
     function renderMorningSelector() {
         const labs = ['白','青','黄','緑','赤'];
@@ -284,27 +268,31 @@
         });
     }
 
-    // --- 計算ロジック ---
     function calcLikelihood(n, k, probList) {
-        if(n <= 0) return [1,1,1,1,1,1];
-        return probList.map(p => {
-            const prob = 1/p;
-            return Math.pow(prob, k) * Math.pow(1-prob, n-k);
+        if(n <= 0 || k < 0) return [1,1,1,1,1,1];
+        let likes = probList.map(p => {
+            const pr = 1/p;
+            // 非常に小さな値になるのを防ぐため正規化を意識
+            return Math.exp(k * Math.log(pr) + (n - k) * Math.log(1 - pr));
         });
+        const max = Math.max(...likes);
+        return likes.map(v => v / max);
     }
 
     function calcMultiLikelihood(counts, table) {
         if(counts.reduce((a,b)=>a+b,0) === 0) return [1,1,1,1,1,1];
-        return table.map(probs => {
-            let l = 1;
-            counts.forEach((c, i) => { if(c > 0) l *= Math.pow(probs[i], c); });
-            return l;
+        let likes = table.map(row => {
+            let l = 0;
+            counts.forEach((c, i) => { if(c > 0) l += c * Math.log(row[i]); });
+            return Math.exp(l);
         });
+        const max = Math.max(...likes);
+        return likes.map(v => v / max);
     }
 
-    function renderBarGraph(probs) {
-        const sum = probs.reduce((a,b)=>a+b,0) || 1;
-        const pcts = probs.map(v => (v/sum)*100);
+    function renderBarGraph(likes) {
+        const sum = likes.reduce((a,b)=>a+b,0) || 1;
+        const pcts = likes.map(v => (v/sum)*100);
         const max = Math.max(...pcts) || 1;
         return pcts.map((p, i) => `
             <div class="bar-row">
@@ -326,8 +314,17 @@
         const lRet = calcLikelihood(c.retro_d, c.retro, PARAMS.retro);
         const lBigL = calcMultiLikelihood(bigLamps, PARAMS.lampB);
         const lSidL = calcMultiLikelihood(data.lamps.regS, PARAMS.sideR);
-        const lRegL = calcMultiLikelihood(data.lamps.regT, PARAMS.lampT);
+        
+        // REG筐体ランプ演出フィルタ
+        let lRegL = [1,1,1,1,1,1];
+        const t = data.lamps.regT;
+        if(t[4] > 0) lRegL = [0,0,0,0,0,1];
+        else if(t[3] > 0) lRegL = [0,0,0,0,1,1];
+        else if(t[2] > 0) lRegL = [0,0,0,1,1,1];
+        else if(t[1] > 0) lRegL = [0,0,1,1,1,1];
+        else if(t[0] > 0) lRegL = [0,1,1,1,1,1];
 
+        // 総合推測
         const totalL = lB.map((v, i) => v * lR[i] * lBell[i] * lSui[i] * lRet[i] * lBigL[i] * lSidL[i] * lRegL[i]);
         document.getElementById('predict-bars').innerHTML = renderBarGraph(totalL);
 
@@ -336,7 +333,6 @@
         const pcts = totalL.map(v => v/sumL);
         let expSet = 0; pcts.forEach((p, i) => expSet += p * (i+1));
         const expRate = pcts.reduce((a, b, i) => a + (b * PAYOUT[i]), 0);
-        
         const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         const diff = (vG * 3) * (expRate/100 - 1);
 
@@ -347,14 +343,13 @@
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
-        // 詳細
         const rows = [
             { id:'g', lab:'通常時回転数', val:`${vG}回転`, l:null },
-            { id:'b', lab:'BIG', val:`${vB}回 <span class="white-txt">(1/${(vG/vB).toFixed(1)})</span>`, l:lB },
-            { id:'r', lab:'REG', val:`${vR}回 <span class="white-txt">(1/${(vG/vR).toFixed(1)})</span>`, l:lR },
-            { id:'gas', lab:'合算', val:`${vB+vR}回 <span class="white-txt">(1/${(vG/(vB+vR)).toFixed(1)})</span>`, l:lG },
-            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(1/${(c.g/c.bell).toFixed(2)})</span>`, l:lBell },
-            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(1/${((c.b*20)/c.suika).toFixed(1)})</span>`, l:lSui },
+            { id:'b', lab:'BIG', val:`${vB}回 <span class="white-txt">(${getP(vB, vG)})</span>`, l:lB },
+            { id:'r', lab:'REG', val:`${vR}回 <span class="white-txt">(${getP(vR, vG)})</span>`, l:lR },
+            { id:'gas', lab:'合算', val:`${vB+vR}回 <span class="white-txt">(${getP(vB+vR, vG)})</span>`, l:lG },
+            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, c.g)})</span>`, l:lBell },
+            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, c.b*20)})</span>`, l:lSui },
             { id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps), l:lBigL },
             { id:'sl', lab:'REG：サイドランプ', val:mkLmpT(data.lamps.regS), l:lSidL },
             { id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT), l:lRegL },
@@ -362,7 +357,7 @@
         ];
         document.getElementById('detail-rows').innerHTML = rows.map(r => `
             <tr onclick="toggleGraph('${r.id}')"><th>${r.lab}</th><td>${r.val}</td></tr>
-            <tr id="g-${r.id}" class="sub-graph-row"><td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l) : 'データなし'}</div></td></tr>
+            <tr id="g-${r.id}" class="sub-graph-row"><td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td></tr>
         `).join('');
     }
 
@@ -389,7 +384,7 @@
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function resetAll() { if(confirm("消去しますか？")) { localStorage.removeItem('hana_v10_data'); location.reload(); } }
+    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v11_data'); location.reload(); } }
 
     window.onload = init;
 </script>
