@@ -197,6 +197,21 @@
         data.start.r = Number(document.getElementById('start-r').value) || 0;
         save();
     }
+    function mkC(id, label, val, step=1) {
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
+        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+    }
+
+    function mkL(type) {
+        const labs = ['青','黄','緑','赤','虹'];
+        const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
+        return labs.map((l, i) => {
+            const v = data.lamps[type][i];
+            const cls = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i]}"`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
+        }).join('');
+    }
 
     function renderMain() {
       const c = data.current;
@@ -291,22 +306,6 @@
       }
 
       document.getElementById("main").innerHTML = html;
-    }
-
-    function mkC(id, label, val, step=1) {
-        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
-        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
-    }
-
-    function mkL(type) {
-        const labs = ['青','黄','緑','赤','虹'];
-        const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
-        return labs.map((l, i) => {
-            const v = data.lamps[type][i];
-            const cls = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i]}"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
-            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
-        }).join('');
     }
 
     function attachEvents() {
