@@ -64,8 +64,7 @@
         .sub-graph-row.open { display: table-row; }
         .white-txt { color: #fff !important; font-weight: normal; }
         .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
-        .lamp-row span:nth-child(9),
-        .lamp-row span:nth-child(10) {
+        .rainbow {
             background: linear-gradient(
             90deg,
             #ff0000,
@@ -75,10 +74,14 @@
             #00ffff,
             #0000ff,
             #8b00ff
-        );
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: bold;
+            );
+            -webkit-background-clip: text;
+            background-clip: text;
+
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+
+            font-weight: bold;
         }
     </style>
 </head>
@@ -444,6 +447,12 @@
             if (pm && pm.classList.contains("active")) {
                 calc();
             }
+
+            document.querySelectorAll(".lamp-row span").forEach(el => {
+                if (el.textContent.trim() === "虹") {
+                el.classList.add("rainbow");
+                }
+            });
         }, 300);
     });
 
@@ -460,6 +469,12 @@
             if (pm && pm.classList.contains("active")) {
                 calc();
             }
+
+            document.querySelectorAll(".lamp-row span").forEach(el => {
+                if (el.textContent.trim() === "虹") {
+                el.classList.add("rainbow");
+                }
+            });
         }, 300);
     });
 
