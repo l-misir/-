@@ -331,6 +331,9 @@
         const lBell = calcLikelihood(actualG, c.bell, PARAMS.bell);
         const lSui = calcLikelihood(actualB * 20, c.suika, PARAMS.suika);
         const lRet = calcLikelihood(c.retro_d, c.retro, PARAMS.retro);
+        const lBigL = calcMultiLikelihood(bigLamps, PARAMS.lampB);
+        const lSidL = calcMultiLikelihood(data.lamps.regS, PARAMS.sideR);
+
         
         // REG筐体ランプ演出フィルタ
         let lRegL = [1,1,1,1,1,1];
