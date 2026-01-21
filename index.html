@@ -32,7 +32,7 @@
         .container { padding: 5px 10px 80px; }
         .main-grid-wrapper { display: flex; flex-direction: column; }
         @media (orientation: landscape) { .main-grid-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; } }
-        .section-title {text-align: center; margin: 6px 0 2px; font-size: 11px !important; font-weight: bold; line-height: 1.2;}
+        .section-title {text-align: center; margin: 6px 0 2px; font-size: 11px !important; font-weight: bold; line-height: 1.2; transform: translateZ(0);}
         .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 5px; }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
@@ -420,6 +420,10 @@
         setTimeout(() => {
             updateView();
 
+            document.querySelectorAll(".section-title").forEach(el => {
+                el.style.fontSize = "11px";
+            });
+
             const pm = document.getElementById("predict-modal");
             if (pm && pm.classList.contains("active")) {
                 calc();
@@ -431,6 +435,10 @@
         clearTimeout(window.__rzTimer);
         window.__rzTimer = setTimeout(() => {
             updateView();
+
+            document.querySelectorAll(".section-title").forEach(el => {
+                el.style.fontSize = "11px";
+            });
 
             const pm = document.getElementById("predict-modal");
             if (pm && pm.classList.contains("active")) {
