@@ -215,97 +215,98 @@
     }
 
     function renderMain() {
-      const c = data.cur;
-      const s = data.start;
+        const c = data.cur;
+        const s = data.start;
+        const vG = getVal('g'); 
+        const vB = getVal('b'); 
+        const vR = getVal('r');
 
-      const isLandscape = window.innerWidth > window.innerHeight;
+        // 画面の幅と高さを比較して横画面か判定
+        const isLandscape = window.innerWidth > window.innerHeight;
 
-      const vG = data.viewMode === 'total' ? c.g : Math.max(0, c.g - s.g);
-      const vB = data.viewMode === 'total' ? c.b : Math.max(0, c.b - s.b);
-      const vR = data.viewMode === 'total' ? c.r : Math.max(0, c.r - s.r);
+        let html = "";
 
-      let html = "";
-
-      if (!isLandscape) {
-        html = `
-          <p class="section-title">＜打ち始め＞</p>
-          <div class="grid grid-3">
-            <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
-            <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
-            <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-          </div>
-
-          <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
-          <div class="grid grid-3">
-            ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
-          </div>
-
-          <p class="section-title">＜通常時：ベル＞</p>
-          <div class="grid">${mkC('bell','',c.bell)}</div>
-
-          <p class="section-title">＜BIG：スイカ＞</p>
-          <div class="grid">${mkC('suika','',c.suika)}</div>
-
-          <p class="section-title">＜BIG：レトロサウンド＞</p>
-          <div class="grid grid-2">
-            ${mkC('retro_d','条件達成',c.retro_d)}
-            ${mkC('retro','発生',c.retro)}
-          </div>
-
-          <p class="section-title">＜BIG：筐体ランプ＞</p>
-          <div class="grid grid-5">${mkL('big')}</div>
-
-          <p class="section-title">＜REG：サイドランプ＞</p>
-          <div class="grid grid-5">${mkL('regS')}</div>
-
-          <p class="section-title">＜REG：筐体ランプ＞</p>
-          <div class="grid grid-5">${mkL('regT')}</div>
-        `;
-      } 
-      else {
-        html = `
-          <div class="main-grid-wrapper">
-            <div style="width:100%">
-              <p class="section-title">＜打ち始め＞</p>
-              <div class="grid grid-3">
+        if (!isLandscape) {
+            // ■■ 縦画面用レイアウト ■■
+            html = `
+            <p class="section-title">＜打ち始め＞</p>
+            <div class="grid grid-3">
                 <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
                 <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
                 <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-              </div>
-
-              <p class="section-title">＜通常時：ベル＞</p>
-              <div class="grid">${mkC('bell','',c.bell)}</div>
-
-              <p class="section-title">＜BIG：レトロサウンド＞</p>
-              <div class="grid grid-2">
-                ${mkC('retro_d','条件達成',c.retro_d)}
-                ${mkC('retro','発生',c.retro)}
-              </div>
-
-              <p class="section-title">＜REG：サイドランプ＞</p>
-              <div class="grid grid-5">${mkL('regS')}</div>
             </div>
+            <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
+            <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+            
+            <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
+            <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
+            
+            <p class="section-title">＜レトロサウンド＞</p>
+            <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
 
-            <div style="width:100%">
-              <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
-              <div class="grid grid-3">
-                ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
-              </div>
+            <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
+            <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
+            <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
+            
+            <p class="section-title">＜BIG：純ハズレ＞</p><div class="grid">${mkC('jyun','',c.jyun)}</div>
+            `;
+        } 
+        else {
+            // ■■ 横画面用レイアウト（強制的に2列グリッドを適用） ■■
+            html = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; width: 100%;">
+                <div style="width:100%">
+                    <p class="section-title">＜打ち始め＞</p>
+                    <div class="grid grid-3">
+                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+                    </div>
 
-              <p class="section-title">＜BIG：スイカ＞</p>
-              <div class="grid">${mkC('suika','',c.suika)}</div>
+                    <p class="section-title">＜通常時：ベル＞</p>
+                    <div class="grid">${mkC('bell','',c.bell)}</div>
 
-              <p class="section-title">＜BIG：筐体ランプ＞</p>
-              <div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜レトロサウンド＞</p>
+                    <div class="grid grid-2">
+                        ${mkC('retro_d','条件達成',c.retro_d)}
+                        ${mkC('retro','発生',c.retro)}
+                    </div>
 
-              <p class="section-title">＜REG：筐体ランプ＞</p>
-              <div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜REG：サイドランプ＞</p>
+                    <div class="grid grid-5">${mkL('regS')}</div>
+                    
+                    <p class="section-title">＜BIG：純ハズレ＞</p>
+                    <div class="grid">${mkC('jyun','',c.jyun)}</div>
+                </div>
+
+                <div style="width:100%">
+                    <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
+                    <div class="grid grid-3">
+                        ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
+                    </div>
+
+                    <p class="section-title">＜BIG：スイカ＞</p>
+                    <div class="grid">${mkC('suika','',c.suika)}</div>
+
+                    <p class="section-title">＜BIG：筐体ランプ＞</p>
+                    <div class="grid grid-5">${mkL('big')}</div>
+
+                    <p class="section-title">＜REG：筐体ランプ＞</p>
+                    <div class="grid grid-5">${mkL('regT')}</div>
+                </div>
             </div>
-          </div>
-        `;
-      }
-      document.getElementById('main-ui').innerHTML = html;
-      if(data.mode === 'tap') attachEvents();
+            `;
+        }
+        document.getElementById('main-ui').innerHTML = html;
+        if(data.mode === 'tap') attachEvents();
+        
+        // ヘッダーボタンの表示状態更新（入力モード切替など）
+        if(document.getElementById('btn-view-personal')) {
+            document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
+            document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
+            document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
+            document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
+        }
     }
 
     function mkC(id, label, val, step=1) {
