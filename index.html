@@ -202,30 +202,44 @@
         const c = data.cur; const s = data.start;
         const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         const html = `
-            <div>
-                <p class="section-title">＜打ち始め＞</p>
-                <div class="grid grid-3">
-                    <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
-                    <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
-                    <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-                </div>
-                <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
-                <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+          <div>
+            <p class="section-title">＜打ち始め＞</p>
+            <div class="grid grid-3">
+              <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+              <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+              <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
             </div>
-            <div>
-                <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
-                <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
+
+            <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
+            <div class="grid grid-3">
+              ${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}
             </div>
-            <div>
-                <p class="section-title">＜レトロサウンド＞</p>
-                <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
-                <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
+
+            <p class="section-title">＜通常時：ベル＞</p>
+            <div class="grid">${mkC('bell','',c.bell)}</div>
+
+            <p class="section-title">＜BIG：スイカ＞</p>
+            <div class="grid">${mkC('suika','',c.suika)}</div>
+          </div>
+
+          <div>
+            <p class="section-title">＜レトロサウンド＞</p>
+            <div class="grid grid-2">
+              ${mkC('retro_d','条件達成',c.retro_d)}
+              ${mkC('retro','発生',c.retro)}
             </div>
-            <div>
-                <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
-                <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
-            </div>
+
+            <p class="section-title">＜REG：サイドランプ＞</p>
+            <div class="grid grid-5">${mkL('regS')}</div>
+
+            <p class="section-title">＜BIG：筐体ランプ＞</p>
+            <div class="grid grid-5">${mkL('big')}</div>
+
+            <p class="section-title">＜REG：筐体ランプ＞</p>
+            <div class="grid grid-5">${mkL('regT')}</div>
+          </div>
         `;
+
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
     }
