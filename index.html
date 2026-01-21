@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V12</title>
+    <title>HANA Counter V13</title>
     <style>
         :root {
             --bg-color: #1a1a1a; --cell-bg: #444444; --grid-line: #111111;
@@ -31,15 +31,15 @@
         .header-title { font-size: 15px; font-weight: bold; border-bottom: 2px solid white; }
         .container { padding: 5px 10px 80px; width: 100%; box-sizing: border-box; }
 
-        /* レイアウト修正の要：CSSでレイアウトを制御 */
+        /* レイアウト制御 (CSS Grid) */
         .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
         .col-left, .col-right { display: flex; flex-direction: column; width: 100%; }
         
-        /* 横画面（ランドスケープ）時はグリッドにして左右に並べる */
+        /* 横画面時のみ2列にする */
         @media (orientation: landscape) {
             .main-layout {
                 display: grid;
-                grid-template-columns: 1fr 1fr; /* 左右均等割り */
+                grid-template-columns: 1fr 1fr;
                 gap: 10px;
                 align-items: start;
             }
@@ -139,7 +139,6 @@
     const DEFAULTS = {
         machine: 'king', mode: 'tap', viewMode: 'personal',
         start: { g:0, b:0, r:0 },
-        // 純ハズレ(jyun)を削除
         cur: { g:0, b:0, r:0, bell:0, suika:0, retro_d:0, retro:0 },
         lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
         morning: -1
@@ -153,25 +152,43 @@
         bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
         suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
         retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
-        lampB: [[0.4,0.3,0.2,0.08,0.02],[0.35,0.3,0.22,0.1,0.03],[0.3,0.28,0.25,0.12,0.05],[0.25,0.25,0.3,0.14,0.06],[0.2,0.22,0.35,0.16,0.07],[0.15,0.18,0.4,0.18,0.09]],
-        sideR: [[0.6,0.3,0.08,0.015,0.005],[0.3,0.6,0.05,0.04,0.01],[0.5,0.25,0.2,0.04,0.01],[0.25,0.5,0.15,0.08,0.02],[0.4,0.2,0.3,0.07,0.03],[0.25,0.25,0.25,0.15,0.1]]
+        lampB: [
+            [0.40, 0.30, 0.20, 0.08, 0.02], [0.35, 0.30, 0.22, 0.10, 0.03], [0.30, 0.28, 0.25, 0.12, 0.05],
+            [0.25, 0.25, 0.30, 0.14, 0.06], [0.20, 0.22, 0.35, 0.16, 0.07], [0.15, 0.18, 0.40, 0.18, 0.09]
+        ],
+        sideR: [
+            [0.60, 0.30, 0.08, 0.015, 0.005], [0.30, 0.60, 0.05, 0.040, 0.01], [0.50, 0.25, 0.20, 0.040, 0.01],
+            [0.25, 0.50, 0.15, 0.080, 0.02], [0.40, 0.20, 0.30, 0.070, 0.03], [0.25, 0.25, 0.25, 0.15, 0.10]
+        ]
     };
 
     let data = loadData();
 
     function loadData() {
-        // バージョンが変わったのでキーを変更して初期化させる(推奨)
-        // もしデータ構造が大きく変わるならリセットが安全
-        const saved = localStorage.getItem('hana_v12_data');
-        return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
+        try {
+            const saved = localStorage.getItem('hana_v13_data');
+            let d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
+            // データの整合性チェック（欠損キーの補完）
+            if(!d.lamps) d.lamps = JSON.parse(JSON.stringify(DEFAULTS.lamps));
+            if(!d.cur) d.cur = JSON.parse(JSON.stringify(DEFAULTS.cur));
+            if(d.cur.retro_d === undefined) d.cur.retro_d = 0;
+            return d;
+        } catch(e) {
+            return JSON.parse(JSON.stringify(DEFAULTS));
+        }
     }
 
-    function save() { localStorage.setItem('hana_v12_data', JSON.stringify(data)); renderMain(); }
-
-    function getVal(key) { 
-        return (data.viewMode === 'total') ? data.cur[key] + (data.start[key]||0) : data.cur[key]; 
-    }
+    function save() { localStorage.setItem('hana_v13_data', JSON.stringify(data)); renderMain(); }
     
+    function init() {
+        document.getElementById('start-g').value = data.start.g;
+        document.getElementById('start-b').value = data.start.b;
+        document.getElementById('start-r').value = data.start.r;
+        renderMorningSelector();
+        renderMain(); // 初期表示で必ずメイン画面を描画
+    }
+
+    function getVal(key) { return (data.viewMode === 'total' && data.start[key] !== undefined) ? data.cur[key] + data.start[key] : data.cur[key]; }
     function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(1)}`; }
 
     function renderMorningSelector() {
@@ -185,23 +202,21 @@
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
     function setMorning(val) { data.morning = (data.morning === val) ? -1 : val; save(); renderMorningSelector(); }
-    function setViewMode(m) { data.viewMode = m; save(); updateHeader(); }
-    function setInputMode(m) { data.mode = m; save(); updateHeader(); }
+    function setViewMode(m) { data.viewMode = m; save(); }
+    function setInputMode(m) { data.mode = m; save(); }
     function saveStart() {
         data.start.g = Number(document.getElementById('start-g').value) || 0;
         data.start.b = Number(document.getElementById('start-b').value) || 0;
         data.start.r = Number(document.getElementById('start-r').value) || 0;
         save();
-        renderMain();
     }
 
+    // 画面描画（最優先）
     function renderMain() {
         const c = data.cur; const s = data.start;
         const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         
-        // --- レイアウト修正のキモ ---
-        // JSでの分岐をやめ、左右のカラム用divを常に出力する。
-        // CSSで縦画面時は縦並び、横画面時はグリッド横並びになる。
+        // CSS Gridによる横画面自動対応レイアウト
         const html = `
         <div class="main-layout">
             <div class="col-left">
@@ -219,8 +234,7 @@
                 
                 <p class="section-title">＜レトロサウンド＞</p>
                 <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
-                
-                </div>
+            </div>
 
             <div class="col-right">
                 <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
@@ -236,6 +250,11 @@
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
         updateHeader();
+        
+        // 計算は描画後に行う（エラーで止まるのを防ぐ）
+        try {
+            setTimeout(calc, 0);
+        } catch(e) { console.error(e); }
     }
 
     function mkC(id, label, val, step=1) {
@@ -254,9 +273,16 @@
         }).join('');
     }
 
+    function updateHeader() {
+        document.getElementById('disp-machine').innerText = "キングハナハナ";
+        document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
+        document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
+        document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
+        document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
+    }
+
     function attachEvents() {
-        document.querySelectorAll('.cell').forEach(el => {
-            if(!el.dataset.id && !el.dataset.type) return;
+        document.querySelectorAll('.cell.t-btn, .cell.t-lamp').forEach(el => {
             let sy, sx, isC, timer;
             el.ontouchstart = (e) => {
                 sy = e.touches[0].clientY; sx = e.touches[0].clientX; isC = false;
@@ -310,13 +336,11 @@
 
     function calc() {
         const c = data.cur; const s = data.start;
-        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
-        
         // 個人データの算出
         const actG = Math.max(0, c.g - (c.b * 20 + c.r * 10)); // 通常時回転数
         const actB = c.b; // BIG回数
         
-        // BIG/REG/合算の確率計算用データ（表示モードで変わる）
+        // BIG/REG/合算の確率計算用
         let calcG, calcB, calcR;
         if (data.viewMode === 'personal') {
             calcG = Math.max(0, c.g - s.g);
@@ -355,6 +379,9 @@
         const pcts = totalL.map(v => v/sumL);
         let expSet = 0; pcts.forEach((p, i) => expSet += p * (i+1));
         const expRate = pcts.reduce((a, b, i) => a + (b * PAYOUT[i]), 0);
+        
+        // 期待獲得枚数
+        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         const diff = (vG * 3) * (expRate/100 - 1);
 
         document.getElementById('expect-info').innerHTML = `
@@ -405,14 +432,7 @@
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v12_data'); location.reload(); } }
-    function updateHeader() {
-        document.getElementById('disp-machine').innerText = "キングハナハナ";
-        document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
-        document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
-        document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
-        document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
-    }
+    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v13_data'); location.reload(); } }
 
     window.onload = init;
 </script>
