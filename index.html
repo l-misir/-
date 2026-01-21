@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V7</title>
+    <title>HANA Counter V8</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -15,6 +15,7 @@
             --lamp-green: #44ff44;
             --lamp-red: #ff4444;
             --lamp-white: #dddddd;
+            --active-btn: #007aff;
         }
 
         html, body {
@@ -48,13 +49,9 @@
         .container { padding: 5px 10px 80px; }
         .main-grid-wrapper { display: flex; flex-direction: column; }
         
-        /* 横画面対応：2列グリッド */
         @media (orientation: landscape) {
             .main-grid-wrapper {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-                align-items: start;
+                display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start;
             }
         }
 
@@ -76,13 +73,14 @@
         .touch-active { background: #666 !important; }
         .minus-mode { background: #900 !important; }
         .selected-lamp { border: 2px solid #fff; background: #666; }
+        .active-mode { background: var(--active-btn) !important; color: white; }
 
         .val-input {
             width: 100%; background: transparent; color: white; border: none;
             text-align: center; font-size: 20px; font-weight: bold; outline: none;
         }
 
-        /* モーダル（ヘッダー固定・スクロール対応） */
+        /* モーダル */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 200;
@@ -92,7 +90,6 @@
         .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #000; border-bottom: 1px solid #333; }
         .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 40px; -webkit-overflow-scrolling: touch; }
 
-        /* データ出力ボタン */
         .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
         
         /* 詳細テーブル */
@@ -101,7 +98,6 @@
         .detail-table td { padding: 10px 5px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; color: white; cursor: pointer; }
         .detail-row:active { background: #333; }
         
-        /* 折りたたみグラフ */
         .sub-graph-row { display: none; background: #111; }
         .sub-graph-row.open { display: table-row; }
         .sub-graph-container { padding: 10px; }
@@ -109,12 +105,13 @@
         .lamp-detail span { margin-left: 3px; font-size: 10px; }
         .white-txt { color: #fff !important; }
 
-        /* 推測バー */
-        .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 12px; color: white; }
-        .bar-bg { flex: 1; height: 8px; background: #333; margin: 0 8px; }
+        /* 推測バー（共通デザイン） */
+        .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
+        .bar-label { width: 40px; text-align: left; } /* 設定番号 */
+        .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
         .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
+        .bar-val { width: 45px; text-align: right; font-variant-numeric: tabular-nums; }
         
-        /* 期待値表示 */
         .expect-box { background: #222; padding: 10px; border: 1px solid #444; margin-bottom: 15px; }
         .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
         .expect-val { font-weight: bold; color: #0f0; }
@@ -129,8 +126,7 @@
 </div>
 
 <div class="container">
-    <div class="main-grid-wrapper" id="main-ui">
-        </div>
+    <div class="main-grid-wrapper" id="main-ui"></div>
 </div>
 
 <div id="setting-modal" class="modal">
@@ -144,20 +140,25 @@
             <option value="king">キングハナハナ</option>
             <option value="new">ニューキングハナハナ</option>
         </select>
+
+        <p class="section-title">＜表示・出力データ＞</p>
+        <div class="grid grid-2">
+            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label" style="font-size:14px; color:white;">個人</div></div>
+            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label" style="font-size:14px; color:white;">全て</div></div>
+        </div>
         
         <p class="section-title">＜入力モード＞</p>
         <button id="mode-toggle" style="width:100%; padding:10px; background:#333; color:white; border:1px solid #555;" onclick="toggleMode()">カウンター入力</button>
         
         <p class="section-title">＜打ち始めデータ＞</p>
         <div class="grid grid-3">
-            <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()"></div>
-            <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()"></div>
-            <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()"></div>
+            <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()" onfocus="this.select()"></div>
+            <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()" onfocus="this.select()"></div>
+            <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()" onfocus="this.select()"></div>
         </div>
 
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
-        <div class="grid grid-5" id="morning-lamp-selector">
-            </div>
+        <div class="grid grid-5" id="morning-lamp-selector"></div>
 
         <button onclick="exportData()" class="export-btn">データ出力(コピー)</button>
         <button onclick="resetAll()" style="width:100%; padding:10px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px;">全リセット</button>
@@ -170,7 +171,7 @@
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title">＜設定期待度＞</p>
+        <p class="section-title">＜設定推測＞</p>
         <div id="predict-bars" style="margin-bottom:15px;"></div>
 
         <p class="section-title">＜期待値＞</p>
@@ -182,65 +183,57 @@
 </div>
 
 <script>
-    // --- 定数・設定 ---
     const DEFAULTS = {
-        machine: 'king', mode: 'tap',
+        machine: 'king', mode: 'tap', viewMode: 'personal',
         start: { g:0, b:0, r:0 },
         cur: { g:0, b:0, r:0, bell:0, suika:0, retro_d:0, retro:0 },
         lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
-        morning: -1 // 0:白, 1:青, 2:黄, 3:緑, 4:赤, -1:未入力
+        morning: -1
     };
 
-    // 機械割
     const PAYOUT = [97, 99, 101, 104, 107, 110];
-
-    // 解析値データ
     const PARAMS = {
         king: {
             b: [292, 280, 268, 257, 244, 232],
             r: [489, 452, 420, 390, 360, 332],
             bell: [7.254, 7.250, 7.249, 7.048, 6.975, 6.940],
             suika: [42.01, 38.55, 36.21, 31.51, 29.39, 27.54],
-            // 青, 黄, 緑, 赤, 虹
             lampB: [
-                [32.77, 35.42, 40.96, 84.02, 6553.6], // 設定1
-                [29.13, 31.21, 38.55, 78.96, 3276.8], // 設定2
-                [26.21, 27.89, 35.42, 63.63, 1638.4], // 設定3
-                [23.83, 25.21, 34.49, 55.54, 655.36], // 設定4
-                [21.85, 23.41, 30.48, 44.28, 327.68], // 設定5
-                [20.16, 21.85, 29.13, 37.88, 131.07]  // 設定6
+                [32.77, 35.42, 40.96, 84.02, 6553.6],
+                [29.13, 31.21, 38.55, 78.96, 3276.8],
+                [26.21, 27.89, 35.42, 63.63, 1638.4],
+                [23.83, 25.21, 34.49, 55.54, 655.36],
+                [21.85, 23.41, 30.48, 44.28, 327.68],
+                [20.16, 21.85, 29.13, 37.88, 131.07]
             ],
-            // 青, 黄, 緑, 赤, 虹 (サイドランプ)
             sideR: [
-                [36, 24, 24, 16, 0.02], // 1 (大まかな比率)
-                [23, 35, 17, 25, 0.05], // 2
-                [34, 22, 26, 18, 0.10], // 3
-                [22, 32, 18, 28, 0.20], // 4
-                [31, 21, 29, 19, 0.39], // 5
-                [25, 25, 25, 25, 0.78]  // 6
+                [36, 24, 24, 16, 0.02],
+                [23, 35, 17, 25, 0.05],
+                [34, 22, 26, 18, 0.10],
+                [22, 32, 18, 28, 0.20],
+                [31, 21, 29, 19, 0.39],
+                [25, 25, 25, 25, 0.78]
             ],
-            // レトロ発生率(条件達成時) ※不明は除外
             retro: [0, 13.55, 11.88, 8.70, 8.60, 0] 
         }
     };
-    // newKingも同じとする（仮）
     PARAMS.new = PARAMS.king;
 
     let data = loadData();
 
     function loadData() {
         try {
-            const saved = localStorage.getItem('hana_v7_data');
+            const saved = localStorage.getItem('hana_v8_data');
             const d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
             if(!d.lamps) d.lamps = DEFAULTS.lamps;
             if(d.morning === undefined) d.morning = -1;
+            if(!d.viewMode) d.viewMode = 'personal';
             return d;
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
     }
 
-    function save() { localStorage.setItem('hana_v7_data', JSON.stringify(data)); updateView(); }
+    function save() { localStorage.setItem('hana_v8_data', JSON.stringify(data)); updateView(); }
     
-    // --- 初期化 & ビュー更新 ---
     function init() {
         document.getElementById('machine-select').value = data.machine;
         document.getElementById('start-g').value = data.start.g;
@@ -253,10 +246,22 @@
     function updateView() {
         document.getElementById('disp-machine').innerText = (data.machine === 'king' ? 'キングハナハナ' : 'ニューキングハナハナ');
         document.getElementById('mode-toggle').innerText = (data.mode === 'tap' ? 'カウンター入力' : '数値入力モード');
+        
+        // 表示モードボタンの状態更新
+        document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
+        document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
+
         renderMain();
     }
 
-    // 朝一ランプセレクター生成
+    // 値取得ヘルパー（モード依存）
+    function getVal(key) {
+        if(data.viewMode === 'personal') return data.cur[key];
+        // 'total'の場合、startにあるキーは加算、なければcurのみ
+        if(data.start[key] !== undefined) return data.cur[key] + data.start[key];
+        return data.cur[key];
+    }
+
     function renderMorningSelector() {
         const cols = ['var(--lamp-white)', 'var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)'];
         const labs = ['白','青','黄','緑','赤'];
@@ -267,26 +272,22 @@
         }
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
-    function setMorning(val) {
-        data.morning = (data.morning === val) ? -1 : val; // トグル
-        save(); renderMorningSelector();
-    }
+    function setMorning(val) { data.morning = (data.morning === val) ? -1 : val; save(); renderMorningSelector(); }
+    
     function saveStart() {
         data.start.g = Number(document.getElementById('start-g').value) || 0;
         data.start.b = Number(document.getElementById('start-b').value) || 0;
         data.start.r = Number(document.getElementById('start-r').value) || 0;
         save();
     }
+    
+    function setViewMode(m) { data.viewMode = m; save(); }
 
-    // --- メイン画面レンダリング ---
     function renderMain() {
         const c = data.cur; const s = data.start;
-        // 指定された表示順序
-        // 1. 打ち始め + 現在 (Group 1)
-        // 2. ベル + スイカ (Group 2)
-        // 3. レトロ + BIGランプ (Group 3)
-        // 4. サイド + REGランプ (Group 4)
-        
+        // モードに応じた値を取得
+        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
+
         const html = `
             <div>
                 <p class="section-title">＜打ち始め＞</p>
@@ -295,8 +296,8 @@
                     <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
                     <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
                 </div>
-                <p class="section-title">＜現在＞</p>
-                <div class="grid grid-3">${mkC('g','ゲーム数',c.g,50)}${mkC('b','BIG',c.b)}${mkC('r','REG',c.r)}</div>
+                <p class="section-title">＜現在＞${data.viewMode==='total'?'(全て)':'(個人)'}</p>
+                <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
             </div>
 
             <div>
@@ -307,37 +308,36 @@
             <div>
                 <p class="section-title">＜レトロサウンド＞</p>
                 <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
-                <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big', true)}</div>
+                <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
             </div>
 
             <div>
-                <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS', true)}</div>
-                <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT', true)}</div>
+                <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
             </div>
         `;
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
     }
 
+    // onfocus="this.select()" を追加して入力時に値を全選択
     function mkC(id, label, val, step=1) {
-        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();"></div>`;
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
     }
 
-    function mkL(type, isRainbow) {
+    function mkL(type) {
         const labs = ['青','黄','緑','赤','虹'];
         const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
         return labs.map((l, i) => {
             const val = data.lamps[type][i];
             const colorClass = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i]}"`;
-            // メイン画面の虹色指定に対応
             
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${colorClass}>${l}</div><input type="number" class="val-input" value="${val}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();"></div>`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${colorClass}>${l}</div><input type="number" class="val-input" value="${val}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
             return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${colorClass}>${l}</div><div class="value">${val}</div></div>`;
         }).join('');
     }
 
-    // --- タッチイベント ---
     function attachEvents() {
         document.querySelectorAll('.cell').forEach(el => {
             if(!el.classList.contains('t-btn') && !el.classList.contains('t-lamp')) return;
@@ -366,43 +366,43 @@
 
     function updateMachine() { data.machine = document.getElementById('machine-select').value; save(); }
     function toggleMode() { data.mode = (data.mode === 'tap' ? 'input' : 'tap'); save(); }
-    function resetAll() { if(confirm("データを全消去します。")) { localStorage.removeItem('hana_v7_data'); location.reload(); } }
-
-    function openModal(id) { 
-        document.getElementById(id).classList.add('active'); 
-        if(id==='predict-modal') calc(); 
-    }
+    function resetAll() { if(confirm("データを全消去します。")) { localStorage.removeItem('hana_v8_data'); location.reload(); } }
+    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-    // --- 計算・推測ロジック ---
     function getP(n, d) { return (d<=0) ? "0/0" : `1/${(d/n).toFixed(1)}`; }
+
+    // --- バーグラフ生成の共通関数 ---
+    function renderBarGraph(pcts) {
+        const max = Math.max(...pcts) || 1;
+        let html = '';
+        pcts.forEach((v, i) => {
+            html += `
+            <div class="bar-row">
+                <div class="bar-label">設定${i+1}</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div>
+                <div class="bar-val">${v.toFixed(1)}%</div>
+            </div>`;
+        });
+        return html;
+    }
 
     function calc() {
         const c = data.cur; const s = data.start;
         const p = PARAMS[data.machine];
 
-        // 1. 各要素の尤度計算
-        let probs = []; // 0~5: 設定1~6
-        let details = {}; // 各要素ごとの確率分布
-
-        // 初期尤度 (1.0)
+        // 推測計算（常に個人のカレントデータを使用する）
+        let probs = []; 
         for(let i=0; i<6; i++) probs[i] = 1.0;
 
-        // --- 個別要素計算関数 ---
         const calcFactor = (key, n, k, table, isMulti = false) => {
             let res = [];
             for(let i=0; i<6; i++) {
                 let val = 1;
                 if(n > 0) {
                     if(isMulti) {
-                         // 多項分布(簡易:比率) - サイドランプなど
-                         // table[i] は配列 [probA, probB...]
-                         // 実際の出現数 k は配列 [countA, countB...]
-                         // 尤度 ∝ Π(prob^count)
                          let p_sum = 0;
-                         // まず確率の合計を計算(100分率対応)
                          table[i].forEach(tp => p_sum += tp);
-                         
                          k.forEach((cnt, idx) => {
                              if(cnt > 0) {
                                  const prob = table[i][idx] / p_sum; 
@@ -410,7 +410,6 @@
                              }
                          });
                     } else {
-                        // 二項分布
                         const prob = 1 / table[i];
                         val = Math.pow(prob, k) * Math.pow(1 - prob, n - k);
                     }
@@ -420,29 +419,16 @@
             return res;
         };
 
-        // 計算実行
-        // ボーナス
         const prob_b = calcFactor('big', c.g, c.b, p.b);
         const prob_r = calcFactor('reg', c.g, c.r, p.r);
-        // ベル
         const prob_bell = calcFactor('bell', c.g, c.bell, p.bell);
-        // スイカ (分母: BIG*20)
         const prob_suika = calcFactor('suika', c.b * 20, c.suika, p.suika);
         
-        // BIGランプ (朝一含む)
-        // 朝一ランプ(0:白)は色なしとして除外、1:青〜4:赤はカウントに足す
         let bLampCounts = [...data.lamps.big];
         if(data.morning >= 1) bLampCounts[data.morning - 1]++;
-        // BIGランプは1/xの確率表だが、便宜上出現率の比率として多項分布的に扱う
-        // 各設定の各色の出現確率(1/x)をそのまま重みとして使用
         const prob_blamp = calcFactor('blamp', 0, bLampCounts, p.lampB.map(row => row.map(v => 1/v)), true);
-
-        // サイドランプ
         const prob_side = calcFactor('side', 0, data.lamps.regS, p.sideR, true);
 
-        // レトロ
-        // レトロは設定1,6が0(不明)のため、2-5のみ計算し、1,6は平均的な値で埋める等の処理が必要だが
-        // ここでは仕様通り確率がある設定のみブーストさせる
         let prob_retro = [1,1,1,1,1,1];
         if(c.retro_d > 0) {
             for(let i=0; i<6; i++) {
@@ -453,34 +439,21 @@
             }
         }
 
-        // 総合尤度
         for(let i=0; i<6; i++) {
-            // 要素がある場合のみ乗算
             if(c.g > 0) probs[i] *= prob_b[i] * prob_r[i] * prob_bell[i];
             if(c.b > 0) probs[i] *= prob_suika[i] * prob_blamp[i];
             if(c.r > 0) probs[i] *= prob_side[i];
             if(c.retro_d > 0) probs[i] *= prob_retro[i];
         }
         
-        // --- 期待度グラフ生成 ---
-        const drawBars = (targetId, rawProbs) => {
-            const sum = rawProbs.reduce((a,b)=>a+b,0) || 1;
-            const pct = rawProbs.map(v => (v/sum)*100);
-            const max = Math.max(...pct) || 1;
-            let html = '';
-            pct.forEach((v, i) => {
-                html += `<div class="bar-row"><div>設定${i+1}</div><div class="bar-bg"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div><div style="width:40px; text-align:right;">${v.toFixed(1)}%</div></div>`;
-            });
-            document.getElementById(targetId).innerHTML = html;
-            return pct; // 期待設定計算用に戻す
-        };
-        const finalPcts = drawBars('predict-bars', probs);
+        // 総合推測グラフ描画
+        const sum = probs.reduce((a,b)=>a+b,0) || 1;
+        const finalPcts = probs.map(v => (v/sum)*100);
+        document.getElementById('predict-bars').innerHTML = renderBarGraph(finalPcts);
 
-        // --- 期待値計算 ---
+        // 期待値計算
         let expSet = 0;
         finalPcts.forEach((v, i) => expSet += (i+1) * (v/100));
-        
-        // 機械割の線形補完
         const floorS = Math.floor(expSet);
         const ceilS = Math.ceil(expSet);
         let expRate = 0;
@@ -492,38 +465,37 @@
             expRate = r1 + (r2 - r1) * (expSet - floorS);
         }
 
-        // 期待獲得枚数 = (通常G*3 * (機械割% - 1))
-        const totalIn = c.g * 3;
+        // 表示用の回転数等はViewModeに従う
+        const vG = getVal('g');
+        const vB = getVal('b');
+        const vR = getVal('r');
+        const totalG_calc = vG + (vB * 20) + (vR * 10);
+        const totalIn = vG * 3;
         const diffCoins = totalIn * (expRate/100 - 1);
         const diffSign = diffCoins >= 0 ? '+' : '';
 
-        // 総回転数（計算式：通常 + B*20 + R*10）
-        const totalG_calc = c.g + (c.b * 20) + (c.r * 10);
-
         document.getElementById('expect-info').innerHTML = `
-            <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:white;">${totalG_calc} G</div></div>
+            <div class="expect-row"><div>総回転数 (${data.viewMode==='total'?'全て':'個人'})</div><div class="expect-val" style="color:white;">${totalG_calc} G</div></div>
             <div class="expect-row"><div>期待設定</div><div class="expect-val">${expSet.toFixed(2)}</div></div>
             <div class="expect-row"><div>期待機械割</div><div class="expect-val">${expRate.toFixed(2)} %</div></div>
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diffSign}${Math.round(diffCoins)} 枚</div></div>
         `;
 
-        // --- 詳細データ & タップ展開 ---
-        // データ準備
-        // 朝一ランプを含む
+        // 詳細テーブル
         const bLampTxt = mkLmpTxt(bLampCounts);
         const rSideTxt = mkLmpTxt(data.lamps.regS);
         const rTplTxt = mkLmpTxt(data.lamps.regT);
 
         const rows = [
-            { id:'d_g', label:'通常時回転数', val:`${c.g}回転`, prob:null },
-            { id:'d_b', label:'BIG', val:`${c.b}回 <span class="white-txt">(${getP(c.b, c.g)})</span>`, prob: prob_b },
-            { id:'d_r', label:'REG', val:`${c.r}回 <span class="white-txt">(${getP(c.r, c.g)})</span>`, prob: prob_r },
-            { id:'d_sum', label:'合算', val:`${c.b+c.r}回 <span class="white-txt">(${getP(c.b+c.r, c.g)})</span>`, prob: null },
-            { id:'d_bell', label:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, c.g)})</span>`, prob: prob_bell },
+            { id:'d_g', label:'通常時回転数', val:`${vG}回転`, prob:null },
+            { id:'d_b', label:'BIG', val:`${vB}回 <span class="white-txt">(${getP(vB, vG)})</span>`, prob: prob_b },
+            { id:'d_r', label:'REG', val:`${vR}回 <span class="white-txt">(${getP(vR, vG)})</span>`, prob: prob_r },
+            { id:'d_sum', label:'合算', val:`${vB+vR}回 <span class="white-txt">(${getP(vB+vR, vG)})</span>`, prob: null },
+            { id:'d_bell', label:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, c.g)})</span>`, prob: prob_bell }, // ベルはStartに含まれないのでc.gを使う
             { id:'d_suika', label:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, c.b*20)})</span>`, prob: prob_suika },
             { id:'d_blamp', label:'BIG：筐体ランプ', val: bLampTxt, prob: prob_blamp, isL:true },
             { id:'d_side', label:'REG：サイドランプ', val: rSideTxt, prob: prob_side, isL:true },
-            { id:'d_rtpl', label:'REG：筐体ランプ', val: rTplTxt, prob: null }, // REGランプは確定系なので確率グラフ化しない
+            { id:'d_rtpl', label:'REG：筐体ランプ', val: rTplTxt, prob: null },
             { id:'d_retro', label:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, prob: prob_retro }
         ];
 
@@ -535,8 +507,7 @@
             }
         });
         document.getElementById('detail-rows').innerHTML = tblHtml;
-
-        // グラフ描画関数を要素に紐付け（即時実行ではなく開いた時、だがデータは保持）
+        
         window.tempProbs = {};
         rows.forEach(r => { if(r.prob) window.tempProbs[r.id] = r.prob; });
     }
@@ -547,62 +518,60 @@
         return arr.map((v,i)=>`<span class="${c[i]==='rainbow'?'rainbow':''}" style="${c[i]!=='rainbow'?'color:'+c[i]:''}">${n[i]}</span><span class="white-txt">:${v}</span>`).join(' ');
     }
 
-    // 折りたたみグラフ表示
     window.toggleGraph = function(id) {
         const row = document.getElementById(`graph-${id}`);
         if(!row) return;
         if(row.classList.contains('open')) {
             row.classList.remove('open');
         } else {
-            // 全ての他のグラフを閉じる
             document.querySelectorAll('.sub-graph-row').forEach(el => el.classList.remove('open'));
             row.classList.add('open');
-            // 描画
             const probs = window.tempProbs[id];
             const sum = probs.reduce((a,b)=>a+b,0) || 1;
             const pct = probs.map(v=>(v/sum)*100);
-            const max = Math.max(...pct) || 1;
+            
+            // 共通関数でグラフ描画
             let h = `<div style="font-size:11px; color:#aaa; margin-bottom:5px;">▼ この要素のみの推測</div>`;
-            pct.forEach((v, i) => {
-                h += `<div class="bar-row"><div>設${i+1}</div><div class="bar-bg"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div><div style="width:30px; text-align:right;">${Math.round(v)}%</div></div>`;
-            });
+            h += renderBarGraph(pct);
             document.getElementById(`bar-${id}`).innerHTML = h;
         }
     }
 
-    // --- データ出力 (コピー) ---
     function exportData() {
         const d = new Date();
         const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
         const s = data.start; const c = data.cur;
-        const totalG = s.g + c.g; // ここでの総回転数はカウンター上の総G
-        const bonusG = (c.b * 20) + (c.r * 10);
         
-        // 朝一ランプをBIGランプにマージ
+        // モードに従った値
+        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
+        
+        const bonusG = (vB * 20) + (vR * 10);
+        const totalG = vG + bonusG; // 総回転数は通常G + ボーナスGとする仕様
+
         let bLamps = [...data.lamps.big];
         if(data.morning >= 1) bLamps[data.morning - 1]++;
 
         const row = [
-            dateStr, // 日付
-            totalG, // 総回転数(打ち始め+現在)
-            c.g,    // 通常時回転数(現在)
+            dateStr,
+            totalG, // 総回転数
+            vG,     // 通常時回転数
             bonusG, // ボーナス回転数
-            s.b + c.b, // BIG合計
-            s.r + c.r, // REG合計
-            c.bell, // ベル
-            c.suika, // スイカ
-            ...bLamps, // BIGランプ(青黄緑赤虹)
-            ...data.lamps.regS, // サイド
-            ...data.lamps.regT, // REG筐体
+            vB,     // BIG
+            vR,     // REG
+            c.bell, 
+            c.suika,
+            ...bLamps,
+            ...data.lamps.regS,
+            ...data.lamps.regT,
             c.retro_d,
             c.retro
         ];
         
         const txt = row.join('\t');
         if(navigator.clipboard) {
-            navigator.clipboard.writeText(txt).then(() => alert("データをコピーしました\nスプレッドシートに貼り付けてください"));
+            navigator.clipboard.writeText(txt).then(() => alert(`データをコピーしました\nモード: ${data.viewMode==='total'?'全て':'個人'}`));
         } else {
-            prompt("以下のテキストをコピーしてください", txt);
+            prompt("コピーしてください", txt);
         }
     }
 
