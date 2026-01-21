@@ -268,16 +268,23 @@
         });
     }
 
-    function calcLikelihood(n, k, probList) {
-        if(n <= 0 || k < 0) return [1,1,1,1,1,1];
-        let likes = probList.map(p => {
-            const pr = 1/p;
-            // 非常に小さな値になるのを防ぐため正規化を意識
-            return Math.exp(k * Math.log(pr) + (n - k) * Math.log(1 - pr));
+    function calcLikelihood(n, k, probList) {   
+        if (n <= 0 || k < 0) return [1,1,1,1,1,1];
+
+        let logLikes = probList.map(p => {
+            const pr = 1 / p;
+            const eps = 1e-12;
+            return k * Math.log(pr + eps) + (n - k) * Math.log(1 - pr + eps);
         });
+
+        const maxLog = Math.max(...logLikes);
+        const likes = logLikes.map(v => Math.exp(v - maxLog));
         const max = Math.max(...likes);
+
         return likes.map(v => v / max);
     }
+
+
 
     function calcMultiLikelihood(counts, table) {
         if(counts.reduce((a,b)=>a+b,0) === 0) return [1,1,1,1,1,1];
@@ -309,28 +316,29 @@
 
         // BIG/REG/合算の確率計算用データ（表示モードで変わる）
         let calcG, calcB, calcR;
+
         if (data.viewMode === 'personal') {
-            // 個人モード：打ち始めを引いた値で計算
             calcG = Math.max(0, c.g - s.g);
             calcB = Math.max(0, c.b - s.b);
             calcR = Math.max(0, c.r - s.r);
         } else {
-            // 全てモード：現在値そのまま
             calcG = c.g;
             calcB = c.b;
             calcR = c.r;
         }
         
         // その他の項目は常に個人の実データで計算
-        const actualG = c.g; // 通常時回転数
-        const actualB = c.b; // BIG回数
+        const actualG = Math.max(0, c.g - (c.b * 20 + c.r * 10)); // 通常時回転数
+        const actualB = Math.max(0, calcB * 20); // BIG回数
         
         const lB = calcLikelihood(calcG, calcB, PARAMS.b);
         const lR = calcLikelihood(calcG, calcR, PARAMS.r);
         const lG = calcLikelihood(calcG, calcB + calcR, PARAMS.gassan);
         const lBell = calcLikelihood(actualG, c.bell, PARAMS.bell);
-        const lSui = calcLikelihood(actualB * 20, c.suika, PARAMS.suika);
-        const lRet = calcLikelihood(c.retro_d, c.retro, PARAMS.retro);
+        const lSui = calcLikelihood(actualB, c.suika, PARAMS.suika);
+        const lRet = (c.retro_d > 0)
+            ? calcLikelihood(c.retro_d, c.retro, PARAMS.retro)
+            : [1,1,1,1,1,1];
         const lBigL = calcMultiLikelihood(bigLamps, PARAMS.lampB);
         const lSidL = calcMultiLikelihood(data.lamps.regS, PARAMS.sideR);
 
@@ -365,11 +373,11 @@
 
         const rows = [
             { id:'g', lab:'通常時回転数', val:`${vG}回転`, l:null },
-            { id:'b', lab:'BIG', val:`${vB}回 <span class="white-txt">(${getP(vB, vG)})</span>`, l:lB },
-            { id:'r', lab:'REG', val:`${vR}回 <span class="white-txt">(${getP(vR, vG)})</span>`, l:lR },
-            { id:'gas', lab:'合算', val:`${vB+vR}回 <span class="white-txt">(${getP(vB+vR, vG)})</span>`, l:lG },
-            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, c.g)})</span>`, l:lBell },
-            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, c.b*20)})</span>`, l:lSui },
+            { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:lB },
+            { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG)})</span>`, l:lR },
+            { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG)})</span>`, l:lG },
+            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, normalG)})</span>`, l:lBell },
+            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, bigGameG)})</span>`, l:lSui },
             { id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps), l:lBigL },
             { id:'sl', lab:'REG：サイドランプ', val:mkLmpT(data.lamps.regS), l:lSidL },
             { id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT), l:lRegL },
