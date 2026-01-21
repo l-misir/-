@@ -37,7 +37,7 @@
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-2 { grid-template-columns: 1fr 1fr; }
-        .cell { background: var(--cell-bg); padding: 5px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 40px; cursor: pointer; }
+        .cell { background: var(--cell-bg); padding: 5px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 40px; }
         .label { font-size: 10px; color: white; margin-bottom: 1px; pointer-events: none; }
         .value { font-size: 20px; font-weight: bold; line-height: 1.2; pointer-events: none; }
         .touch-active { background: #666 !important; }
@@ -49,13 +49,7 @@
         .modal.active { display: flex; }
         .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #000; border-bottom: 1px solid #333; }
         .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 40px; }
-        .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
-        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; margin-bottom: 20px; }
-        .detail-table th { background: #222; text-align: left; padding: 10px 5px; border-bottom: 1px solid #444; font-weight: normal; }
-        .detail-table td { padding: 10px 5px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; }
-        .sub-graph-row { display: none; background: #111; }
-        .sub-graph-row.open { display: table-row; }
-        .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; }
+        .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
         .bar-label { width: 40px; }
         .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
         .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
@@ -63,6 +57,13 @@
         .expect-box { background: #222; padding: 10px; border: 1px solid #444; margin-bottom: 15px; }
         .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
         .expect-val { font-weight: bold; color: #0f0; }
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; }
+        .detail-table th { background: #222; text-align: left; padding: 10px 5px; border-bottom: 1px solid #444; font-weight: normal; }
+        .detail-table td { padding: 10px 5px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; }
+        .sub-graph-row { display: none; background: #111; }
+        .sub-graph-row.open { display: table-row; }
+        .white-txt { color: #fff !important; font-weight: normal; }
+        .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -79,38 +80,28 @@
 
 <div id="setting-modal" class="modal">
     <div class="modal-header">
-        <div style="width:24px;"></div><div style="font-weight:bold;">設定</div>
+        <div style="width:24px;"></div><div style="font-weight:bold; color:white;">設定</div>
         <div class="header-icon" onclick="closeModal('setting-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title">＜機種選択＞</p>
-        <select id="machine-select" style="width:100%; padding:10px; background:#333; color:white;" onchange="updateMachine()">
-            <option value="king">キングハナハナ</option>
-            <option value="new">ニューキングハナハナ</option>
-        </select>
-
         <p class="section-title">＜表示・出力データ＞</p>
         <div class="grid grid-2">
-            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label" style="font-size:14px;">個人</div></div>
-            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label" style="font-size:14px;">全て</div></div>
+            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label" style="font-size:14px; color:white;">個人</div></div>
+            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label" style="font-size:14px; color:white;">全て</div></div>
         </div>
-        
         <p class="section-title">＜入力モード＞</p>
         <div class="grid grid-2">
-            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label" style="font-size:14px;">カウンター</div></div>
-            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label" style="font-size:14px;">数値入力</div></div>
+            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label" style="font-size:14px; color:white;">タップ</div></div>
+            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label" style="font-size:14px; color:white;">数値入力</div></div>
         </div>
-        
         <p class="section-title">＜打ち始めデータ＞</p>
         <div class="grid grid-3">
             <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()" onfocus="this.select()"></div>
             <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()" onfocus="this.select()"></div>
             <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()" onfocus="this.select()"></div>
         </div>
-
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
-
         <button onclick="exportData()" class="export-btn">データ出力(コピー)</button>
         <button onclick="resetAll()" style="width:100%; padding:10px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px;">全リセット</button>
     </div>
@@ -118,7 +109,7 @@
 
 <div id="predict-modal" class="modal">
     <div class="modal-header">
-        <div style="width:24px;"></div><div style="font-weight:bold;">設定推測</div>
+        <div style="width:24px;"></div><div style="font-weight:bold; color:white;">設定推測</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
@@ -126,7 +117,7 @@
         <div id="predict-bars" style="margin-bottom:15px;"></div>
         <p class="section-title">＜期待値＞</p>
         <div class="expect-box" id="expect-info"></div>
-        <p class="section-title">＜詳細データ (タップで詳細推測)＞</p>
+        <p class="section-title">＜詳細データ (タップで個別推測)＞</p>
         <table class="detail-table" id="detail-rows"></table>
     </div>
 </div>
@@ -140,21 +131,40 @@
         morning: -1
     };
 
-    const PAYOUT = [97, 99, 101, 104, 107, 110];
+    const PAYOUT = [97.0, 99.0, 101.0, 104.0, 107.0, 110.0];
     const PARAMS = {
-        king: {
-            b: [292, 280, 268, 257, 244, 232],
-            r: [489, 452, 420, 390, 360, 332],
-            sum: [183, 172.9, 163.8, 154.6, 145.3, 136.2],
-            bell: [7.254, 7.250, 7.249, 7.048, 6.975, 6.940],
-            suika: [42.01, 38.55, 36.21, 31.51, 29.39, 27.54],
-            lampB: [[32,35,40,84,6553],[29,31,38,78,3276],[26,27,35,63,1638],[23,25,34,55,655],[21,23,30,44,327],[20,21,29,37,131]],
-            sideR: [[36,24,24,16,0.02],[23,35,17,25,0.05],[34,22,26,18,0.10],[22,32,18,28,0.20],[31,21,29,19,0.39],[25,25,25,25,0.78]],
-            lampR: [[1000,2000,4000,8000,16000],[800,1600,3200,6400,12800],[600,1200,2400,4800,9600],[400,800,1600,3200,6400],[200,400,800,1600,3200],[100,200,400,800,1600]],
-            retro: [15, 13.7, 12.4, 11.1, 9.8, 8.5]
-        }
+        b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
+        r: [489.1, 451.9, 417.4, 385.5, 352.3, 332.7],
+        gassan: [183.1, 173.8, 165.1, 156.0, 144.5, 136.2],
+        bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
+        suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
+        retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
+        // 青, 黄, 緑, 赤, 虹
+        lampB: [
+            [0.50, 0.30, 0.15, 0.045, 0.005],
+            [0.45, 0.30, 0.18, 0.060, 0.010],
+            [0.40, 0.30, 0.20, 0.080, 0.020],
+            [0.35, 0.25, 0.25, 0.120, 0.030],
+            [0.30, 0.20, 0.30, 0.150, 0.050],
+            [0.25, 0.20, 0.30, 0.150, 0.100]
+        ],
+        sideR: [
+            [0.60, 0.30, 0.08, 0.019, 0.001],
+            [0.30, 0.60, 0.05, 0.045, 0.005],
+            [0.50, 0.25, 0.20, 0.040, 0.010],
+            [0.25, 0.50, 0.15, 0.080, 0.020],
+            [0.40, 0.20, 0.30, 0.070, 0.030],
+            [0.20, 0.20, 0.20, 0.200, 0.200]
+        ],
+        lampT: [
+            [0.80, 0.15, 0.04, 0.009, 0.001],
+            [0.75, 0.18, 0.05, 0.015, 0.005],
+            [0.70, 0.20, 0.06, 0.030, 0.010],
+            [0.60, 0.25, 0.08, 0.050, 0.020],
+            [0.50, 0.25, 0.12, 0.080, 0.050],
+            [0.40, 0.20, 0.20, 0.100, 0.100]
+        ]
     };
-    PARAMS.new = PARAMS.king;
 
     let data = loadData();
 
@@ -162,48 +172,59 @@
         const saved = localStorage.getItem('hana_v10_data');
         return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
     }
+
     function save() { localStorage.setItem('hana_v10_data', JSON.stringify(data)); updateView(); }
+    
     function init() {
-        document.getElementById('machine-select').value = data.machine;
         document.getElementById('start-g').value = data.start.g;
         document.getElementById('start-b').value = data.start.b;
         document.getElementById('start-r').value = data.start.r;
         renderMorningSelector();
         updateView();
     }
+
     function updateView() {
-        document.getElementById('disp-machine').innerText = (data.machine === 'king' ? 'キングハナハナ' : 'ニューキングハナハナ');
+        document.getElementById('disp-machine').innerText = "キングハナハナ系";
         document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
         document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
         document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
         renderMain();
     }
+
+    function getVal(key) { return (data.viewMode === 'total' && data.start[key] !== undefined) ? data.cur[key] + data.start[key] : data.cur[key]; }
+
     function renderMorningSelector() {
-        const cols = ['var(--lamp-white)', 'var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)'];
+        const labs = ['白','青','黄','緑','赤'];
+        const cols = ['var(--lamp-white)','var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)'];
         let html = '';
-        ['白','青','黄','緑','赤'].forEach((l, i) => {
-            html += `<div class="cell ${data.morning===i?'selected-lamp':''}" onclick="setMorning(${i})"><div class="label" style="color:${cols[i]}; font-weight:bold;">${l}</div></div>`;
+        labs.forEach((l, i) => {
+            const isSel = (data.morning === i) ? 'selected-lamp' : '';
+            html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label" style="color:${cols[i]}; font-size:14px; font-weight:bold;">${l}</div></div>`;
         });
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
-    function setMorning(v) { data.morning = (data.morning===v)?-1:v; save(); renderMorningSelector(); }
+    function setMorning(val) { data.morning = (data.morning === val) ? -1 : val; save(); renderMorningSelector(); }
     function setViewMode(m) { data.viewMode = m; save(); }
     function setInputMode(m) { data.mode = m; save(); }
     function saveStart() {
-        data.start.g = Number(document.getElementById('start-g').value)||0;
-        data.start.b = Number(document.getElementById('start-b').value)||0;
-        data.start.r = Number(document.getElementById('start-r').value)||0;
+        data.start.g = Number(document.getElementById('start-g').value) || 0;
+        data.start.b = Number(document.getElementById('start-b').value) || 0;
+        data.start.r = Number(document.getElementById('start-r').value) || 0;
         save();
     }
-    function getVal(k) { return data.viewMode === 'personal' ? data.cur[k] : data.cur[k] + (data.start[k]||0); }
 
     function renderMain() {
-        const c = data.cur; const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
+        const c = data.cur; const s = data.start;
+        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
         const html = `
             <div>
                 <p class="section-title">＜打ち始め＞</p>
-                <div class="grid grid-3"><div class="cell"><div class="label">ゲーム数</div><div class="value">${data.start.g}</div></div><div class="cell"><div class="label">BIG</div><div class="value">${data.start.b}</div></div><div class="cell"><div class="label">REG</div><div class="value">${data.start.r}</div></div></div>
+                <div class="grid grid-3">
+                    <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                    <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                    <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+                </div>
                 <p class="section-title">＜現在＞(${data.viewMode==='total'?'全て':'個人'})</p>
                 <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
             </div>
@@ -222,149 +243,153 @@
             </div>
         `;
         document.getElementById('main-ui').innerHTML = html;
-        if(data.mode==='tap') attachEvents();
+        if(data.mode === 'tap') attachEvents();
     }
 
-    function mkC(id, lab, val, st=1) {
-        if(data.mode==='input') return `<div class="cell"><div class="label">${lab}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
-        return `<div class="cell t-btn" data-id="${id}" data-step="${st}"><div class="label">${lab}</div><div class="value">${val}</div></div>`;
+    function mkC(id, label, val, step=1) {
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
+        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
     }
-    function mkL(t) {
+
+    function mkL(type) {
+        const labs = ['青','黄','緑','赤','虹'];
         const cols = ['var(--lamp-blue)','var(--lamp-yellow)','var(--lamp-green)','var(--lamp-red)','rainbow'];
-        return ['青','黄','緑','赤','虹'].map((l, i) => {
-            const v = data.lamps[t][i];
-            const cls = cols[i]==='rainbow'?'class="rainbow"':`style="color:${cols[i]}"`;
-            if(data.mode==='input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="data.lamps.${t}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
-            return `<div class="cell t-lamp" data-type="${t}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
+        return labs.map((l, i) => {
+            const v = data.lamps[type][i];
+            const cls = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i]}"`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
         }).join('');
     }
 
     function attachEvents() {
         document.querySelectorAll('.cell').forEach(el => {
-            if(!el.classList.contains('t-btn') && !el.classList.contains('t-lamp')) return;
+            if(!el.dataset.id && !el.dataset.type) return;
             let sy, sx, isC, timer;
             el.ontouchstart = (e) => {
-                sy=e.touches[0].clientY; sx=e.touches[0].clientX; isC=false; el.classList.add('touch-active');
-                timer=setTimeout(()=>{if(!isC) el.classList.add('minus-mode');},600);
+                sy = e.touches[0].clientY; sx = e.touches[0].clientX; isC = false;
+                el.classList.add('touch-active');
+                timer = setTimeout(() => { if(!isC) el.classList.add('minus-mode'); }, 600);
             };
-            el.ontouchend = (e) => {
-                clearTimeout(timer); if(isC) return;
-                const step = Number(el.dataset.step||1) * (el.classList.contains('minus-mode')?-1:1);
-                if(el.dataset.id) data.cur[el.dataset.id] = Math.max(0, data.cur[el.dataset.id]+step);
-                else data.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, data.lamps[el.dataset.type][el.dataset.idx]+step);
-                el.classList.remove('touch-active','minus-mode'); save();
+            el.ontouchend = () => {
+                clearTimeout(timer);
+                if(isC) return;
+                const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
+                if(el.dataset.id) data.cur[el.dataset.id] = Math.max(0, data.cur[el.dataset.id] + step);
+                else data.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, data.lamps[el.dataset.type][el.dataset.idx] + step);
+                el.classList.remove('touch-active','minus-mode');
+                save();
             };
-            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY-sy)>10) isC=true; };
+            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY - sy) > 10) isC = true; };
         });
     }
 
-    function updateMachine() { data.machine = document.getElementById('machine-select').value; save(); }
-    function resetAll() { if(confirm("消去しますか？")) { localStorage.removeItem('hana_v10_data'); location.reload(); } }
-    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    // --- 計算ロジック ---
+    function calcLikelihood(n, k, probList) {
+        if(n <= 0) return [1,1,1,1,1,1];
+        return probList.map(p => {
+            const prob = 1/p;
+            return Math.pow(prob, k) * Math.pow(1-prob, n-k);
+        });
+    }
 
-    // --- 設定推測エンジン ---
+    function calcMultiLikelihood(counts, table) {
+        if(counts.reduce((a,b)=>a+b,0) === 0) return [1,1,1,1,1,1];
+        return table.map(probs => {
+            let l = 1;
+            counts.forEach((c, i) => { if(c > 0) l *= Math.pow(probs[i], c); });
+            return l;
+        });
+    }
+
+    function renderBarGraph(probs) {
+        const sum = probs.reduce((a,b)=>a+b,0) || 1;
+        const pcts = probs.map(v => (v/sum)*100);
+        const max = Math.max(...pcts) || 1;
+        return pcts.map((p, i) => `
+            <div class="bar-row">
+                <div class="bar-label">設定${i+1}</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(p/max)*100}%"></div></div>
+                <div class="bar-val">${p.toFixed(1)}%</div>
+            </div>`).join('');
+    }
+
     function calc() {
-        const c = data.cur; const p = PARAMS[data.machine];
-        const L = [1,1,1,1,1,1]; // 尤度
+        const c = data.cur;
+        let bigLamps = [...data.lamps.big]; if(data.morning >= 1) bigLamps[data.morning-1]++;
 
-        const getL = (n, k, table) => {
-            let res = [1,1,1,1,1,1];
-            if(n <= 0) return res;
-            for(let i=0; i<6; i++) {
-                const pr = 1/table[i];
-                res[i] = Math.pow(pr, k) * Math.pow(1-pr, n-k);
-            }
-            return res;
-        };
+        const lB = calcLikelihood(c.g, c.b, PARAMS.b);
+        const lR = calcLikelihood(c.g, c.r, PARAMS.r);
+        const lG = calcLikelihood(c.g, c.b + c.r, PARAMS.gassan);
+        const lBell = calcLikelihood(c.g, c.bell, PARAMS.bell);
+        const lSui = calcLikelihood(c.b * 20, c.suika, PARAMS.suika);
+        const lRet = calcLikelihood(c.retro_d, c.retro, PARAMS.retro);
+        const lBigL = calcMultiLikelihood(bigLamps, PARAMS.lampB);
+        const lSidL = calcMultiLikelihood(data.lamps.regS, PARAMS.sideR);
+        const lRegL = calcMultiLikelihood(data.lamps.regT, PARAMS.lampT);
 
-        const getMultiL = (counts, tableRows) => {
-            let res = [1,1,1,1,1,1];
-            if(counts.reduce((a,b)=>a+b,0) === 0) return res;
-            for(let i=0; i<6; i++) {
-                const row = tableRows[i];
-                const rowSum = row.reduce((a,b)=>a+b,0);
-                let l = 1;
-                counts.forEach((cnt, idx) => { if(cnt>0) l *= Math.pow(row[idx]/rowSum, cnt); });
-                res[i] = l;
-            }
-            return res;
-        };
-
-        const lB = getL(c.g, c.b, p.b);
-        const lR = getL(c.g, c.r, p.r);
-        const lSum = getL(c.g, c.b+c.r, p.sum);
-        const lBell = getL(c.g, c.bell, p.bell);
-        const lSuika = getL(c.b*20, c.suika, p.suika);
-        const lRetro = getL(c.retro_d, c.retro, p.retro);
-        
-        let bLampCounts = [...data.lamps.big]; if(data.morning>=1) bLampCounts[data.morning-1]++;
-        const lBLamp = getMultiL(bLampCounts, p.lampB);
-        const lSide = getMultiL(data.lamps.regS, p.sideR);
-        const lRLamp = getMultiL(data.lamps.regT, p.lampR);
-
-        for(let i=0; i<6; i++) L[i] = lB[i]*lR[i]*lBell[i]*lSuika[i]*lRetro[i]*lBLamp[i]*lSide[i]*lRLamp[i];
-        
-        const sumL = L.reduce((a,b)=>a+b,0) || 1;
-        const pcts = L.map(v => (v/sumL)*100);
-        document.getElementById('predict-bars').innerHTML = renderBars(pcts);
+        const totalL = lB.map((v, i) => v * lR[i] * lBell[i] * lSui[i] * lRet[i] * lBigL[i] * lSidL[i] * lRegL[i]);
+        document.getElementById('predict-bars').innerHTML = renderBarGraph(totalL);
 
         // 期待値
-        let eS = 0; pcts.forEach((v, i) => eS += (i+1)*(v/100));
-        let eR = PAYOUT[Math.floor(eS)-1] || PAYOUT[0];
-        if(eS > Math.floor(eS) && Math.floor(eS) < 6) {
-            let r1 = PAYOUT[Math.floor(eS)-1], r2 = PAYOUT[Math.floor(eS)];
-            eR = r1 + (r2-r1)*(eS-Math.floor(eS));
-        }
+        const sumL = totalL.reduce((a,b)=>a+b,0) || 1;
+        const pcts = totalL.map(v => v/sumL);
+        let expSet = 0; pcts.forEach((p, i) => expSet += p * (i+1));
+        const expRate = pcts.reduce((a, b, i) => a + (b * PAYOUT[i]), 0);
+        
         const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
-        const diff = Math.round((vG*3) * (eR/100 - 1));
+        const diff = (vG * 3) * (expRate/100 - 1);
 
         document.getElementById('expect-info').innerHTML = `
-            <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${vG + vB*20 + vR*10}G</div></div>
-            <div class="expect-row"><div>期待設定</div><div class="expect-val">${eS.toFixed(2)}</div></div>
-            <div class="expect-row"><div>期待機械割</div><div class="expect-val">${eR.toFixed(2)}%</div></div>
-            <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff>=0?'+':''}${diff}枚</div></div>
+            <div class="expect-row"><div>総回転数 (${data.viewMode==='total'?'全て':'個人'})</div><div class="expect-val" style="color:#fff">${vG + (vB*20) + (vR*10)} G</div></div>
+            <div class="expect-row"><div>期待設定</div><div class="expect-val">${expSet.toFixed(2)}</div></div>
+            <div class="expect-row"><div>期待機械割</div><div class="expect-val">${expRate.toFixed(2)}%</div></div>
+            <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
-        const mkRow = (lab, val, lArr, id) => {
-            const rowSum = lArr.reduce((a,b)=>a+b,0) || 1;
-            window[`p_${id}`] = lArr.map(v=>(v/rowSum)*100);
-            return `<tr onclick="toggleGraph('${id}')"><th>${lab}</th><td>${val}</td></tr><tr id="g_${id}" class="sub-graph-row"><td colspan="2" id="c_${id}" style="padding:10px;"></td></tr>`;
-        };
-
-        const lampStr = (t, counts) => counts.map((v,i)=>`<span style="color:${['#3af','#fd4','#4f4','#f44','#fff'][i]}">${['青','黄','緑','赤','虹'][i]}</span>:${v}`).join(' ');
-
-        document.getElementById('detail-rows').innerHTML = 
-            mkRow('通常時：ベル', `${c.bell}回 (1/${(c.g/c.bell||0).toFixed(1)})`, lBell, 'bell') +
-            mkRow('合算', `${vB+vR}回 (1/${(vG/(vB+vR)||0).toFixed(1)})`, lSum, 'sum') +
-            mkRow('BIG：スイカ', `${c.suika}回 (1/${(c.b*20/c.suika||0).toFixed(1)})`, lSuika, 'suika') +
-            mkRow('BIG：筐体', lampStr('big', bLampCounts), lBLamp, 'blamp') +
-            mkRow('REG：サイド', lampStr('regS', data.lamps.regS), lSide, 'side') +
-            mkRow('REG：筐体', lampStr('regT', data.lamps.regT), lRLamp, 'rlamp') +
-            mkRow('レトロ', `${c.retro}/${c.retro_d}`, lRetro, 'retro');
+        // 詳細
+        const rows = [
+            { id:'g', lab:'通常時回転数', val:`${vG}回転`, l:null },
+            { id:'b', lab:'BIG', val:`${vB}回 <span class="white-txt">(1/${(vG/vB).toFixed(1)})</span>`, l:lB },
+            { id:'r', lab:'REG', val:`${vR}回 <span class="white-txt">(1/${(vG/vR).toFixed(1)})</span>`, l:lR },
+            { id:'gas', lab:'合算', val:`${vB+vR}回 <span class="white-txt">(1/${(vG/(vB+vR)).toFixed(1)})</span>`, l:lG },
+            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(1/${(c.g/c.bell).toFixed(2)})</span>`, l:lBell },
+            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(1/${((c.b*20)/c.suika).toFixed(1)})</span>`, l:lSui },
+            { id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps), l:lBigL },
+            { id:'sl', lab:'REG：サイドランプ', val:mkLmpT(data.lamps.regS), l:lSidL },
+            { id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT), l:lRegL },
+            { id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet }
+        ];
+        document.getElementById('detail-rows').innerHTML = rows.map(r => `
+            <tr onclick="toggleGraph('${r.id}')"><th>${r.lab}</th><td>${r.val}</td></tr>
+            <tr id="g-${r.id}" class="sub-graph-row"><td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l) : 'データなし'}</div></td></tr>
+        `).join('');
     }
 
-    function renderBars(p) {
-        const max = Math.max(...p)||1;
-        return p.map((v, i) => `<div class="bar-row"><div class="bar-label">設定${i+1}</div><div class="bar-bg"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div><div class="bar-val">${v.toFixed(1)}%</div></div>`).join('');
+    function mkLmpT(arr) {
+        const n = ['青','黄','緑','赤','虹'];
+        const c = ['#3af','#fd4','#4f4','#f44','rainbow'];
+        return arr.map((v,i) => `<span class="${c[i]==='rainbow'?'rainbow':''}" style="${c[i]!=='rainbow'?'color:'+c[i]:''}">${n[i]}</span>:${v}`).join(' ');
     }
 
-    window.toggleGraph = (id) => {
-        const r = document.getElementById(`g_${id}`);
-        const isOpen = r.classList.contains('open');
-        document.querySelectorAll('.sub-graph-row').forEach(el=>el.classList.remove('open'));
-        if(!isOpen) {
-            r.classList.add('open');
-            document.getElementById(`c_${id}`).innerHTML = `<div style="font-size:10px; color:#aaa; margin-bottom:4px;">▼ 個別推測</div>` + renderBars(window[`p_${id}`]);
-        }
-    };
+    window.toggleGraph = function(id) {
+        const el = document.getElementById(`g-${id}`);
+        const isOp = el.classList.contains('open');
+        document.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
+        if(!isOp) el.classList.add('open');
+    }
 
     function exportData() {
-        const vG=getVal('g'), vB=getVal('b'), vR=getVal('r');
+        const d = new Date();
         const bL = [...data.lamps.big]; if(data.morning>=1) bL[data.morning-1]++;
-        const row = [new Date().toLocaleDateString(), vG+vB*20+vR*10, vG, vB*20+vR*10, vB, vR, data.cur.bell, data.cur.suika, ...bL, ...data.lamps.regS, ...data.lamps.regT, data.cur.retro_d, data.cur.retro];
-        navigator.clipboard.writeText(row.join('\t')).then(()=>alert("コピーしました"));
+        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
+        const row = [`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`, vG+(vB*20)+(vR*10), vG, (vB*20)+(vR*10), vB, vR, data.cur.bell, data.cur.suika, ...bL, ...data.lamps.regS, ...data.lamps.regT, data.cur.retro_d, data.cur.retro];
+        navigator.clipboard.writeText(row.join('\t')).then(() => alert("コピー完了(タブ区切り)"));
     }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function resetAll() { if(confirm("消去しますか？")) { localStorage.removeItem('hana_v10_data'); location.reload(); } }
 
     window.onload = init;
 </script>
