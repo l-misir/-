@@ -64,25 +64,6 @@
         .sub-graph-row.open { display: table-row; }
         .white-txt { color: #fff !important; font-weight: normal; }
         .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
-        .rainbow {
-            background: linear-gradient(
-            90deg,
-            #ff0000,
-            #ff7f00,
-            #ffff00,
-            #00ff00,
-            #00ffff,
-            #0000ff,
-            #8b00ff
-            );
-            -webkit-background-clip: text;
-            background-clip: text;
-
-            color: transparent !important;
-            -webkit-text-fill-color: transparent !important;
-
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
@@ -434,50 +415,6 @@
     function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v11_data'); location.reload(); } }
 
     window.onload = init;
-
-    window.addEventListener("orientationchange", () => {
-        setTimeout(() => {
-            updateView();
-
-            document.querySelectorAll(".section-title").forEach(el => {
-                el.style.fontSize = "11px";
-            });
-
-            const pm = document.getElementById("predict-modal");
-            if (pm && pm.classList.contains("active")) {
-                calc();
-            }
-
-            document.querySelectorAll(".lamp-row span").forEach(el => {
-                if (el.textContent.trim() === "虹") {
-                el.classList.add("rainbow");
-                }
-            });
-        }, 300);
-    });
-
-    window.addEventListener("resize", () => {
-        clearTimeout(window.__rzTimer);
-        window.__rzTimer = setTimeout(() => {
-            updateView();
-
-            document.querySelectorAll(".section-title").forEach(el => {
-                el.style.fontSize = "11px";
-            });
-
-            const pm = document.getElementById("predict-modal");
-            if (pm && pm.classList.contains("active")) {
-                calc();
-            }
-
-            document.querySelectorAll(".lamp-row span").forEach(el => {
-                if (el.textContent.trim() === "虹") {
-                el.classList.add("rainbow");
-                }
-            });
-        }, 300);
-    });
-
 </script>
 </body>
 </html>
