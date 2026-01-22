@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V23</title>
+    <title>HANA Counter V24</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
@@ -15,7 +15,9 @@
         html, body {
             background: var(--bg-color); color: var(--text-white);
             font-family: -apple-system, sans-serif; margin: 0; padding: 0; height: 100%;
-            user-select: none; -webkit-user-select: none; touch-action: pan-y;
+            user-select: none; -webkit-user-select: none; 
+            /* 【修正箇所】pan-y から manipulation に変更 */
+            touch-action: manipulation;
         }
         .rainbow {
             background: linear-gradient(to right, #ff3333, #ffff33, #33ff33, #33ffff, #3333ff, #ff33ff, #ff3333);
