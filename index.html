@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V26</title>
+    <title>ハナハナカウンター</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
@@ -75,11 +75,9 @@
         /* コンパクト化された詳細データ・期待値周り */
         .expect-box { background: #222; padding: 5px 10px; border: 1px solid #444; margin-bottom: 10px; }
         .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
-        /* 色はJSで制御するためデフォルト指定は外す */
         .expect-val { font-weight: bold; } 
 
         .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; }
-        /* 余白を極小に */
         .detail-table th { background: #222; text-align: left; padding: 4px 4px; border-bottom: 1px solid #444; font-weight: normal; }
         .detail-table td { padding: 4px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; }
 
@@ -91,7 +89,6 @@
             .modal-body .label { font-size: 9px; }
             .modal-body .val-input { font-size: 16px; }
             .modal-body button { padding: 8px; margin-top: 10px; font-size: 12px; }
-            /* 横画面時もコンパクト設定維持 */
             .detail-table th, .detail-table td { padding: 4px 4px; font-size: 11px; }
             .bar-row { margin: 2px 0; font-size: 11px; }
             .bar-bg { height: 8px; }
@@ -159,7 +156,7 @@
         <p class="section-title">＜入力モード＞</p>
         <div class="grid grid-2">
             <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label-large">タップ</div></div>
-            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label-large">数値入力</div></div>
+            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label-large">入力</div></div>
         </div>
         <p class="section-title">＜打ち始めデータ＞</p>
         <div class="grid grid-3">
@@ -169,18 +166,18 @@
         </div>
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
-        <button onclick="exportData()" class="export-btn">データ出力(コピー)</button>
+        <button onclick="exportData()" class="export-btn">データコピー・画像出力</button>
         <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px; font-weight:bold;">リセット</button>
     </div>
 </div>
 
 <div id="predict-modal" class="modal">
     <div class="modal-header">
-        <div style="width:24px;"></div><div style="font-weight:bold; color:white;">推測</div>
+        <div style="width:24px;"></div><div style="font-weight:bold; color:white;">設定推測</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title" id="title-predict">＜設定推測＞</p>
+        <p class="section-title" id="title-predict">＜推測設定＞</p>
         <div id="predict-bars" style="background:#222; padding:5px 10px; border-radius:5px;"></div>
         <p class="section-title" id="title-expect">＜期待値＞</p>
         <div class="expect-box" id="expect-info"></div>
@@ -190,7 +187,7 @@
 </div>
 
 <div id="img-modal">
-    <div style="color:white; margin-bottom:10px; font-weight:bold;">設定推測画像を生成しました</div>
+    <div style="color:white; margin-bottom:10px; font-weight:bold;">画像を生成しました</div>
     <img id="img-preview" src="">
     <div id="img-controls">
         <button onclick="downloadImage()" style="padding:10px 20px; background:#007aff; color:white; border:none; border-radius:5px; font-weight:bold;">画像を保存</button>
@@ -315,7 +312,6 @@
         labs.forEach((l, i) => {
             const isSel = (d.morning === i) ? 'selected-lamp' : '';
             const colStyle = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i].startsWith('var')?cols[i]:'var('+cols[i]+')'}"`;
-            // ここも文字サイズを大きく
             html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label-large" ${colStyle}>${l}</div></div>`;
         });
         document.getElementById('morning-lamp-selector').innerHTML = html;
@@ -358,7 +354,7 @@
                         <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
                     </div>
                     <p class="section-title">＜現在＞</p>
-                    <div class="grid grid-3">${mkC('g','通常G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
                     <p class="section-title">＜ボーナス：スイカ＞</p>
                     <div class="grid grid-2">${mkC('suika', 'BIG(前半)', c.suika)}${mkC('suikaR', 'REG', c.suikaR)}</div>
@@ -382,7 +378,7 @@
                         <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
                     </div>
                     <p class="section-title">＜現在＞</p>
-                    <div class="grid grid-3">${mkC('g','通常G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
                     <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
                 </div>
@@ -413,7 +409,6 @@
         
         let useCols = pm.colors;
         let useLabs = pm.labels;
-        // ニューキングの各ランプ定義分岐
         if (data.machine === 'newking') {
             if (type === 'regS') {
                 useCols = pm.colors_side;
@@ -505,7 +500,7 @@
         
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
-            document.getElementById(prefix+'title-predict').innerText = `＜設定推測 ${modeStr}＞`;
+            document.getElementById(prefix+'title-predict').innerText = `＜推測設定 ${modeStr}＞`;
             document.getElementById(prefix+'title-expect').innerText = `＜期待値 ${modeStr}＞`;
             document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
         }
@@ -540,9 +535,7 @@
         let lRegL = pm.settings.map(()=>1);
         const t = d.lamps.regT;
         if(isNew) {
-            // ニューキング REG筐体ランプ計算 (虹[4]なし, 4要素)
-            // t[0]=青, t[1]=黄, t[2]=緑, t[3]=紫
-            if(t[3]>0) lRegL=[0,0,0,0,1];      // 紫 -> 56濃厚? (元のロジック維持なら456とか?) ※元のロジックを尊重して紫以上を強めに
+            if(t[3]>0) lRegL=[0,0,0,0,1];      // 紫 
             else if(t[2]>0) lRegL=[0,0,0,1,1]; // 緑
             else if(t[1]>0) lRegL=[0,0,1,1,1]; // 黄
             else if(t[0]>0) lRegL=[0,1,1,1,1]; // 青
@@ -561,10 +554,9 @@
         const expRate = pcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
         const diff = (calcG * 3) * (expRate/100 - 1);
 
-        // 期待値の色判定
-        let colorStyle = '#0f0'; // デフォルト緑
-        if (expRate < 100) colorStyle = '#ff4444'; // 100%未満は赤
-        else if (Math.abs(expRate - 100) < 0.01 && Math.round(diff) === 0) colorStyle = '#ffffff'; // ぴったり100%は白
+        let colorStyle = '#0f0';
+        if (expRate < 100) colorStyle = '#ff4444'; 
+        else if (Math.abs(expRate - 100) < 0.01 && Math.round(diff) === 0) colorStyle = '#ffffff';
 
         document.getElementById(prefix+'expect-info').innerHTML = `
             <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${totalG_disp} G</div></div>
@@ -595,7 +587,7 @@
                 return `<tr><th>${r.lab}</th><td>${r.val}</td></tr>${r.l ? `<tr><td colspan="2"><div style="padding:2px">${renderBarGraph(r.l, pm.settings)}</div></td></tr>` : ''}`;
             } else {
                 const clickEvent = (r.id === 'g') ? '' : `onclick="toggleGraph('g-${i}')"`;
-                const graphHtml = (r.id === 'g') ? '' : `<tr id="g-${i}" class="sub-graph-row"><td colspan="2"><div style="padding:5px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td></tr>`;
+                const graphHtml = (r.id === 'g') ? '' : `<tr id="g-${i}" class="sub-graph-row"><td colspan="2"><div style="padding:5px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別設定推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td></tr>`;
                 return `<tr ${clickEvent}><th>${r.lab}</th><td>${r.val}</td></tr>` + graphHtml;
             }
         }).join('');
@@ -610,7 +602,7 @@
         }
 
         return arr.map((v,i) => {
-            if(!cols[i]) return ""; // 配列長不一致ガード
+            if(!cols[i]) return ""; 
             const col = cols[i]; const lab = labs[i];
             const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
             return `<span ${s}>${lab}</span>:${v}`;
@@ -647,7 +639,9 @@
         
         let txt = "";
         if (data.machine === 'newking') {
-            const row = [dateStr, totalG_out, calcG, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
+            // [修正箇所] ニューキングの場合のみ、REG筐体ランプの出力データを4つに制限(slice(0,4))し、虹を除外
+            const regT_out = dat.lamps.regT.slice(0, 4);
+            const row = [dateStr, totalG_out, calcG, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...regT_out, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
         } else {
             const row = [dateStr, totalG_out, calcG, (calcB*20)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, ...bL, ...dat.lamps.regS, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
@@ -704,13 +698,13 @@
 
 <div id="capture-container" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; visibility:hidden; overflow:hidden;">
     <div id="capture-content" style="width:400px; background:#1a1a1a; padding:20px; box-sizing:border-box;">
-        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">HANA Counter</h3>
+        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">ハナハナカウンター</h3>
         <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span> <span id="cap-mode"></span></p>
-        <p class="section-title" style="color:#ddd">＜設定推測＞</p>
+        <p class="section-title" style="color:#ddd" id="cap-title-predict">＜推測設定＞</p>
         <div id="cap-predict-bars" style="background:#222; padding:5px 10px; border-radius:5px; margin-bottom:10px;"></div>
-        <p class="section-title" style="color:#ddd">＜期待値＞</p>
+        <p class="section-title" style="color:#ddd" id="cap-title-expect">＜期待値＞</p>
         <div id="cap-expect-info" class="expect-box"></div>
-        <p class="section-title" style="color:#ddd">＜詳細データ＞</p>
+        <p class="section-title" style="color:#ddd" id="cap-title-detail">＜詳細データ＞</p>
         <table class="detail-table" id="cap-detail-rows"></table>
     </div>
 </div>
