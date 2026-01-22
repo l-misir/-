@@ -613,18 +613,14 @@
         calc('cap');
         
         const target = document.getElementById('capture-content');
-        // 画像生成エリアを表示させてから撮影
         const container = document.getElementById('capture-container');
-        container.style.visibility = 'visible';
         
-        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 8 }).then(canvas => {
+        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 3 }).then(canvas => {
             const imgData = canvas.toDataURL("image/png");
             document.getElementById('img-preview').src = imgData;
             document.getElementById('img-modal').style.display = 'flex';
-            container.style.visibility = 'hidden';
         }).catch(e => {
             alert("画像の生成に失敗しました。");
-            container.style.visibility = 'hidden';
         });
     }
 
@@ -661,5 +657,3 @@
 
 </body>
 </html>
-
-
