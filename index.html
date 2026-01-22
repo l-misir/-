@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V21</title>
+    <title>HANA Counter V22</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
@@ -241,8 +241,8 @@
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
                [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
-            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', 'rainbow'],
-            labels: ['青', '黄', '緑', '紫', '虹'],
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
+            labels: ['青', '黄', '緑', '赤', '虹'],
             bigG: 26, regG: 10, suikaDenom: 14
         }
     };
@@ -332,7 +332,7 @@
                         <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
                     </div>
                     <p class="section-title">＜現在＞</p>
-                    <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <div class="grid grid-3">${mkC('g','通常G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
                     <p class="section-title">＜ボーナス：スイカ＞</p>
                     <div class="grid grid-2">${mkC('suika', 'BIG(前半)', c.suika)}${mkC('suikaR', 'REG', c.suikaR)}</div>
@@ -356,7 +356,7 @@
                         <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
                     </div>
                     <p class="section-title">＜現在＞</p>
-                    <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <div class="grid grid-3">${mkC('g','通常G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
                     <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
                 </div>
@@ -480,7 +480,9 @@
             calcG = c.g; calcB = c.b; calcR = c.r;
         }
         
-        const actG = Math.max(0, calcG - (calcB * pm.bigG + calcR * pm.regG));
+        // 修正箇所：入力値が「通常時のみの回転数」のため、ボーナス分を引かずそのまま使用する
+        const actG = calcG;
+        // 期待値表示用の総回転数（通常G + ボーナス消化G）
         const totalG_disp = calcG + (calcB * (isNew ? 26 : 20)) + (calcR * 10);
 
         const lB = calcLikelihood(calcG, calcB, pm.b);
@@ -524,8 +526,9 @@
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
+        // 詳細データの通常時回転数も、ボーナスを引かない値(calcG)を使用
         let rows = [
-            { id:'g', lab:'通常時回転数', val:`${actG}回転`, l:null },
+            { id:'g', lab:'通常時回転数', val:`${calcG}回転`, l:null },
             { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:lB },
             { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG)})</span>`, l:lR },
             { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG)})</span>`, l:lG },
@@ -535,7 +538,7 @@
         if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, calcR * 10)})</span>`, l:lSuiR });
 
         const lblSide = isNew ? "BIG(後半)：サイド" : "REG：サイド";
-        rows.push({ id:'bl', lab: isNew?'BIG：サイドランプ':lblSide, val:mkLmpT(d.lamps.regS, pm), l:lSidL }); // Newは表示名調整
+        rows.push({ id:'bl', lab: isNew?'BIG：サイドランプ':lblSide, val:mkLmpT(d.lamps.regS, pm), l:lSidL }); 
         rows.push({ id:'sl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm), l:lBigL });
         rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm), l:lRegL });
         rows.push({ id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet });
@@ -578,21 +581,25 @@
             const diffG = Math.max(0, dat.cur.g - dat.start.g);
             const diffB = Math.max(0, dat.cur.b - dat.start.b);
             const diffR = Math.max(0, dat.cur.r - dat.start.r);
-            calcG = diffG + (diffB * (data.machine === 'newking' ? 26 : 20)) + (diffR * 10);
+            // 修正：出力時のcalcGも「通常時回転数」として定義
+            calcG = diffG;
             calcB = diffB; calcR = diffR;
         } else {
-            calcG = dat.cur.g + (dat.cur.b * (data.machine === 'newking' ? 26 : 20)) + (dat.cur.r * 10);
+            calcG = dat.cur.g;
             calcB = dat.cur.b; calcR = dat.cur.r;
         }
+        
+        // 出力データ上は総回転数(ボーナス込)にする場合はこちらを加算
+        const totalG_out = calcG + (calcB * (data.machine === 'newking' ? 26 : 20)) + (calcR * 10);
 
         const bL = [...dat.lamps.big]; if(dat.morning>=1) bL[dat.morning-1]++;
         let txt = "";
         
         if (data.machine === 'newking') {
-            const row = [dateStr, calcG, dat.cur.g, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
+            const row = [dateStr, totalG_out, calcG, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
         } else {
-            const row = [dateStr, calcG, dat.cur.g, (calcB*20)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, ...bL, ...dat.lamps.regS, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
+            const row = [dateStr, totalG_out, calcG, (calcB*20)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, ...bL, ...dat.lamps.regS, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
         }
 
@@ -661,4 +668,3 @@
 
 </body>
 </html>
-
