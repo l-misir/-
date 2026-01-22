@@ -617,7 +617,7 @@
         const container = document.getElementById('capture-container');
         container.style.visibility = 'visible';
         
-        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 2 }).then(canvas => {
+        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 4 }).then(canvas => {
             const imgData = canvas.toDataURL("image/png");
             document.getElementById('img-preview').src = imgData;
             document.getElementById('img-modal').style.display = 'flex';
