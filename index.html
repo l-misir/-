@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V20</title>
+    <title>HANA Counter V21</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
@@ -99,14 +99,15 @@
 
         /* 画像生成用モーダル */
         #img-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:300; flex-direction:column; align-items:center; justify-content:center; }
-        #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; }
-        #img-controls { margin-top: 10px; display: flex; gap: 20px; }
+        #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
+        #img-controls { display: flex; gap: 20px; }
         
-        /* キャプチャ用不可視エリア */
+        /* キャプチャ用不可視エリア (画面外ではなく最背面に配置して安定描画させる) */
         #capture-target {
-            position: absolute; top: -9999px; left: -9999px;
+            position: fixed; top: 0; left: 0; z-index: -9999;
             width: 400px; background: #1a1a1a; color: white; padding: 20px;
             font-family: -apple-system, sans-serif;
+            visibility: visible; /* html2canvas用に見える状態にするがz-indexで隠す */
         }
     </style>
 </head>
@@ -173,7 +174,7 @@
     </div>
 </div>
 
-<div id="img-modal" style="display:none;">
+<div id="img-modal">
     <div style="color:white; margin-bottom:10px; font-weight:bold;">設定推測画像を生成しました</div>
     <img id="img-preview" src="">
     <div id="img-controls">
@@ -185,7 +186,6 @@
 <div id="capture-target"></div>
 
 <script>
-    // データ初期構造 (機種ごとに独立)
     const SINGLE_DEFAULT = {
         start: { g:0, b:0, r:0 },
         cur: { g:0, b:0, r:0, bell:0, suika:0, suikaR:0, retro_d:0, retro:0 },
@@ -254,8 +254,9 @@
             const saved = localStorage.getItem('hana_v20_data');
             let d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
             if (!d.king) {
-                // 移行処理: 古いデータ構造の場合
+                const old = JSON.parse(JSON.stringify(d));
                 d = JSON.parse(JSON.stringify(DEFAULTS));
+                if(old.machine === 'king') d.king = old.king || JSON.parse(JSON.stringify(SINGLE_DEFAULT));
             }
             return d;
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
@@ -321,7 +322,6 @@
         let html = '';
 
         if (isNew) {
-            // ニューキングハナハナV (従来レイアウト)
             html = `
             <div class="main-layout">
                 <div class="col-left">
@@ -346,7 +346,6 @@
                 </div>
             </div>`;
         } else {
-            // キングハナハナ (指定レイアウト)
             html = `
             <div class="main-layout">
                 <div class="col-left">
@@ -359,14 +358,15 @@
                     <p class="section-title">＜現在＞</p>
                     <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
-                    <p class="section-title">＜レトロサウンド＞</p>
-                    <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
+                    <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
                 </div>
                 <div class="col-right">
                     <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
                     <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
                     <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
                     <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜レトロサウンド＞</p>
+                    <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
                 </div>
             </div>`;
         }
@@ -424,7 +424,7 @@
         });
     }
 
-    // 計算関連関数
+    // 計算関連
     function calcLikelihood(n, k, probList) {
         if(n <= 0 || k < 0) return probList.map(()=>1);
         let likes = probList.map(p => {
@@ -456,7 +456,7 @@
             </div>`).join('');
     }
 
-    // 計算＆描画 (targetIdを指定することで、通常表示とキャプチャ用表示を使い分け)
+    // 計算実行
     function calc(targetId = "") {
         const prefix = targetId ? targetId + "-" : "";
         const d = getData();
@@ -464,7 +464,6 @@
         const pm = ALL_PARAMS[data.machine];
         const isNew = data.machine === 'newking';
         
-        // モード表記
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
             document.getElementById(prefix+'title-predict').innerText = `＜設定推測 ${modeStr}＞`;
@@ -472,22 +471,17 @@
             document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
         }
 
-        // 計算用数値
         let calcG, calcB, calcR;
         if (data.viewMode === 'personal') {
-            calcG = Math.max(0, c.g - s.g);
-            calcB = Math.max(0, c.b - s.b);
-            calcR = Math.max(0, c.r - s.r);
+            const diffG = Math.max(0, c.g - s.g);
+            const diffB = Math.max(0, c.b - s.b);
+            const diffR = Math.max(0, c.r - s.r);
+            calcG = diffG; calcB = diffB; calcR = diffR;
         } else {
-            calcG = c.g;
-            calcB = c.b;
-            calcR = c.r;
+            calcG = c.g; calcB = c.b; calcR = c.r;
         }
         
-        // 個人通常時G
         const actG = Math.max(0, calcG - (calcB * pm.bigG + calcR * pm.regG));
-        
-        // 期待値用総回転数
         const totalG_disp = calcG + (calcB * (isNew ? 26 : 20)) + (calcR * 10);
 
         const lB = calcLikelihood(calcG, calcB, pm.b);
@@ -498,15 +492,12 @@
         const lRet = (c.retro_d > 0) ? calcLikelihood(c.retro_d, c.retro, pm.retro) : pm.settings.map(()=>1);
         
         let lSuiR = pm.settings.map(()=>1);
-        if(isNew && c.suikaR > 0) {
-            lSuiR = calcLikelihood(calcR * 10, c.suikaR, pm.suikaR);
-        }
+        if(isNew && c.suikaR > 0) lSuiR = calcLikelihood(calcR * 10, c.suikaR, pm.suikaR);
 
         let bigLamps = [...d.lamps.big]; if(d.morning >= 1) bigLamps[d.morning-1]++;
         const lBigL = calcMultiLikelihood(bigLamps, pm.lampB);
         const lSidL = calcMultiLikelihood(d.lamps.regS, pm.sideR);
 
-        // 濃厚フィルタ
         let lRegL = pm.settings.map(()=>1);
         const t = d.lamps.regT;
         if(isNew) {
@@ -545,24 +536,18 @@
         if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, calcR * 10)})</span>`, l:lSuiR });
 
         const lblSide = isNew ? "BIG(後半)：サイド" : "REG：サイド";
-        rows.push({ id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm), l:lBigL });
-        rows.push({ id:'sl', lab:lblSide, val:mkLmpT(d.lamps.regS, pm), l:lSidL });
+        rows.push({ id:'bl', lab: isNew?'BIG：サイドランプ':lblSide, val:mkLmpT(d.lamps.regS, pm), l:lSidL }); // Newは表示名調整
+        rows.push({ id:'sl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm), l:lBigL });
         rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm), l:lRegL });
         rows.push({ id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet });
 
         const container = document.getElementById(prefix+'detail-rows');
         container.innerHTML = rows.map((r, i) => {
-            // キャプチャ時はクリックイベント不要 & グラフは常に表示
             if (targetId === 'cap') {
-                return `
-                <tr><th>${r.lab}</th><td>${r.val}</td></tr>
-                ${r.l ? `<tr><td colspan="2"><div style="padding:5px">${renderBarGraph(r.l, pm.settings)}</div></td></tr>` : ''}`;
+                return `<tr><th>${r.lab}</th><td>${r.val}</td></tr>${r.l ? `<tr><td colspan="2"><div style="padding:5px">${renderBarGraph(r.l, pm.settings)}</div></td></tr>` : ''}`;
             } else {
                 const clickEvent = (r.id === 'g') ? '' : `onclick="toggleGraph('g-${i}')"`;
-                const graphHtml = (r.id === 'g') ? '' : `
-                    <tr id="g-${i}" class="sub-graph-row">
-                        <td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td>
-                    </tr>`;
+                const graphHtml = (r.id === 'g') ? '' : `<tr id="g-${i}" class="sub-graph-row"><td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td></tr>`;
                 return `<tr ${clickEvent}><th>${r.lab}</th><td>${r.val}</td></tr>` + graphHtml;
             }
         }).join('');
@@ -570,8 +555,7 @@
 
     function mkLmpT(arr, pm) {
         return arr.map((v,i) => {
-            const col = pm.colors[i];
-            const lab = pm.labels[i];
+            const col = pm.colors[i]; const lab = pm.labels[i];
             const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
             return `<span ${s}>${lab}</span>:${v}`;
         }).join(' ');
@@ -584,24 +568,18 @@
         if(!isOp) el.classList.add('open');
     }
 
-    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    
-    // データ出力＆画像生成フロー
     function exportData() {
         const d = new Date();
         const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
         const dat = getData();
         const pm = ALL_PARAMS[data.machine];
         
-        // クリップボード用テキスト生成
         let calcG, calcB, calcR;
         if (data.viewMode === 'personal') {
-            calcG = Math.max(0, dat.cur.g - dat.start.g);
+            const diffG = Math.max(0, dat.cur.g - dat.start.g);
             const diffB = Math.max(0, dat.cur.b - dat.start.b);
             const diffR = Math.max(0, dat.cur.r - dat.start.r);
-            // 期待値用総回転数
-            calcG = calcG + (diffB * (data.machine === 'newking' ? 26 : 20)) + (diffR * 10);
+            calcG = diffG + (diffB * (data.machine === 'newking' ? 26 : 20)) + (diffR * 10);
             calcB = diffB; calcR = diffR;
         } else {
             calcG = dat.cur.g + (dat.cur.b * (data.machine === 'newking' ? 26 : 20)) + (dat.cur.r * 10);
@@ -612,34 +590,42 @@
         let txt = "";
         
         if (data.machine === 'newking') {
-            // NewKingフォーマット
             const row = [dateStr, calcG, dat.cur.g, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
         } else {
-            // Kingフォーマット
             const row = [dateStr, calcG, dat.cur.g, (calcB*20)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, ...bL, ...dat.lamps.regS, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
         }
 
         navigator.clipboard.writeText(txt).then(() => {
-            alert("データをコピーしました。\n続けて設定推測画像を生成します...");
-            generateImage();
+            if (typeof html2canvas === 'undefined') {
+                alert("データをコピーしました。\n※画像生成ライブラリの読み込みに失敗したため、画像生成はスキップします。");
+                return;
+            }
+            if(confirm("データをコピーしました。\n設定推測画像を生成しますか？\n(キャンセルで終了)")) {
+                setTimeout(() => generateImage(), 100);
+            }
         });
     }
 
-    // 画像生成処理
     function generateImage() {
-        // 1. キャプチャ用エリアにデータをセット
         document.getElementById('cap-machine').innerText = ALL_PARAMS[data.machine].name;
         document.getElementById('cap-mode').innerText = (data.viewMode === 'total' ? '(全て)' : '(個人)');
-        calc('cap'); // capプレフィックスで計算＆描画
-
-        // 2. html2canvasで撮影
-        const target = document.getElementById('capture-target');
-        html2canvas(target, { backgroundColor: "#1a1a1a" }).then(canvas => {
+        calc('cap');
+        
+        const target = document.getElementById('capture-content');
+        // 画像生成エリアを表示させてから撮影
+        const container = document.getElementById('capture-container');
+        container.style.visibility = 'visible';
+        
+        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 2 }).then(canvas => {
             const imgData = canvas.toDataURL("image/png");
             document.getElementById('img-preview').src = imgData;
             document.getElementById('img-modal').style.display = 'flex';
+            container.style.visibility = 'hidden';
+        }).catch(e => {
+            alert("画像の生成に失敗しました。");
+            container.style.visibility = 'hidden';
         });
     }
 
@@ -650,14 +636,29 @@
         link.click();
     }
 
+    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     function resetAll() { if(confirm("現在選択中の機種データを全消去しますか？")) { 
         if(data.machine === 'king') data.king = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
         else data.newking = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
-        save();
-        location.reload(); 
+        save(); location.reload(); 
     }}
 
     window.onload = init;
 </script>
+
+<div id="capture-container" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; visibility:hidden; overflow:hidden;">
+    <div id="capture-content" style="width:400px; background:#1a1a1a; padding:20px; box-sizing:border-box;">
+        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">HANA Counter</h3>
+        <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span> <span id="cap-mode"></span></p>
+        <p class="section-title" style="color:#ddd">＜設定推測＞</p>
+        <div id="cap-predict-bars" style="background:#222; padding:10px; border-radius:5px; margin-bottom:10px;"></div>
+        <p class="section-title" style="color:#ddd">＜期待値＞</p>
+        <div id="cap-expect-info" class="expect-box"></div>
+        <p class="section-title" style="color:#ddd">＜詳細データ＞</p>
+        <table class="detail-table" id="cap-detail-rows"></table>
+    </div>
+</div>
+
 </body>
 </html>
