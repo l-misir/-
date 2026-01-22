@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V22</title>
+    <title>HANA Counter V23</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
@@ -241,8 +241,13 @@
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
                [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
-            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
-            labels: ['青', '黄', '緑', '赤', '虹'],
+            // 通常(筐体ランプ等)は紫
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', 'rainbow'],
+            labels: ['青', '黄', '緑', '紫', '虹'],
+            // サイドランプ用は赤
+            colors_side: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
+            labels_side: ['青', '黄', '緑', '赤', '虹'],
+            
             bigG: 26, regG: 10, suikaDenom: 14
         }
     };
@@ -384,9 +389,18 @@
     function mkL(type) {
         const pm = ALL_PARAMS[data.machine];
         const d = getData();
-        return pm.labels.map((l, i) => {
+        
+        let useCols = pm.colors;
+        let useLabs = pm.labels;
+        // ニューキングのサイドランプのみ赤色定義を使用
+        if (data.machine === 'newking' && type === 'regS') {
+            useCols = pm.colors_side;
+            useLabs = pm.labels_side;
+        }
+
+        return useLabs.map((l, i) => {
             const v = d.lamps[type][i];
-            const col = pm.colors[i];
+            const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
             if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
             return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
@@ -480,7 +494,7 @@
             calcG = c.g; calcB = c.b; calcR = c.r;
         }
         
-        // 修正箇所：入力値が「通常時のみの回転数」のため、ボーナス分を引かずそのまま使用する
+        // 入力値が「通常時のみの回転数」のため、ボーナス分を引かずそのまま使用する
         const actG = calcG;
         // 期待値表示用の総回転数（通常G + ボーナス消化G）
         const totalG_disp = calcG + (calcB * (isNew ? 26 : 20)) + (calcR * 10);
@@ -538,9 +552,10 @@
         if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, calcR * 10)})</span>`, l:lSuiR });
 
         const lblSide = isNew ? "BIG(後半)：サイド" : "REG：サイド";
-        rows.push({ id:'bl', lab: isNew?'BIG：サイドランプ':lblSide, val:mkLmpT(d.lamps.regS, pm), l:lSidL }); 
-        rows.push({ id:'sl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm), l:lBigL });
-        rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm), l:lRegL });
+        // mkLmpTにタイプを渡して色を判定させる
+        rows.push({ id:'bl', lab: isNew?'BIG：サイドランプ':lblSide, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:lSidL }); 
+        rows.push({ id:'sl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm, 'big'), l:lBigL });
+        rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm, 'regT'), l:lRegL });
         rows.push({ id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet });
 
         const container = document.getElementById(prefix+'detail-rows');
@@ -555,9 +570,17 @@
         }).join('');
     }
 
-    function mkLmpT(arr, pm) {
+    function mkLmpT(arr, pm, type) {
+        let cols = pm.colors;
+        let labs = pm.labels;
+        // 詳細データ生成時もサイドランプは赤定義を使用
+        if (data.machine === 'newking' && type === 'regS') {
+            cols = pm.colors_side;
+            labs = pm.labels_side;
+        }
+
         return arr.map((v,i) => {
-            const col = pm.colors[i]; const lab = pm.labels[i];
+            const col = cols[i]; const lab = labs[i];
             const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
             return `<span ${s}>${lab}</span>:${v}`;
         }).join(' ');
@@ -581,7 +604,6 @@
             const diffG = Math.max(0, dat.cur.g - dat.start.g);
             const diffB = Math.max(0, dat.cur.b - dat.start.b);
             const diffR = Math.max(0, dat.cur.r - dat.start.r);
-            // 修正：出力時のcalcGも「通常時回転数」として定義
             calcG = diffG;
             calcB = diffB; calcR = diffR;
         } else {
@@ -589,7 +611,6 @@
             calcB = dat.cur.b; calcR = dat.cur.r;
         }
         
-        // 出力データ上は総回転数(ボーナス込)にする場合はこちらを加算
         const totalG_out = calcG + (calcB * (data.machine === 'newking' ? 26 : 20)) + (calcR * 10);
 
         const bL = [...dat.lamps.big]; if(dat.morning>=1) bL[dat.morning-1]++;
