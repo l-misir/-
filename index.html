@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V14</title>
+    <title>HANA Counter V16</title>
     <style>
         :root {
             --bg-color: #1a1a1a; --cell-bg: #444444; --grid-line: #111111;
@@ -22,30 +22,21 @@
             -webkit-text-fill-color: transparent; font-weight: bold; animation: rainbow_move 3s linear infinite;
         }
         @keyframes rainbow_move { to { background-position: 200% center; } }
-        
-        /* ヘッダーのコンパクト化 */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 12px; /* パディング縮小 */
-            background: #000; position: sticky; top: 0; z-index: 100;
-            border-bottom: 1px solid #333;
-            height: 40px; box-sizing: border-box;
+            padding: 4px 12px; background: #000; position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid #333; height: 40px; box-sizing: border-box;
         }
         .header-icon { font-size: 20px; cursor: pointer; color: white; padding: 5px; }
         .header-title { font-size: 14px; font-weight: bold; border-bottom: 2px solid white; }
-        
         .container { padding: 5px 10px 80px; width: 100%; box-sizing: border-box; }
 
-        /* レイアウト制御 (CSS Grid) */
         .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
         .col-left, .col-right { display: flex; flex-direction: column; width: 100%; }
         
         @media (orientation: landscape) {
             .main-layout {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-                align-items: start;
+                display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start;
             }
         }
 
@@ -62,19 +53,11 @@
         .selected-lamp { border: 2px solid #fff; background: #666; }
         .active-mode { background: var(--active-btn) !important; color: white; }
         .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
-        
-        /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; }
         .modal.active { display: flex; }
-        
-        /* モーダルヘッダーもコンパクトに */
-        .modal-header { 
-            flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; 
-            padding: 4px 12px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box;
-        }
+        .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 4px 12px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box; }
         .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 40px; }
 
-        /* 横画面時のモーダル内調整（文字サイズ・余白縮小） */
         @media (orientation: landscape) {
             .modal-body { padding: 5px 15px 20px; }
             .modal-body .section-title { margin: 4px 0 1px; font-size: 10px; }
@@ -182,8 +165,6 @@
     };
 
     const PAYOUT = [97.0, 99.0, 101.0, 104.0, 107.0, 110.0];
-    
-    // 機種ごとのパラメーター定義（現在はnewkingはkingのコピー。後で数値を書き換えればOK）
     const ALL_PARAMS = {
         king: {
             b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
@@ -196,7 +177,6 @@
             sideR: [[0.6,0.3,0.08,0.015,0.005],[0.3,0.6,0.05,0.04,0.01],[0.5,0.25,0.2,0.04,0.01],[0.25,0.5,0.15,0.08,0.02],[0.4,0.2,0.3,0.07,0.03],[0.25,0.25,0.25,0.15,0.1]]
         },
         newking: {
-            // 土台としてキングと同じ値をセット。実装時に書き換えてください。
             b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
             r: [489.1, 451.9, 417.4, 385.5, 352.3, 332.7],
             gassan: [183.1, 173.8, 165.1, 156.0, 144.5, 136.2],
@@ -212,11 +192,11 @@
 
     function loadData() {
         try {
-            const saved = localStorage.getItem('hana_v14_data');
+            const saved = localStorage.getItem('hana_v16_data');
             let d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
             if(!d.lamps) d.lamps = JSON.parse(JSON.stringify(DEFAULTS.lamps));
             if(!d.cur) d.cur = JSON.parse(JSON.stringify(DEFAULTS.cur));
-            if(!d.machine) d.machine = 'king'; // 新規項目
+            if(!d.machine) d.machine = 'king';
             if(d.cur.retro_d === undefined) d.cur.retro_d = 0;
             return d;
         } catch(e) {
@@ -224,7 +204,7 @@
         }
     }
 
-    function save() { localStorage.setItem('hana_v14_data', JSON.stringify(data)); renderMain(); }
+    function save() { localStorage.setItem('hana_v16_data', JSON.stringify(data)); renderMain(); }
     
     function init() {
         document.getElementById('start-g').value = data.start.g;
@@ -232,10 +212,9 @@
         document.getElementById('start-r').value = data.start.r;
         document.getElementById('machine-select').value = data.machine || 'king';
         renderMorningSelector();
-        renderMain(); // 確実に描画
+        renderMain(); 
     }
 
-    function getVal(key) { return (data.viewMode === 'total' && data.start[key] !== undefined) ? data.cur[key] + data.start[key] : data.cur[key]; }
     function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(1)}`; }
 
     function renderMorningSelector() {
@@ -261,7 +240,8 @@
 
     function renderMain() {
         const c = data.cur; const s = data.start;
-        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
+        // メイン画面は常に現在のカウント(data.cur)を表示
+        const vG = c.g; const vB = c.b; const vR = c.r;
         
         const html = `
         <div class="main-layout">
@@ -296,7 +276,6 @@
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
         updateHeader();
-        
         try { setTimeout(calc, 0); } catch(e) {}
     }
 
@@ -319,7 +298,6 @@
     function updateHeader() {
         const machineNames = {king: "キングハナハナ", newking: "ニューキング(予)"};
         document.getElementById('disp-machine').innerText = machineNames[data.machine] || "キングハナハナ";
-        
         document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
         document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
@@ -334,16 +312,18 @@
                 el.classList.add('touch-active');
                 timer = setTimeout(() => { if(!isC) el.classList.add('minus-mode'); }, 600);
             };
+            el.ontouchmove = (e) => {
+                if(Math.abs(e.touches[0].clientY - sy) > 10) { isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); }
+            };
             el.ontouchend = () => {
                 clearTimeout(timer);
                 if(isC) return;
                 const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
                 if(el.dataset.id) data.cur[el.dataset.id] = Math.max(0, data.cur[el.dataset.id] + step);
                 else data.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, data.lamps[el.dataset.type][el.dataset.idx] + step);
-                el.classList.remove('touch-active','minus-mode');
+                el.classList.remove('touch-active', 'minus-mode');
                 save();
             };
-            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY - sy) > 10) isC = true; };
         });
     }
 
@@ -371,38 +351,53 @@
     function renderBarGraph(likes) {
         const sum = likes.reduce((a,b)=>a+b,0) || 1;
         const pcts = likes.map(v => (v/sum)*100);
+        const maxPct = Math.max(...pcts) || 1;
         return pcts.map((p, i) => `
             <div class="bar-row">
                 <div class="bar-label">設定${i+1}</div>
-                <div class="bar-bg"><div class="bar-fill" style="width:${p}%"></div></div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(p/maxPct)*100}%"></div></div>
                 <div class="bar-val">${p.toFixed(1)}%</div>
             </div>`).join('');
     }
 
     function calc() {
         const c = data.cur; const s = data.start;
-        // 機種データ取得
         const PARAMS = ALL_PARAMS[data.machine] || ALL_PARAMS.king;
 
-        const actG = Math.max(0, c.g - (c.b * 20 + c.r * 10)); 
-        const actB = c.b; 
+        // 計算用の変数をモード別に定義
+        let calcG_norm, calcG_total, calcB, calcR;
         
-        let calcG, calcB, calcR;
+        // 個人: 差分を計算
+        // 通常時回転数 = (現在G - 開始G)
+        // 総回転数(期待値用) = (現在G - 開始G) + ((現在BIG - 開始BIG)*20) + ((現在REG - 開始REG)*10)
+        // ボーナス確率分母 = 通常時回転数
         if (data.viewMode === 'personal') {
-            calcG = Math.max(0, c.g - s.g);
-            calcB = Math.max(0, c.b - s.b);
-            calcR = Math.max(0, c.r - s.r);
-        } else {
-            calcG = c.g;
+            const diffG = Math.max(0, c.g - s.g);
+            const diffB = Math.max(0, c.b - s.b);
+            const diffR = Math.max(0, c.r - s.r);
+            
+            calcG_norm = diffG; // 確率分母用
+            calcG_total = diffG + (diffB * 20) + (diffR * 10); // 期待値表示用
+            
+            calcB = diffB;
+            calcR = diffR;
+        } 
+        // 全て: そのままの値を使用
+        // 通常時回転数 = 現在G
+        // 総回転数(期待値用) = 現在G + (BIG*20) + (REG*10)
+        else {
+            calcG_norm = c.g;
+            calcG_total = c.g + (c.b * 20) + (c.r * 10);
+            
             calcB = c.b;
             calcR = c.r;
         }
 
-        const lB = calcLikelihood(calcG, calcB, PARAMS.b);
-        const lR = calcLikelihood(calcG, calcR, PARAMS.r);
-        const lG = calcLikelihood(calcG, calcB + calcR, PARAMS.gassan);
-        const lBell = calcLikelihood(actG, c.bell, PARAMS.bell);
-        const lSui = calcLikelihood(actB * 20, c.suika, PARAMS.suika);
+        const lB = calcLikelihood(calcG_norm, calcB, PARAMS.b);
+        const lR = calcLikelihood(calcG_norm, calcR, PARAMS.r);
+        const lG = calcLikelihood(calcG_norm, calcB + calcR, PARAMS.gassan);
+        const lBell = calcLikelihood(calcG_norm, c.bell, PARAMS.bell);
+        const lSui = calcLikelihood(calcB * 20, c.suika, PARAMS.suika);
         const lRet = (c.retro_d > 0) ? calcLikelihood(c.retro_d, c.retro, PARAMS.retro) : [1,1,1,1,1,1];
         
         let bigLamps = [...data.lamps.big]; if(data.morning >= 1) bigLamps[data.morning-1]++;
@@ -425,23 +420,23 @@
         let expSet = 0; pcts.forEach((p, i) => expSet += p * (i+1));
         const expRate = pcts.reduce((a, b, i) => a + (b * PAYOUT[i]), 0);
         
-        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
-        const diff = (vG * 3) * (expRate/100 - 1);
+        // 期待獲得枚数計算 (通常G * 3枚in * (機械割 - 1))
+        const diff = (calcG_norm * 3) * (expRate/100 - 1);
 
         document.getElementById('expect-info').innerHTML = `
-            <div class="expect-row"><div>総回転数 (${data.viewMode==='total'?'全て':'個人'})</div><div class="expect-val" style="color:#fff">${vG + (vB*20) + (vR*10)} G</div></div>
+            <div class="expect-row"><div>総回転数 (${data.viewMode==='total'?'全て':'個人'})</div><div class="expect-val" style="color:#fff">${calcG_total} G</div></div>
             <div class="expect-row"><div>期待設定</div><div class="expect-val">${expSet.toFixed(2)}</div></div>
             <div class="expect-row"><div>期待機械割</div><div class="expect-val">${expRate.toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
         const rows = [
-            { id:'g', lab:'通常時回転数', val:`${actG}回転`, l:null },
-            { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:lB },
-            { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG)})</span>`, l:lR },
-            { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG)})</span>`, l:lG },
-            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG)})</span>`, l:lBell },
-            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * 20)})</span>`, l:lSui },
+            { id:'g', lab:'通常時回転数', val:`${calcG_norm}回転`, l:null },
+            { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG_norm)})</span>`, l:lB },
+            { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG_norm)})</span>`, l:lR },
+            { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG_norm)})</span>`, l:lG },
+            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, calcG_norm)})</span>`, l:lBell },
+            { id:'sui', lab:'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, calcB * 20)})</span>`, l:lSui },
             { id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps), l:lBigL },
             { id:'sl', lab:'REG：サイドランプ', val:mkLmpT(data.lamps.regS), l:lSidL },
             { id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT), l:lRegL },
@@ -469,14 +464,28 @@
     function exportData() {
         const d = new Date();
         const bL = [...data.lamps.big]; if(data.morning>=1) bL[data.morning-1]++;
-        const vG = getVal('g'); const vB = getVal('b'); const vR = getVal('r');
-        const row = [`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`, vG+(vB*20)+(vR*10), vG, (vB*20)+(vR*10), vB, vR, data.cur.bell, data.cur.suika, ...bL, ...data.lamps.regS, ...data.lamps.regT, data.cur.retro_d, data.cur.retro];
+        
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            const diffG = Math.max(0, data.cur.g - data.start.g);
+            const diffB = Math.max(0, data.cur.b - data.start.b);
+            const diffR = Math.max(0, data.cur.r - data.start.r);
+            calcG = diffG + (diffB * 20) + (diffR * 10);
+            calcB = diffB;
+            calcR = diffR;
+        } else {
+            calcG = data.cur.g + (data.cur.b * 20) + (data.cur.r * 10);
+            calcB = data.cur.b;
+            calcR = data.cur.r;
+        }
+
+        const row = [`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`, calcG, data.cur.g, (calcB*20)+(calcR*10), calcB, calcR, data.cur.bell, data.cur.suika, ...bL, ...data.lamps.regS, ...data.lamps.regT, data.cur.retro_d, data.cur.retro];
         navigator.clipboard.writeText(row.join('\t')).then(() => alert("コピー完了(タブ区切り)"));
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v14_data'); location.reload(); } }
+    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v16_data'); location.reload(); } }
 
     window.onload = init;
 </script>
