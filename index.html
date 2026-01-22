@@ -567,7 +567,6 @@
         if(!isOp) el.classList.add('open');
     }
 
-    // データ出力＆画像生成フロー
     function exportData() {
         const d = new Date();
         const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
@@ -602,8 +601,8 @@
                 alert("データをコピーしました。\n※画像生成ライブラリの読み込みに失敗したため、画像生成はスキップします。");
                 return;
             }
-            if(confirm("データをコピーしました。\n続けて設定推測画像を生成しますか？\n(キャンセルで終了)")) {
-                generateImage();
+            if(confirm("データをコピーしました。\n設定推測画像を生成しますか？\n(キャンセルで終了)")) {
+                setTimeout(() => generateImage(), 100);
             }
         });
     }
@@ -614,14 +613,18 @@
         calc('cap');
         
         const target = document.getElementById('capture-content');
+        // 画像生成エリアを表示させてから撮影
         const container = document.getElementById('capture-container');
+        container.style.visibility = 'visible';
         
-        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 3 }).then(canvas => {
+        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 4 }).then(canvas => {
             const imgData = canvas.toDataURL("image/png");
             document.getElementById('img-preview').src = imgData;
             document.getElementById('img-modal').style.display = 'flex';
+            container.style.visibility = 'hidden';
         }).catch(e => {
             alert("画像の生成に失敗しました。");
+            container.style.visibility = 'hidden';
         });
     }
 
@@ -644,17 +647,18 @@
 </script>
 
 <div id="capture-container" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; visibility:hidden; overflow:hidden;">
-    <div id="capture-content" style="width:800px; background:#1a1a1a; padding:30px; box-sizing:border-box;">
-        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px; font-size:24px;">HANA Counter</h3>
-        <p class="section-title" style="color:#ddd; font-size:18px;">機種: <span id="cap-machine"></span> <span id="cap-mode"></span></p>
-        <p class="section-title" style="color:#ddd; font-size:18px;">＜設定推測＞</p>
-        <div id="cap-predict-bars" style="background:#222; padding:15px; border-radius:5px; margin-bottom:15px;"></div>
-        <p class="section-title" style="color:#ddd; font-size:18px;">＜期待値＞</p>
-        <div id="cap-expect-info" class="expect-box" style="font-size:18px;"></div>
-        <p class="section-title" style="color:#ddd; font-size:18px;">＜詳細データ＞</p>
-        <table class="detail-table" id="cap-detail-rows" style="font-size:16px;"></table>
+    <div id="capture-content" style="width:400px; background:#1a1a1a; padding:20px; box-sizing:border-box;">
+        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">HANA Counter</h3>
+        <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span> <span id="cap-mode"></span></p>
+        <p class="section-title" style="color:#ddd">＜設定推測＞</p>
+        <div id="cap-predict-bars" style="background:#222; padding:10px; border-radius:5px; margin-bottom:10px;"></div>
+        <p class="section-title" style="color:#ddd">＜期待値＞</p>
+        <div id="cap-expect-info" class="expect-box"></div>
+        <p class="section-title" style="color:#ddd">＜詳細データ＞</p>
+        <table class="detail-table" id="cap-detail-rows"></table>
     </div>
 </div>
 
 </body>
 </html>
+
