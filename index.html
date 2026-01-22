@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V18</title>
+    <title>HANA Counter V20</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
             --bg-color: #1a1a1a; --cell-bg: #444444; --grid-line: #111111;
@@ -22,6 +23,8 @@
             -webkit-text-fill-color: transparent; font-weight: bold; animation: rainbow_move 3s linear infinite;
         }
         @keyframes rainbow_move { to { background-position: 200% center; } }
+        
+        /* ヘッダー */
         .header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 4px 12px; background: #000; position: sticky; top: 0; z-index: 100;
@@ -29,8 +32,10 @@
         }
         .header-icon { font-size: 20px; cursor: pointer; color: white; padding: 5px; }
         .header-title { font-size: 14px; font-weight: bold; border-bottom: 2px solid white; }
+        
         .container { padding: 5px 10px 80px; width: 100%; box-sizing: border-box; }
 
+        /* レイアウト */
         .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
         .col-left, .col-right { display: flex; flex-direction: column; width: 100%; }
         
@@ -43,6 +48,7 @@
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-2 { grid-template-columns: 1fr 1fr; }
+        
         .cell { background: var(--cell-bg); padding: 5px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 40px; }
         .label { font-size: 10px; color: white; margin-bottom: 1px; pointer-events: none; }
         .value { font-size: 20px; font-weight: bold; line-height: 1.2; pointer-events: none; }
@@ -52,6 +58,7 @@
         .active-mode { background: var(--active-btn) !important; color: white; }
         .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
         
+        /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; }
         .modal.active { display: flex; }
         .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 4px 12px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box; }
@@ -89,6 +96,18 @@
         .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
         
         select { color: white; }
+
+        /* 画像生成用モーダル */
+        #img-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:300; flex-direction:column; align-items:center; justify-content:center; }
+        #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; }
+        #img-controls { margin-top: 10px; display: flex; gap: 20px; }
+        
+        /* キャプチャ用不可視エリア */
+        #capture-target {
+            position: absolute; top: -9999px; left: -9999px;
+            width: 400px; background: #1a1a1a; color: white; padding: 20px;
+            font-family: -apple-system, sans-serif;
+        }
     </style>
 </head>
 <body>
@@ -113,7 +132,7 @@
         <div class="grid">
             <select class="val-input" style="background:#333; padding:5px;" id="machine-select" onchange="updateMachine()">
                 <option value="king">キングハナハナ</option>
-                <option value="newking">ニューキングハナハナV</option>
+                <option value="newking">ニューキングハナハナⅤ</option>
             </select>
         </div>
         <p class="section-title">＜表示・出力データ＞</p>
@@ -154,20 +173,35 @@
     </div>
 </div>
 
+<div id="img-modal" style="display:none;">
+    <div style="color:white; margin-bottom:10px; font-weight:bold;">設定推測画像を生成しました</div>
+    <img id="img-preview" src="">
+    <div id="img-controls">
+        <button onclick="downloadImage()" style="padding:10px 20px; background:#007aff; color:white; border:none; border-radius:5px; font-weight:bold;">画像を保存</button>
+        <button onclick="document.getElementById('img-modal').style.display='none'" style="padding:10px 20px; background:#555; color:white; border:none; border-radius:5px;">閉じる</button>
+    </div>
+</div>
+
+<div id="capture-target"></div>
+
 <script>
-    const DEFAULTS = {
-        machine: 'king', mode: 'tap', viewMode: 'personal',
+    // データ初期構造 (機種ごとに独立)
+    const SINGLE_DEFAULT = {
         start: { g:0, b:0, r:0 },
-        // suikaR: REGスイカ(NewKing用)
         cur: { g:0, b:0, r:0, bell:0, suika:0, suikaR:0, retro_d:0, retro:0 },
-        // big: 筐体ランプ, regS: サイド(King)orBIG後サイド(New), regT: REG筐体
         lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
         morning: -1
     };
 
-    // 共通データと機種別データ
+    const DEFAULTS = {
+        machine: 'king', mode: 'tap', viewMode: 'personal',
+        king: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
+        newking: JSON.parse(JSON.stringify(SINGLE_DEFAULT))
+    };
+
     const ALL_PARAMS = {
         king: {
+            name: "キングハナハナ",
             settings: ['1','2','3','4','5','6'],
             payout: [97, 99, 101, 104, 107, 110],
             b: [292.6, 282.5, 273.1, 262.1, 244.5, 232.4],
@@ -176,16 +210,14 @@
             bell: [7.25, 7.20, 7.15, 7.10, 7.05, 7.00],
             suika: [42.0, 40.0, 38.0, 35.0, 32.0, 30.0],
             retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
-            // 青, 黄, 緑, 赤, 虹
             lampB: [[0.4,0.3,0.2,0.08,0.02],[0.35,0.3,0.22,0.1,0.03],[0.3,0.28,0.25,0.12,0.05],[0.25,0.25,0.3,0.14,0.06],[0.2,0.22,0.35,0.16,0.07],[0.15,0.18,0.4,0.18,0.09]],
             sideR: [[0.6,0.3,0.08,0.015,0.005],[0.3,0.6,0.05,0.04,0.01],[0.5,0.25,0.2,0.04,0.01],[0.25,0.5,0.15,0.08,0.02],[0.4,0.2,0.3,0.07,0.03],[0.25,0.25,0.25,0.15,0.1]],
-            // UI用定義
             colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
             labels: ['青', '黄', '緑', '赤', '虹'],
-            bigG: 20, regG: 10,
-            suikaDenom: 20
+            bigG: 20, regG: 10, suikaDenom: 20
         },
         newking: {
+            name: "ニューキングハナハナⅤ",
             settings: ['1','2','3','4','V'],
             payout: [97, 99, 101, 104, 108],
             b: [299, 291, 281, 268, 253],
@@ -193,28 +225,25 @@
             gassan: [186, 180, 172, 162, 150],
             bell: [7.58, 7.52, 7.46, 7.37, 7.25],
             suika: [42.0, 38.5, 36.2, 31.5, 29.3],
-            suikaR: [200, 180, 160, 140, 100], // 暫定(高設定ほど良い)
-            retro: [15.00, 13.55, 11.88, 8.70, 8.60], // 1とVは暫定or仕様
-            // 青, 黄, 緑, 紫, 虹
+            suikaR: [200, 180, 160, 140, 100], 
+            retro: [15.00, 13.55, 11.88, 8.70, 8.60],
             lampB: [
-               [0.3277, 0.3542, 0.4096, 0.0119, 0.00015], // 1 (Purple=1/84, Rain=1/6553)
-               [0.2913, 0.3121, 0.3855, 0.0126, 0.0003], // 2
-               [0.2621, 0.2789, 0.3542, 0.0157, 0.0006], // 3
-               [0.2383, 0.2521, 0.3449, 0.0180, 0.0015], // 4
-               [0.2185, 0.2341, 0.3048, 0.0225, 0.0030]  // V
+               [0.3277, 0.3542, 0.4096, 0.0119, 0.00015],
+               [0.2913, 0.3121, 0.3855, 0.0126, 0.0003],
+               [0.2621, 0.2789, 0.3542, 0.0157, 0.0006],
+               [0.2383, 0.2521, 0.3449, 0.0180, 0.0015],
+               [0.2185, 0.2341, 0.3048, 0.0225, 0.0030]
             ],
-            // BIG後半サイドランプ (KingのREGサイドランプ相当)
             sideR: [
                [0.3599, 0.2399, 0.2399, 0.1600, 0.0002],
                [0.2319, 0.3478, 0.1679, 0.2519, 0.0005],
                [0.3357, 0.2238, 0.2637, 0.1758, 0.0010],
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
-               [0.2480, 0.2480, 0.2480, 0.2480, 0.0078] // V (比率均等+虹強)
+               [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
             colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', 'rainbow'],
             labels: ['青', '黄', '緑', '紫', '虹'],
-            bigG: 26, regG: 10,
-            suikaDenom: 14 // BIG(前半)分母
+            bigG: 26, regG: 10, suikaDenom: 14
         }
     };
 
@@ -222,112 +251,126 @@
 
     function loadData() {
         try {
-            const saved = localStorage.getItem('hana_v18_data');
+            const saved = localStorage.getItem('hana_v20_data');
             let d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
-            if(!d.lamps) d.lamps = JSON.parse(JSON.stringify(DEFAULTS.lamps));
-            if(!d.cur) d.cur = JSON.parse(JSON.stringify(DEFAULTS.cur));
-            if(!d.machine) d.machine = 'king';
-            if(d.cur.suikaR === undefined) d.cur.suikaR = 0;
+            if (!d.king) {
+                // 移行処理: 古いデータ構造の場合
+                d = JSON.parse(JSON.stringify(DEFAULTS));
+            }
             return d;
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
     }
 
-    function save() { localStorage.setItem('hana_v18_data', JSON.stringify(data)); renderMain(); }
-    
+    function save() { localStorage.setItem('hana_v20_data', JSON.stringify(data)); renderMain(); }
+    function getData() { return data[data.machine]; }
+
     function init() {
-        document.getElementById('start-g').value = data.start.g;
-        document.getElementById('start-b').value = data.start.b;
-        document.getElementById('start-r').value = data.start.r;
         document.getElementById('machine-select').value = data.machine || 'king';
+        syncInputs();
         renderMorningSelector();
         renderMain(); 
+    }
+
+    function syncInputs() {
+        const d = getData();
+        document.getElementById('start-g').value = d.start.g;
+        document.getElementById('start-b').value = d.start.b;
+        document.getElementById('start-r').value = d.start.r;
     }
 
     function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(1)}`; }
 
     function renderMorningSelector() {
         const pm = ALL_PARAMS[data.machine];
-        const labs = ['白', ...pm.labels.slice(0,4)]; // 朝一は虹なし
+        const d = getData();
+        const labs = ['白', ...pm.labels.slice(0,4)];
         const cols = ['var(--lamp-white)', ...pm.colors.slice(0,4)];
         let html = '';
         labs.forEach((l, i) => {
-            const isSel = (data.morning === i) ? 'selected-lamp' : '';
+            const isSel = (d.morning === i) ? 'selected-lamp' : '';
             const colStyle = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i].startsWith('var')?cols[i]:'var('+cols[i]+')'}"`;
             html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label" ${colStyle} style="font-size:14px; font-weight:bold;">${l}</div></div>`;
         });
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
-    function setMorning(val) { data.morning = (data.morning === val) ? -1 : val; save(); renderMorningSelector(); }
+    function setMorning(val) { 
+        getData().morning = (getData().morning === val) ? -1 : val; 
+        save(); renderMorningSelector(); 
+    }
     function setViewMode(m) { data.viewMode = m; save(); updateHeader(); }
     function setInputMode(m) { data.mode = m; save(); updateHeader(); }
     function updateMachine() { 
         data.machine = document.getElementById('machine-select').value; 
+        syncInputs();
         save(); updateHeader(); renderMorningSelector();
     }
     function saveStart() {
-        data.start.g = Number(document.getElementById('start-g').value) || 0;
-        data.start.b = Number(document.getElementById('start-b').value) || 0;
-        data.start.r = Number(document.getElementById('start-r').value) || 0;
+        const d = getData();
+        d.start.g = Number(document.getElementById('start-g').value) || 0;
+        d.start.b = Number(document.getElementById('start-b').value) || 0;
+        d.start.r = Number(document.getElementById('start-r').value) || 0;
         save();
     }
 
     function renderMain() {
-        const c = data.cur; const s = data.start;
+        const d = getData();
+        const c = d.cur; const s = d.start;
         const vG = c.g; const vB = c.b; const vR = c.r;
         const isNew = data.machine === 'newking';
-        const pm = ALL_PARAMS[data.machine];
-
-        // 項目名の切り替え
-        const lblSuika = isNew ? "ボーナス：スイカ" : "BIG：スイカ";
-        const lblSide = isNew ? "BIG(後半)：サイドランプ" : "REG：サイドランプ";
-        const lblSuikaMain = isNew ? "BIG(前半)" : "BIG"; // スイカ欄のラベル
         
-        let suikaHtml = '';
-        if(isNew) {
-            suikaHtml = `
-            <p class="section-title">＜${lblSuika}＞</p>
-            <div class="grid grid-2">
-                ${mkC('suika', 'BIG(前半)', c.suika)}
-                ${mkC('suikaR', 'REG', c.suikaR)}
+        let html = '';
+
+        if (isNew) {
+            // ニューキングハナハナV (従来レイアウト)
+            html = `
+            <div class="main-layout">
+                <div class="col-left">
+                    <p class="section-title">＜打ち始め＞</p>
+                    <div class="grid grid-3">
+                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+                    </div>
+                    <p class="section-title">＜現在＞</p>
+                    <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
+                    <p class="section-title">＜ボーナス：スイカ＞</p>
+                    <div class="grid grid-2">${mkC('suika', 'BIG(前半)', c.suika)}${mkC('suikaR', 'REG', c.suikaR)}</div>
+                </div>
+                <div class="col-right">
+                    <p class="section-title">＜BIG(後半)：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                    <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜レトロサウンド＞</p>
+                    <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
+                </div>
             </div>`;
         } else {
-            suikaHtml = `
-            <p class="section-title">＜${lblSuika}＞</p>
-            <div class="grid">
-                ${mkC('suika', '', c.suika)}
+            // キングハナハナ (指定レイアウト)
+            html = `
+            <div class="main-layout">
+                <div class="col-left">
+                    <p class="section-title">＜打ち始め＞</p>
+                    <div class="grid grid-3">
+                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+                    </div>
+                    <p class="section-title">＜現在＞</p>
+                    <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
+                    <p class="section-title">＜レトロサウンド＞</p>
+                    <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
+                </div>
+                <div class="col-right">
+                    <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','',c.suika)}</div>
+                    <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                    <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                </div>
             </div>`;
         }
 
-        const html = `
-        <div class="main-layout">
-            <div class="col-left">
-                <p class="section-title">＜打ち始め＞</p>
-                <div class="grid grid-3">
-                    <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
-                    <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
-                    <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-                </div>
-
-                <p class="section-title">＜現在＞</p>
-                <div class="grid grid-3">${mkC('g','G数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
-
-                <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','',c.bell)}</div>
-                
-                ${suikaHtml}
-            </div>
-
-            <div class="col-right">
-                <p class="section-title">＜${lblSide}＞</p><div class="grid grid-5">${mkL('regS')}</div>
-                
-                <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
-                
-                <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
-
-                <p class="section-title">＜レトロサウンド＞</p>
-                <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
-            </div>
-        </div>
-        `;
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
         updateHeader();
@@ -335,24 +378,24 @@
     }
 
     function mkC(id, label, val, step=1) {
-        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="data.cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
     }
 
     function mkL(type) {
         const pm = ALL_PARAMS[data.machine];
+        const d = getData();
         return pm.labels.map((l, i) => {
-            const v = data.lamps[type][i];
-            const cName = pm.colors[i];
-            const cls = cName === 'rainbow' ? 'class="rainbow"' : `style="color:var(${cName})"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="data.lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
+            const v = d.lamps[type][i];
+            const col = pm.colors[i];
+            const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
             return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
         }).join('');
     }
 
     function updateHeader() {
-        const machineNames = {king: "キングハナハナ", newking: "ニューキングハナハナV"};
-        document.getElementById('disp-machine').innerText = machineNames[data.machine] || "キングハナハナ";
+        document.getElementById('disp-machine').innerText = ALL_PARAMS[data.machine].name;
         document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
         document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
@@ -372,14 +415,16 @@
                 clearTimeout(timer);
                 if(isC) return;
                 const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
-                if(el.dataset.id) data.cur[el.dataset.id] = Math.max(0, data.cur[el.dataset.id] + step);
-                else data.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, data.lamps[el.dataset.type][el.dataset.idx] + step);
+                const d = getData();
+                if(el.dataset.id) d.cur[el.dataset.id] = Math.max(0, d.cur[el.dataset.id] + step);
+                else d.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, d.lamps[el.dataset.type][el.dataset.idx] + step);
                 el.classList.remove('touch-active', 'minus-mode');
                 save();
             };
         });
     }
 
+    // 計算関連関数
     function calcLikelihood(n, k, probList) {
         if(n <= 0 || k < 0) return probList.map(()=>1);
         let likes = probList.map(p => {
@@ -389,7 +434,6 @@
         const max = Math.max(...likes);
         return likes.map(v => v / (max || 1));
     }
-
     function calcMultiLikelihood(counts, table) {
         if(counts.reduce((a,b)=>a+b,0) === 0) return table.map(()=>1);
         let likes = table.map(row => {
@@ -400,7 +444,6 @@
         const max = Math.max(...likes);
         return likes.map(v => v / max);
     }
-
     function renderBarGraph(likes, settings) {
         const sum = likes.reduce((a,b)=>a+b,0) || 1;
         const pcts = likes.map(v => (v/sum)*100);
@@ -413,103 +456,84 @@
             </div>`).join('');
     }
 
-    function calc() {
-        const c = data.cur; const s = data.start;
+    // 計算＆描画 (targetIdを指定することで、通常表示とキャプチャ用表示を使い分け)
+    function calc(targetId = "") {
+        const prefix = targetId ? targetId + "-" : "";
+        const d = getData();
+        const c = d.cur; const s = d.start;
         const pm = ALL_PARAMS[data.machine];
         const isNew = data.machine === 'newking';
-        const sets = pm.settings;
-
-        // モード表記更新
+        
+        // モード表記
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
-        document.getElementById('title-predict').innerText = `＜設定推測 ${modeStr}＞`;
-        document.getElementById('title-expect').innerText = `＜期待値 ${modeStr}＞`;
-        document.getElementById('title-detail').innerText = `＜詳細データ ${modeStr}＞`;
+        if(document.getElementById(prefix+'title-predict')) {
+            document.getElementById(prefix+'title-predict').innerText = `＜設定推測 ${modeStr}＞`;
+            document.getElementById(prefix+'title-expect').innerText = `＜期待値 ${modeStr}＞`;
+            document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
+        }
 
-        // データの計算
+        // 計算用数値
         let calcG, calcB, calcR;
         if (data.viewMode === 'personal') {
-            const diffG = Math.max(0, c.g - s.g);
-            const diffB = Math.max(0, c.b - s.b);
-            const diffR = Math.max(0, c.r - s.r);
-            calcG = diffG;
-            calcB = diffB;
-            calcR = diffR;
+            calcG = Math.max(0, c.g - s.g);
+            calcB = Math.max(0, c.b - s.b);
+            calcR = Math.max(0, c.r - s.r);
         } else {
             calcG = c.g;
             calcB = c.b;
             calcR = c.r;
         }
         
-        // 個人通常時G数（ボーナス消化分を除く）
+        // 個人通常時G
         const actG = Math.max(0, calcG - (calcB * pm.bigG + calcR * pm.regG));
-        // 期待値用総回転数 (現在G + ボーナス消化G) - NewKingは式変更
-        let totalG_disp;
-        if(isNew) {
-            totalG_disp = calcG + (calcB * 26) + (calcR * 10);
-        } else {
-            totalG_disp = calcG + (calcB * 20) + (calcR * 10);
-        }
+        
+        // 期待値用総回転数
+        const totalG_disp = calcG + (calcB * (isNew ? 26 : 20)) + (calcR * 10);
 
         const lB = calcLikelihood(calcG, calcB, pm.b);
         const lR = calcLikelihood(calcG, calcR, pm.r);
         const lG = calcLikelihood(calcG, calcB + calcR, pm.gassan);
         const lBell = calcLikelihood(actG, c.bell, pm.bell);
         const lSui = calcLikelihood(calcB * pm.suikaDenom, c.suika, pm.suika);
-        const lRet = (c.retro_d > 0) ? calcLikelihood(c.retro_d, c.retro, pm.retro) : sets.map(()=>1);
+        const lRet = (c.retro_d > 0) ? calcLikelihood(c.retro_d, c.retro, pm.retro) : pm.settings.map(()=>1);
         
-        // REGスイカ (NewKingのみ)
-        let lSuiR = sets.map(()=>1);
+        let lSuiR = pm.settings.map(()=>1);
         if(isNew && c.suikaR > 0) {
             lSuiR = calcLikelihood(calcR * 10, c.suikaR, pm.suikaR);
         }
 
-        let bigLamps = [...data.lamps.big]; if(data.morning >= 1) bigLamps[data.morning-1]++;
+        let bigLamps = [...d.lamps.big]; if(d.morning >= 1) bigLamps[d.morning-1]++;
         const lBigL = calcMultiLikelihood(bigLamps, pm.lampB);
-        const lSidL = calcMultiLikelihood(data.lamps.regS, pm.sideR);
+        const lSidL = calcMultiLikelihood(d.lamps.regS, pm.sideR);
 
-        // REG筐体ランプ濃厚フィルタ
-        let lRegL = sets.map(()=>1);
-        const t = data.lamps.regT;
+        // 濃厚フィルタ
+        let lRegL = pm.settings.map(()=>1);
+        const t = d.lamps.regT;
         if(isNew) {
-            // NewKing: 青(2+) 黄(3+) 緑(4+) 紫(V)
-            // settings: 1, 2, 3, 4, V
-            if(t[4] > 0) lRegL = [0,0,0,0,1]; // 虹(V?)
-            else if(t[3] > 0) lRegL = [0,0,0,0,1]; // 紫(V)
-            else if(t[2] > 0) lRegL = [0,0,0,1,1]; // 緑(4+)
-            else if(t[1] > 0) lRegL = [0,0,1,1,1]; // 黄(3+)
-            else if(t[0] > 0) lRegL = [0,1,1,1,1]; // 青(2+)
+            if(t[4]>0) lRegL=[0,0,0,0,1]; else if(t[3]>0) lRegL=[0,0,0,0,1];
+            else if(t[2]>0) lRegL=[0,0,0,1,1]; else if(t[1]>0) lRegL=[0,0,1,1,1]; else if(t[0]>0) lRegL=[0,1,1,1,1];
         } else {
-            // King: 青(2+) 黄(3+) 緑(4+) 赤(5+) 虹(6)
-            // settings: 1,2,3,4,5,6
-            if(t[4] > 0) lRegL = [0,0,0,0,0,1];
-            else if(t[3] > 0) lRegL = [0,0,0,0,1,1];
-            else if(t[2] > 0) lRegL = [0,0,0,1,1,1];
-            else if(t[1] > 0) lRegL = [0,0,1,1,1,1];
-            else if(t[0] > 0) lRegL = [0,1,1,1,1,1];
+            if(t[4]>0) lRegL=[0,0,0,0,0,1]; else if(t[3]>0) lRegL=[0,0,0,0,1,1];
+            else if(t[2]>0) lRegL=[0,0,0,1,1,1]; else if(t[1]>0) lRegL=[0,0,1,1,1,1]; else if(t[0]>0) lRegL=[0,1,1,1,1,1];
         }
 
         const totalL = lB.map((v, i) => v * lR[i] * lBell[i] * lSui[i] * lSuiR[i] * lRet[i] * lBigL[i] * lSidL[i] * lRegL[i]);
-        document.getElementById('predict-bars').innerHTML = renderBarGraph(totalL, sets);
+        document.getElementById(prefix+'predict-bars').innerHTML = renderBarGraph(totalL, pm.settings);
 
         const sumL = totalL.reduce((a,b)=>a+b,0) || 1;
         const pcts = totalL.map(v => v/sumL);
-        // 期待設定 (Vは5として計算)
         let expSet = 0; 
-        pcts.forEach((p, i) => {
-            let val = i+1; 
-            expSet += p * val;
-        });
+        pcts.forEach((p, i) => { expSet += p * (i+1); });
         const expRate = pcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
         const diff = (calcG * 3) * (expRate/100 - 1);
 
-        document.getElementById('expect-info').innerHTML = `
+        document.getElementById(prefix+'expect-info').innerHTML = `
             <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${totalG_disp} G</div></div>
             <div class="expect-row"><div>期待設定</div><div class="expect-val">${expSet.toFixed(2)}</div></div>
             <div class="expect-row"><div>期待機械割</div><div class="expect-val">${expRate.toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
-        // 詳細テーブル構築
         let rows = [
             { id:'g', lab:'通常時回転数', val:`${actG}回転`, l:null },
             { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:lB },
@@ -518,24 +542,29 @@
             { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG)})</span>`, l:lBell },
             { id:'sui', lab: isNew?'BIG(前半)：スイカ':'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, calcB * pm.suikaDenom)})</span>`, l:lSui }
         ];
-        
-        if(isNew) {
-            rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, calcR * 10)})</span>`, l:lSuiR });
-        }
+        if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, calcR * 10)})</span>`, l:lSuiR });
 
         const lblSide = isNew ? "BIG(後半)：サイド" : "REG：サイド";
         rows.push({ id:'bl', lab:'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm), l:lBigL });
-        rows.push({ id:'sl', lab:lblSide, val:mkLmpT(data.lamps.regS, pm), l:lSidL });
-        rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(data.lamps.regT, pm), l:lRegL });
+        rows.push({ id:'sl', lab:lblSide, val:mkLmpT(d.lamps.regS, pm), l:lSidL });
+        rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm), l:lRegL });
         rows.push({ id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:lRet });
 
-        document.getElementById('detail-rows').innerHTML = rows.map((r, i) => {
-            const clickEvent = (r.id === 'g') ? '' : `onclick="toggleGraph('g-${i}')"`;
-            const graphHtml = (r.id === 'g') ? '' : `
-                <tr id="g-${i}" class="sub-graph-row">
-                    <td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, sets) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td>
-                </tr>`;
-            return `<tr ${clickEvent}><th>${r.lab}</th><td>${r.val}</td></tr>` + graphHtml;
+        const container = document.getElementById(prefix+'detail-rows');
+        container.innerHTML = rows.map((r, i) => {
+            // キャプチャ時はクリックイベント不要 & グラフは常に表示
+            if (targetId === 'cap') {
+                return `
+                <tr><th>${r.lab}</th><td>${r.val}</td></tr>
+                ${r.l ? `<tr><td colspan="2"><div style="padding:5px">${renderBarGraph(r.l, pm.settings)}</div></td></tr>` : ''}`;
+            } else {
+                const clickEvent = (r.id === 'g') ? '' : `onclick="toggleGraph('g-${i}')"`;
+                const graphHtml = (r.id === 'g') ? '' : `
+                    <tr id="g-${i}" class="sub-graph-row">
+                        <td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td>
+                    </tr>`;
+                return `<tr ${clickEvent}><th>${r.lab}</th><td>${r.val}</td></tr>` + graphHtml;
+            }
         }).join('');
     }
 
@@ -555,27 +584,78 @@
         if(!isOp) el.classList.add('open');
     }
 
-    function exportData() {
-        const d = new Date();
-        const bL = [...data.lamps.big]; if(data.morning>=1) bL[data.morning-1]++;
-        let calcG, calcB, calcR;
-        if (data.viewMode === 'personal') {
-            const diffG = Math.max(0, data.cur.g - data.start.g);
-            const diffB = Math.max(0, data.cur.b - data.start.b);
-            const diffR = Math.max(0, data.cur.r - data.start.r);
-            calcG = diffG + (diffB * 20) + (diffR * 10); // King基準だが簡易出力
-            calcB = diffB; calcR = diffR;
-        } else {
-            calcG = data.cur.g + (data.cur.b * 20) + (data.cur.r * 10);
-            calcB = data.cur.b; calcR = data.cur.r;
-        }
-        const row = [`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`, calcG, data.cur.g, (calcB*20)+(calcR*10), calcB, calcR, data.cur.bell, data.cur.suika, ...bL, ...data.lamps.regS, ...data.lamps.regT, data.cur.retro_d, data.cur.retro];
-        navigator.clipboard.writeText(row.join('\t')).then(() => alert("コピー完了"));
-    }
-
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function resetAll() { if(confirm("データを全消去しますか？")) { localStorage.removeItem('hana_v18_data'); location.reload(); } }
+    
+    // データ出力＆画像生成フロー
+    function exportData() {
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+        const dat = getData();
+        const pm = ALL_PARAMS[data.machine];
+        
+        // クリップボード用テキスト生成
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            calcG = Math.max(0, dat.cur.g - dat.start.g);
+            const diffB = Math.max(0, dat.cur.b - dat.start.b);
+            const diffR = Math.max(0, dat.cur.r - dat.start.r);
+            // 期待値用総回転数
+            calcG = calcG + (diffB * (data.machine === 'newking' ? 26 : 20)) + (diffR * 10);
+            calcB = diffB; calcR = diffR;
+        } else {
+            calcG = dat.cur.g + (dat.cur.b * (data.machine === 'newking' ? 26 : 20)) + (dat.cur.r * 10);
+            calcB = dat.cur.b; calcR = dat.cur.r;
+        }
+
+        const bL = [...dat.lamps.big]; if(dat.morning>=1) bL[dat.morning-1]++;
+        let txt = "";
+        
+        if (data.machine === 'newking') {
+            // NewKingフォーマット
+            const row = [dateStr, calcG, dat.cur.g, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
+            txt = row.join('\t');
+        } else {
+            // Kingフォーマット
+            const row = [dateStr, calcG, dat.cur.g, (calcB*20)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, ...bL, ...dat.lamps.regS, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
+            txt = row.join('\t');
+        }
+
+        navigator.clipboard.writeText(txt).then(() => {
+            alert("データをコピーしました。\n続けて設定推測画像を生成します...");
+            generateImage();
+        });
+    }
+
+    // 画像生成処理
+    function generateImage() {
+        // 1. キャプチャ用エリアにデータをセット
+        document.getElementById('cap-machine').innerText = ALL_PARAMS[data.machine].name;
+        document.getElementById('cap-mode').innerText = (data.viewMode === 'total' ? '(全て)' : '(個人)');
+        calc('cap'); // capプレフィックスで計算＆描画
+
+        // 2. html2canvasで撮影
+        const target = document.getElementById('capture-target');
+        html2canvas(target, { backgroundColor: "#1a1a1a" }).then(canvas => {
+            const imgData = canvas.toDataURL("image/png");
+            document.getElementById('img-preview').src = imgData;
+            document.getElementById('img-modal').style.display = 'flex';
+        });
+    }
+
+    function downloadImage() {
+        const link = document.createElement('a');
+        link.download = `hana_setting_${data.machine}_${Date.now()}.png`;
+        link.href = document.getElementById('img-preview').src;
+        link.click();
+    }
+
+    function resetAll() { if(confirm("現在選択中の機種データを全消去しますか？")) { 
+        if(data.machine === 'king') data.king = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
+        else data.newking = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
+        save();
+        location.reload(); 
+    }}
 
     window.onload = init;
 </script>
