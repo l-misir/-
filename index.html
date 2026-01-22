@@ -660,7 +660,7 @@
 
     function generateImage() {
         document.getElementById('cap-machine').innerText = ALL_PARAMS[data.machine].name;
-        document.getElementById('cap-mode').innerText = (data.viewMode === 'total' ? '(全て)' : '(個人)');
+        
         calc('cap');
         
         const target = document.getElementById('capture-content');
@@ -699,7 +699,7 @@
 <div id="capture-container" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; visibility:hidden; overflow:hidden;">
     <div id="capture-content" style="width:400px; background:#1a1a1a; padding:20px; box-sizing:border-box;">
         <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">ハナハナカウンター</h3>
-        <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span> <span id="cap-mode"></span></p>
+        <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span></p>
         <p class="section-title" style="color:#ddd" id="cap-title-predict">＜推測設定＞</p>
         <div id="cap-predict-bars" style="background:#222; padding:5px 10px; border-radius:5px; margin-bottom:10px;"></div>
         <p class="section-title" style="color:#ddd" id="cap-title-expect">＜期待値＞</p>
