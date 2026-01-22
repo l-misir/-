@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>HANA Counter V25</title>
+    <title>HANA Counter V26</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
@@ -14,15 +14,13 @@
         }
         
         /* 全要素に対してダブルタップ拡大判定を無効化 */
-        * {
-            touch-action: manipulation;
-        }
+        * { touch-action: manipulation; }
 
         html, body {
             background: var(--bg-color); color: var(--text-white);
             font-family: -apple-system, sans-serif; margin: 0; padding: 0; height: 100%;
             user-select: none; -webkit-user-select: none; 
-            touch-action: manipulation; /* 念のためbodyにも指定 */
+            touch-action: manipulation;
         }
         .rainbow {
             background: linear-gradient(to right, #ff3333, #ffff33, #33ff33, #33ffff, #3333ff, #ff33ff, #ff3333);
@@ -65,11 +63,25 @@
         .active-mode { background: var(--active-btn) !important; color: white; }
         .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
         
+        /* 設定画面用の大きな文字 */
+        .label-large { font-size: 16px !important; font-weight: bold; color: white; margin-bottom: 0; pointer-events: none; }
+
         /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; }
         .modal.active { display: flex; }
         .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 4px 12px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box; }
         .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 40px; }
+
+        /* コンパクト化された詳細データ・期待値周り */
+        .expect-box { background: #222; padding: 5px 10px; border: 1px solid #444; margin-bottom: 10px; }
+        .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
+        /* 色はJSで制御するためデフォルト指定は外す */
+        .expect-val { font-weight: bold; } 
+
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; }
+        /* 余白を極小に */
+        .detail-table th { background: #222; text-align: left; padding: 4px 4px; border-bottom: 1px solid #444; font-weight: normal; }
+        .detail-table td { padding: 4px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; }
 
         @media (orientation: landscape) {
             .modal-body { padding: 5px 15px 20px; }
@@ -79,11 +91,12 @@
             .modal-body .label { font-size: 9px; }
             .modal-body .val-input { font-size: 16px; }
             .modal-body button { padding: 8px; margin-top: 10px; font-size: 12px; }
-            .detail-table th, .detail-table td { padding: 6px 4px; font-size: 11px; }
+            /* 横画面時もコンパクト設定維持 */
+            .detail-table th, .detail-table td { padding: 4px 4px; font-size: 11px; }
             .bar-row { margin: 2px 0; font-size: 11px; }
             .bar-bg { height: 8px; }
-            .expect-box { padding: 5px; margin-bottom: 8px; }
-            .expect-row { font-size: 11px; margin-bottom: 2px; }
+            .expect-box { padding: 4px 8px; margin-bottom: 6px; }
+            .expect-row { font-size: 11px; margin-bottom: 1px; }
         }
 
         .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
@@ -91,12 +104,7 @@
         .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
         .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
         .bar-val { width: 45px; text-align: right; font-variant-numeric: tabular-nums; }
-        .expect-box { background: #222; padding: 10px; border: 1px solid #444; margin-bottom: 15px; }
-        .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
-        .expect-val { font-weight: bold; color: #0f0; }
-        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; }
-        .detail-table th { background: #222; text-align: left; padding: 10px 5px; border-bottom: 1px solid #444; font-weight: normal; }
-        .detail-table td { padding: 10px 5px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; }
+
         .sub-graph-row { display: none; background: #111; }
         .sub-graph-row.open { display: table-row; }
         .white-txt { color: #fff !important; font-weight: normal; }
@@ -109,12 +117,12 @@
         #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
         #img-controls { display: flex; gap: 20px; }
         
-        /* キャプチャ用不可視エリア (画面外ではなく最背面に配置して安定描画させる) */
+        /* キャプチャ用不可視エリア */
         #capture-target {
             position: fixed; top: 0; left: 0; z-index: -9999;
             width: 400px; background: #1a1a1a; color: white; padding: 20px;
             font-family: -apple-system, sans-serif;
-            visibility: visible; /* html2canvas用に見える状態にするがz-indexで隠す */
+            visibility: visible; 
         }
     </style>
 </head>
@@ -145,13 +153,13 @@
         </div>
         <p class="section-title">＜表示・出力データ＞</p>
         <div class="grid grid-2">
-            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label">個人</div></div>
-            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label">全て</div></div>
+            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label-large">個人</div></div>
+            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label-large">全て</div></div>
         </div>
         <p class="section-title">＜入力モード＞</p>
         <div class="grid grid-2">
-            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label">タップ</div></div>
-            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label">数値入力</div></div>
+            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label-large">タップ</div></div>
+            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label-large">数値入力</div></div>
         </div>
         <p class="section-title">＜打ち始めデータ＞</p>
         <div class="grid grid-3">
@@ -173,7 +181,7 @@
     </div>
     <div class="modal-body">
         <p class="section-title" id="title-predict">＜設定推測＞</p>
-        <div id="predict-bars" style="background:#222; padding:10px; border-radius:5px;"></div>
+        <div id="predict-bars" style="background:#222; padding:5px 10px; border-radius:5px;"></div>
         <p class="section-title" id="title-expect">＜期待値＞</p>
         <div class="expect-box" id="expect-info"></div>
         <p class="section-title" id="title-detail">＜詳細データ＞</p>
@@ -193,12 +201,7 @@
 <div id="capture-target"></div>
 
 <script>
-    // ▼▼ 追加・変更した処理 ▼▼
-    // 画面全体でのダブルタップ（ダブルクリック）イベントを無効化
-    document.addEventListener('dblclick', function(e) {
-        e.preventDefault();
-    }, { passive: false });
-    // ▲▲ 追加・変更した処理 ▲▲
+    document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
 
     const SINGLE_DEFAULT = {
         start: { g:0, b:0, r:0 },
@@ -255,12 +258,15 @@
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
                [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
-            // 通常(筐体ランプ等)は紫
+            // 通常(BIG筐体ランプ等)は紫・虹あり
             colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', 'rainbow'],
             labels: ['青', '黄', '緑', '紫', '虹'],
-            // サイドランプ用は赤
+            // サイドランプ用は赤・虹あり
             colors_side: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
             labels_side: ['青', '黄', '緑', '赤', '虹'],
+            // REG筐体ランプ用（虹なし 4色）
+            colors_regT: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple'],
+            labels_regT: ['青', '黄', '緑', '紫'],
             
             bigG: 26, regG: 10, suikaDenom: 14
         }
@@ -309,7 +315,8 @@
         labs.forEach((l, i) => {
             const isSel = (d.morning === i) ? 'selected-lamp' : '';
             const colStyle = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i].startsWith('var')?cols[i]:'var('+cols[i]+')'}"`;
-            html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label" ${colStyle} style="font-size:14px; font-weight:bold;">${l}</div></div>`;
+            // ここも文字サイズを大きく
+            html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label-large" ${colStyle}>${l}</div></div>`;
         });
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
@@ -359,7 +366,7 @@
                 <div class="col-right">
                     <p class="section-title">＜BIG(後半)：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
                     <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
-                    <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5" style="grid-template-columns: repeat(4, 1fr);">${mkL('regT')}</div>
                     <p class="section-title">＜レトロサウンド＞</p>
                     <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
                 </div>
@@ -406,10 +413,15 @@
         
         let useCols = pm.colors;
         let useLabs = pm.labels;
-        // ニューキングのサイドランプのみ赤色定義を使用
-        if (data.machine === 'newking' && type === 'regS') {
-            useCols = pm.colors_side;
-            useLabs = pm.labels_side;
+        // ニューキングの各ランプ定義分岐
+        if (data.machine === 'newking') {
+            if (type === 'regS') {
+                useCols = pm.colors_side;
+                useLabs = pm.labels_side;
+            } else if (type === 'regT') {
+                useCols = pm.colors_regT;
+                useLabs = pm.labels_regT;
+            }
         }
 
         return useLabs.map((l, i) => {
@@ -508,9 +520,7 @@
             calcG = c.g; calcB = c.b; calcR = c.r;
         }
         
-        // 入力値が「通常時のみの回転数」のため、ボーナス分を引かずそのまま使用する
         const actG = calcG;
-        // 期待値表示用の総回転数（通常G + ボーナス消化G）
         const totalG_disp = calcG + (calcB * (isNew ? 26 : 20)) + (calcR * 10);
 
         const lB = calcLikelihood(calcG, calcB, pm.b);
@@ -530,8 +540,12 @@
         let lRegL = pm.settings.map(()=>1);
         const t = d.lamps.regT;
         if(isNew) {
-            if(t[4]>0) lRegL=[0,0,0,0,1]; else if(t[3]>0) lRegL=[0,0,0,0,1];
-            else if(t[2]>0) lRegL=[0,0,0,1,1]; else if(t[1]>0) lRegL=[0,0,1,1,1]; else if(t[0]>0) lRegL=[0,1,1,1,1];
+            // ニューキング REG筐体ランプ計算 (虹[4]なし, 4要素)
+            // t[0]=青, t[1]=黄, t[2]=緑, t[3]=紫
+            if(t[3]>0) lRegL=[0,0,0,0,1];      // 紫 -> 56濃厚? (元のロジック維持なら456とか?) ※元のロジックを尊重して紫以上を強めに
+            else if(t[2]>0) lRegL=[0,0,0,1,1]; // 緑
+            else if(t[1]>0) lRegL=[0,0,1,1,1]; // 黄
+            else if(t[0]>0) lRegL=[0,1,1,1,1]; // 青
         } else {
             if(t[4]>0) lRegL=[0,0,0,0,0,1]; else if(t[3]>0) lRegL=[0,0,0,0,1,1];
             else if(t[2]>0) lRegL=[0,0,0,1,1,1]; else if(t[1]>0) lRegL=[0,0,1,1,1,1]; else if(t[0]>0) lRegL=[0,1,1,1,1,1];
@@ -547,14 +561,18 @@
         const expRate = pcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
         const diff = (calcG * 3) * (expRate/100 - 1);
 
+        // 期待値の色判定
+        let colorStyle = '#0f0'; // デフォルト緑
+        if (expRate < 100) colorStyle = '#ff4444'; // 100%未満は赤
+        else if (Math.abs(expRate - 100) < 0.01 && Math.round(diff) === 0) colorStyle = '#ffffff'; // ぴったり100%は白
+
         document.getElementById(prefix+'expect-info').innerHTML = `
             <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${totalG_disp} G</div></div>
-            <div class="expect-row"><div>期待設定</div><div class="expect-val">${expSet.toFixed(2)}</div></div>
-            <div class="expect-row"><div>期待機械割</div><div class="expect-val">${expRate.toFixed(2)}%</div></div>
-            <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
+            <div class="expect-row"><div>期待設定</div><div class="expect-val" style="color:${colorStyle}">${expSet.toFixed(2)}</div></div>
+            <div class="expect-row"><div>期待機械割</div><div class="expect-val" style="color:${colorStyle}">${expRate.toFixed(2)}%</div></div>
+            <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val" style="color:${colorStyle}">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
-        // 詳細データの通常時回転数も、ボーナスを引かない値(calcG)を使用
         let rows = [
             { id:'g', lab:'通常時回転数', val:`${calcG}回転`, l:null },
             { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:lB },
@@ -566,7 +584,6 @@
         if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, calcR * 10)})</span>`, l:lSuiR });
 
         const lblSide = isNew ? "BIG(後半)：サイド" : "REG：サイド";
-        // mkLmpTにタイプを渡して色を判定させる
         rows.push({ id:'bl', lab: isNew?'BIG：サイドランプ':lblSide, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:lSidL }); 
         rows.push({ id:'sl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm, 'big'), l:lBigL });
         rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm, 'regT'), l:lRegL });
@@ -575,10 +592,10 @@
         const container = document.getElementById(prefix+'detail-rows');
         container.innerHTML = rows.map((r, i) => {
             if (targetId === 'cap') {
-                return `<tr><th>${r.lab}</th><td>${r.val}</td></tr>${r.l ? `<tr><td colspan="2"><div style="padding:5px">${renderBarGraph(r.l, pm.settings)}</div></td></tr>` : ''}`;
+                return `<tr><th>${r.lab}</th><td>${r.val}</td></tr>${r.l ? `<tr><td colspan="2"><div style="padding:2px">${renderBarGraph(r.l, pm.settings)}</div></td></tr>` : ''}`;
             } else {
                 const clickEvent = (r.id === 'g') ? '' : `onclick="toggleGraph('g-${i}')"`;
-                const graphHtml = (r.id === 'g') ? '' : `<tr id="g-${i}" class="sub-graph-row"><td colspan="2"><div style="padding:10px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td></tr>`;
+                const graphHtml = (r.id === 'g') ? '' : `<tr id="g-${i}" class="sub-graph-row"><td colspan="2"><div style="padding:5px">${r.l ? '<p style="font-size:10px;color:#aaa">▼個別推測</p>'+renderBarGraph(r.l, pm.settings) : '<p style="font-size:10px;color:#aaa">推測対象外</p>'}</div></td></tr>`;
                 return `<tr ${clickEvent}><th>${r.lab}</th><td>${r.val}</td></tr>` + graphHtml;
             }
         }).join('');
@@ -587,13 +604,13 @@
     function mkLmpT(arr, pm, type) {
         let cols = pm.colors;
         let labs = pm.labels;
-        // 詳細データ生成時もサイドランプは赤定義を使用
-        if (data.machine === 'newking' && type === 'regS') {
-            cols = pm.colors_side;
-            labs = pm.labels_side;
+        if (data.machine === 'newking') {
+            if (type === 'regS') { cols = pm.colors_side; labs = pm.labels_side; }
+            else if (type === 'regT') { cols = pm.colors_regT; labs = pm.labels_regT; }
         }
 
         return arr.map((v,i) => {
+            if(!cols[i]) return ""; // 配列長不一致ガード
             const col = cols[i]; const lab = labs[i];
             const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
             return `<span ${s}>${lab}</span>:${v}`;
@@ -626,10 +643,9 @@
         }
         
         const totalG_out = calcG + (calcB * (data.machine === 'newking' ? 26 : 20)) + (calcR * 10);
-
         const bL = [...dat.lamps.big]; if(dat.morning>=1) bL[dat.morning-1]++;
-        let txt = "";
         
+        let txt = "";
         if (data.machine === 'newking') {
             const row = [dateStr, totalG_out, calcG, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
@@ -640,8 +656,7 @@
 
         navigator.clipboard.writeText(txt).then(() => {
             if (typeof html2canvas === 'undefined') {
-                alert("データをコピーしました。\n※画像生成ライブラリの読み込みに失敗したため、画像生成はスキップします。");
-                return;
+                alert("データをコピーしました。"); return;
             }
             if(confirm("データをコピーしました。\n設定推測画像を生成しますか？\n(キャンセルで終了)")) {
                 setTimeout(() => generateImage(), 100);
@@ -655,7 +670,6 @@
         calc('cap');
         
         const target = document.getElementById('capture-content');
-        // 画像生成エリアを表示させてから撮影
         const container = document.getElementById('capture-container');
         container.style.visibility = 'visible';
         
@@ -693,7 +707,7 @@
         <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">HANA Counter</h3>
         <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span> <span id="cap-mode"></span></p>
         <p class="section-title" style="color:#ddd">＜設定推測＞</p>
-        <div id="cap-predict-bars" style="background:#222; padding:10px; border-radius:5px; margin-bottom:10px;"></div>
+        <div id="cap-predict-bars" style="background:#222; padding:5px 10px; border-radius:5px; margin-bottom:10px;"></div>
         <p class="section-title" style="color:#ddd">＜期待値＞</p>
         <div id="cap-expect-info" class="expect-box"></div>
         <p class="section-title" style="color:#ddd">＜詳細データ＞</p>
