@@ -48,6 +48,13 @@
             background-repeat: no-repeat;
             background-position: center;
         }
+
+        /* 添付画像の虹アイコン用スタイル */
+        .rainbow-icon {
+            height: 1.1em;           /* 文字の高さに合わせる */
+            vertical-align: -0.2em;  /* ベースラインを微調整して文字と高さを揃える */
+            display: inline-block;
+        }
         
         /* ヘッダー */
         .header {
@@ -233,6 +240,9 @@
         newking: JSON.parse(JSON.stringify(SINGLE_DEFAULT))
     };
 
+    // 画像のファイル名が "虹.png" で、HTMLと同じ場所にあると仮定しています
+    const RAINBOW_IMG = '<img src="./虹.png" class="rainbow-icon" alt="虹">';
+
     const ALL_PARAMS = {
         king: {
             name: "キングハナハナ",
@@ -246,8 +256,8 @@
             retro: [15.0, 13.7, 12.4, 11.1, 9.8, 8.5],
             lampB: [[0.4,0.3,0.2,0.08,0.02],[0.35,0.3,0.22,0.1,0.03],[0.3,0.28,0.25,0.12,0.05],[0.25,0.25,0.3,0.14,0.06],[0.2,0.22,0.35,0.16,0.07],[0.15,0.18,0.4,0.18,0.09]],
             sideR: [[0.6,0.3,0.08,0.015,0.005],[0.3,0.6,0.05,0.04,0.01],[0.5,0.25,0.2,0.04,0.01],[0.25,0.5,0.15,0.08,0.02],[0.4,0.2,0.3,0.07,0.03],[0.25,0.25,0.25,0.15,0.1]],
-            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
-            labels: ['青', '黄', '緑', '赤', '虹'],
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels: ['青', '黄', '緑', '赤', RAINBOW_IMG],
             bigG: 20, regG: 10, suikaDenom: 20
         },
         newking: {
@@ -276,11 +286,11 @@
                [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
             // 通常(BIG筐体ランプ等)は紫・虹あり
-            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', 'rainbow'],
-            labels: ['青', '黄', '緑', '紫', '虹'],
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', '--lamp-white'],
+            labels: ['青', '黄', '緑', '紫', RAINBOW_IMG],
             // サイドランプ用は赤・虹あり
-            colors_side: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', 'rainbow'],
-            labels_side: ['青', '黄', '緑', '赤', '虹'],
+            colors_side: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels_side: ['青', '黄', '緑', '赤', RAINBOW_IMG],
             // REG筐体ランプ用（虹なし 4色）
             colors_regT: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple'],
             labels_regT: ['青', '黄', '緑', '紫'],
