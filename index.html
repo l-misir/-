@@ -22,6 +22,12 @@
             user-select: none; -webkit-user-select: none; 
             touch-action: manipulation;
         }
+        
+        .rainbow-img {
+            height: 1.2em;
+            vertical-align: middle;
+            pointer-events: none; /* 画像へのタッチを透過 */
+        }
         .rainbow {
             background: linear-gradient(to right, #ff3333, #ffff33, #33ff33, #33ffff, #3333ff, #ff33ff, #ff3333);
             background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
@@ -200,14 +206,9 @@
 <script>
     document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
 
-    const SINGLE_DEFAULT = {
-        start: { g:0, b:0, r:0 },
-        cur: { g:0, b:0, r:0, bell:0, suika:0, suikaR:0, retro_d:0, retro:0 },
-        lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
-        morning: -1
-    };
+    const RAINBOW_IMG = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='20' viewBox='0 0 40 20'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0%25' stop-color='%23ff0000'/%3E%3Cstop offset='20%25' stop-color='%23ffff00'/%3E%3Cstop offset='40%25' stop-color='%2300ff00'/%3E%3Cstop offset='60%25' stop-color='%2300ffff'/%3E%3Cstop offset='80%25' stop-color='%230000ff'/%3E%3Cstop offset='100%25' stop-color='%23ff00ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' fill='url(%23g)' font-weight='bold' font-family='sans-serif' font-size='16'%3E虹%3C/text%3E%3C/svg%3E";
 
-    const DEFAULTS = {
+    const SINGLE_DEFAULT = {
         machine: 'king', mode: 'tap', viewMode: 'personal',
         king: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
         newking: JSON.parse(JSON.stringify(SINGLE_DEFAULT))
@@ -311,8 +312,15 @@
         let html = '';
         labs.forEach((l, i) => {
             const isSel = (d.morning === i) ? 'selected-lamp' : '';
-            const colStyle = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i].startsWith('var')?cols[i]:'var('+cols[i]+')'}"`;
-            html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label-large" ${colStyle}>${l}</div></div>`;
+
+            let content = l;
+            if (l === '虹') {
+                content = `<img src="${RAINBOW_IMG}" class="rainbow-img" alt="虹">`;
+                html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label-large">${content}</div></div>`;
+            } else {
+                const colStyle = `style="color:${cols[i].startsWith('var')?cols[i]:'var('+cols[i]+')'}"`;
+                html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label-large" ${colStyle}>${content}</div></div>`;
+            }
         });
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
@@ -420,11 +428,20 @@
         }
 
         return useLabs.map((l, i) => {
+            if(!useCols[i]) return ""; 
+
+            let content = l;
+            let colStyle = "";
+            if (l === '虹') {
+                content = `<img src="${RAINBOW_IMG}" class="rainbow-img" alt="虹">`;
+            } else {
+                const col = useCols[i];
+                colStyle = `style="color:var(${col})"`;
+            }
+
             const v = d.lamps[type][i];
-            const col = useCols[i];
-            const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
-            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${colStyle}>${content}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${colStyle}>${content}</div><div class="value">${v}</div></div>`;
         }).join('');
     }
 
@@ -603,9 +620,16 @@
 
         return arr.map((v,i) => {
             if(!cols[i]) return ""; 
-            const col = cols[i]; const lab = labs[i];
-            const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
-            return `<span ${s}>${lab}</span>:${v}`;
+
+            let content = labs[i];
+            let colStyle = "";
+            if (labs[i] === '虹') {
+                content = `<img src="${RAINBOW_IMG}" class="rainbow-img" alt="虹">`;
+            } else {
+                const col = cols[i];
+                colStyle = `style="color:var(${col})"`;
+            }
+            return `<span ${colStyle}>${content}</span>:${v}`;
         }).join(' ');
     }
 
