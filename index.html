@@ -43,7 +43,7 @@
             width: 1em;
             height: 1em;
             vertical-align: middle;
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZzEiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZmYwMGZmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZmYwMDAwIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iNDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZmZmZjAwIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iNjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojMDBmZjAwIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iODAlIiBzdHlsZT0ic3RvcC1jb2xvcjojMDBmZmZmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6IzAwMDBmZiIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHRleHQgeD0iMTIiIHk9IjE4IiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0idXJsKCNnMSkiPuiZuTwvdGV4dD4KPC9zdmc+');
+            background-image: url('gif画像');
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
@@ -60,7 +60,7 @@
         .header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 4px 12px; background: #000; position: sticky; top: 0; z-index: 100;
-            border-bottom: 1px solid #333; height: 40px; box-sizing: border-box;
+            border-bottom: 1px solid #333; height: 32px; box-sizing: border-box;
         }
         .header-icon { font-size: 20px; cursor: pointer; color: white; padding: 5px; }
         .header-title { font-size: 14px; font-weight: bold; border-bottom: 2px solid white; }
@@ -81,14 +81,14 @@
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-2 { grid-template-columns: 1fr 1fr; }
         
-        .cell { background: var(--cell-bg); padding: 5px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 40px; }
-        .label { font-size: 10px; color: white; margin-bottom: 1px; pointer-events: none; }
-        .value { font-size: 20px; font-weight: bold; line-height: 1.2; pointer-events: none; }
+        .cell { background: var(--cell-bg); padding: 2px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; }
+        .label { font-size: 9px; color: white; margin-bottom: 1px; pointer-events: none; }
+        .value { font-size: 16px; font-weight: bold; line-height: 1.2; pointer-events: none; }
         .touch-active { background: #666 !important; }
         .minus-mode { background: #900 !important; }
         .selected-lamp { border: 2px solid #fff; background: #666; }
         .active-mode { background: var(--active-btn) !important; color: white; }
-        .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 20px; font-weight: bold; outline: none; }
+        .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 16px; font-weight: bold; outline: none; }
         
         /* 設定画面用の大きな文字 */
         .label-large { font-size: 16px !important; font-weight: bold; color: white; margin-bottom: 0; pointer-events: none; }
@@ -331,7 +331,8 @@
         document.getElementById('start-r').value = d.start.r;
     }
 
-    function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(1)}`; }
+    // 小数点以下2桁に変更
+    function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(2)}`; }
 
     function renderMorningSelector() {
         const pm = ALL_PARAMS[data.machine];
@@ -357,11 +358,22 @@
         syncInputs();
         save(); updateHeader(); renderMorningSelector();
     }
+    
+    // 設定から打ち始めデータを入力した際、自動で現在データに入力された値を＋する
     function saveStart() {
         const d = getData();
+        const old_sg = d.start.g || 0;
+        const old_sb = d.start.b || 0;
+        const old_sr = d.start.r || 0;
+
         d.start.g = Number(document.getElementById('start-g').value) || 0;
         d.start.b = Number(document.getElementById('start-b').value) || 0;
         d.start.r = Number(document.getElementById('start-r').value) || 0;
+        
+        d.cur.g = Math.max(0, d.cur.g + (d.start.g - old_sg));
+        d.cur.b = Math.max(0, d.cur.b + (d.start.b - old_sb));
+        d.cur.r = Math.max(0, d.cur.r + (d.start.r - old_sr));
+        
         save();
     }
 
@@ -488,26 +500,59 @@
         });
     }
 
-    // 計算関連
+    // 計算関連 (2000Gオーバーフロー対策版に対数を使って最適化)
     function calcLikelihood(n, k, probList) {
         if(n <= 0 || k < 0) return probList.map(()=>1);
-        let likes = probList.map(p => {
+        let logs = probList.map(p => {
             const pr = 1/p;
-            return Math.exp(k * Math.log(pr) + (n - k) * Math.log(1 - pr));
+            return k * Math.log(pr) + (n - k) * Math.log(1 - pr);
         });
-        const max = Math.max(...likes);
-        return likes.map(v => v / (max || 1));
+        const maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return probList.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog)); // 最大値1に正規化
     }
+    
     function calcMultiLikelihood(counts, table) {
         if(counts.reduce((a,b)=>a+b,0) === 0) return table.map(()=>1);
-        let likes = table.map(row => {
+        let logs = table.map(row => {
             let l = 0;
-            counts.forEach((c, i) => { if(c > 0) l += c * Math.log(row[i]); });
-            return Math.exp(l);
+            counts.forEach((c, i) => { if(c > 0) l += c * Math.log(row[i] || 1e-10); });
+            return l;
         });
-        const max = Math.max(...likes);
-        return likes.map(v => v / max);
+        const maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return table.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog));
     }
+    
+    // BIG筐体ランプ専用の抽選プロセスを反映した計算
+    function calcBigLampLikelihood(bL_counts, rawProbsMatrix, totalBig) {
+        let sumCounts = bL_counts.reduce((a, b) => a + b, 0);
+        let whiteCount = totalBig - sumCounts;
+        if (whiteCount < 0 || totalBig <= 0) return rawProbsMatrix.map(()=>1);
+
+        let logs = rawProbsMatrix.map(rawP => {
+            let actP = [];
+            let failRate = 1.0;
+            for (let i = 0; i < 5; i++) {
+                let p = failRate * rawP[i];
+                actP.push(p);
+                failRate *= (1 - rawP[i]);
+            }
+            let whiteP = failRate;
+
+            let l = 0;
+            for (let i = 0; i < 5; i++) {
+                if (bL_counts[i] > 0) l += bL_counts[i] * Math.log(actP[i] || 1e-10);
+            }
+            if (whiteCount > 0) l += whiteCount * Math.log(whiteP || 1e-10);
+            return l;
+        });
+
+        let maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return rawProbsMatrix.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog));
+    }
+
     function renderBarGraph(likes, settings) {
         const sum = likes.reduce((a,b)=>a+b,0) || 1;
         const pcts = likes.map(v => (v/sum)*100);
@@ -558,8 +603,12 @@
         let lSuiR = pm.settings.map(()=>1);
         if(isNew && c.suikaR > 0) lSuiR = calcLikelihood(calcR * 10, c.suikaR, pm.suikaR);
 
-        let bigLamps = [...d.lamps.big]; if(d.morning >= 1) bigLamps[d.morning-1]++;
-        const lBigL = calcMultiLikelihood(bigLamps, pm.lampB);
+        let bigLamps = [...d.lamps.big];
+        let lampCalcB = calcB;
+        if (d.morning >= 0 && lampCalcB > 0) {
+            lampCalcB -= 1; // 朝一ランプ分をBIG母数から引く
+        }
+        const lBigL = calcBigLampLikelihood(bigLamps, pm.lampB, lampCalcB);
         const lSidL = calcMultiLikelihood(d.lamps.regS, pm.sideR);
 
         let lRegL = pm.settings.map(()=>1);
@@ -630,12 +679,18 @@
             if (type === 'regS') { cols = pm.colors_side; labs = pm.labels_side; }
             else if (type === 'regT') { cols = pm.colors_regT; labs = pm.labels_regT; }
         }
+        const d = getData();
 
         return arr.map((v,i) => {
             if(!cols[i]) return ""; 
             const col = cols[i]; const lab = labs[i];
             const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
-            return `<span ${s}>${lab}</span>:${v}`;
+            let vStr = v;
+            // 朝一に入力された色のみ下線部付きにする
+            if (type === 'big' && i === (d.morning - 1)) {
+                vStr = `<u>${v}</u>`;
+            }
+            return `<span ${s}>${lab}</span>:${vStr}`;
         }).join(' ');
     }
 
@@ -665,11 +720,12 @@
         }
         
         const totalG_out = calcG + (calcB * (data.machine === 'newking' ? 26 : 20)) + (calcR * 10);
-        const bL = [...dat.lamps.big]; if(dat.morning>=1) bL[dat.morning-1]++;
+        // 朝一分は出力データに含まないように元の生データ配列をコピー
+        const bL = [...dat.lamps.big];
         
         let txt = "";
         if (data.machine === 'newking') {
-            // [修正箇所] ニューキングの場合のみ、REG筐体ランプの出力データを4つに制限(slice(0,4))し、虹を除外
+            // ニューキングの場合のみ、REG筐体ランプの出力データを4つに制限(slice(0,4))し、虹を除外
             const regT_out = dat.lamps.regT.slice(0, 4);
             const row = [dateStr, totalG_out, calcG, (calcB*26)+(calcR*10), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...regT_out, dat.cur.retro_d, dat.cur.retro];
             txt = row.join('\t');
