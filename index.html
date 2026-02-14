@@ -605,7 +605,7 @@
         const lR = rawR.map(v => Math.pow(v, 0.80));
 
         const rawG = calcLikelihood(calcG, calcB + calcR, pm.gassan);
-        const lG = rawSui.map(v => Math.pow(v, 0.75));
+        const lG = rawG.map(v => Math.pow(v, 0.75));
 
         const rawBell = calcLikelihood(actG, c.bell, pm.bell);
         const lBell = rawBell.map(v => Math.pow(v, 0.90));
@@ -821,3 +821,4 @@
 
 </body>
 </html>
+
