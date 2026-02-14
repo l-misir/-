@@ -269,7 +269,7 @@
             gassan: [186, 180, 172, 162, 150],
             bell: [7.58, 7.52, 7.46, 7.37, 7.25],
             suika: [42.0, 38.5, 36.2, 31.5, 29.3],
-            suikaR: [200, 180, 160, 140, 100], 
+            suikaR: [100, 90, 80, 70, 60],
             retro: [15.00, 13.55, 11.88, 8.70, 8.60],
             lampB: [
                [0.3277, 0.3542, 0.4096, 0.0119, 0.00015],
@@ -602,11 +602,19 @@
         const lR = calcLikelihood(calcG, calcR, pm.r);
         const lG = calcLikelihood(calcG, calcB + calcR, pm.gassan);
         const lBell = calcLikelihood(actG, c.bell, pm.bell);
-        const lSui = calcLikelihood(actB * pm.suikaDenom, c.suika, pm.suika);
+        
+        // BIGスイカの影響度を下げる（0.5乗でマイルドに）
+        const rawSui = calcLikelihood(actB * pm.suikaDenom, c.suika, pm.suika);
+        const lSui = rawSui.map(v => Math.pow(v, 0.4)); 
+        
         const lRet = (c.retro_d > 0) ? calcLikelihood(c.retro_d, c.retro, pm.retro) : pm.settings.map(()=>1);
         
+        // REGスイカの影響度を下げる（0.5乗でマイルドに）
         let lSuiR = pm.settings.map(()=>1);
-        if(isNew && c.suikaR > 0) lSuiR = calcLikelihood(actR * 10, c.suikaR, pm.suikaR);
+        if(isNew && c.suikaR > 0) {
+            const rawSuiR = calcLikelihood(actR * 10, c.suikaR, pm.suikaR);
+            lSuiR = rawSuiR.map(v => Math.pow(v, 0.2));
+        }
 
         let bigLamps = [...d.lamps.big];
         let lampCalcB = actB;
