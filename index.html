@@ -598,14 +598,21 @@
 
         const totalG_disp = calcG + (calcB * (isNew ? 26 : 20)) + (calcR * 10);
 
-        const lB = calcLikelihood(calcG, calcB, pm.b);
-        const lR = calcLikelihood(calcG, calcR, pm.r);
-        const lG = calcLikelihood(calcG, calcB + calcR, pm.gassan);
-        const lBell = calcLikelihood(actG, c.bell, pm.bell);
+        const rawB = calcLikelihood(calcG, calcB, pm.b);
+        const lB = rawB.map(v => Math.pow(v, 0.80));
+
+        const rawR = calcLikelihood(calcG, calcR, pm.r);
+        const lR = rawR.map(v => Math.pow(v, 0.80));
+
+        const rawG = calcLikelihood(calcG, calcB + calcR, pm.gassan);
+        const lG = rawSui.map(v => Math.pow(v, 0.75));
+
+        const rawBell = calcLikelihood(actG, c.bell, pm.bell);
+        const lBell = rawBell.map(v => Math.pow(v, 0.90));
         
         // BIGスイカの影響度を下げる（0.5乗でマイルドに）
         const rawSui = calcLikelihood(actB * pm.suikaDenom, c.suika, pm.suika);
-        const lSui = rawSui.map(v => Math.pow(v, 0.4)); 
+        const lSui = rawSui.map(v => Math.pow(v, 0.25)); 
         
         const lRet = (c.retro_d > 0) ? calcLikelihood(c.retro_d, c.retro, pm.retro) : pm.settings.map(()=>1);
         
@@ -613,7 +620,7 @@
         let lSuiR = pm.settings.map(()=>1);
         if(isNew && c.suikaR > 0) {
             const rawSuiR = calcLikelihood(actR * 10, c.suikaR, pm.suikaR);
-            lSuiR = rawSuiR.map(v => Math.pow(v, 0.2));
+            lSuiR = rawSuiR.map(v => Math.pow(v, 0.20));
         }
 
         let bigLamps = [...d.lamps.big];
@@ -624,7 +631,7 @@
         }
         const rawBigL = calcBigLampLikelihood(bigLamps, pm.lampB, lampCalcB);
         // 割合（影響度）を極小にするため、算出された尤度を0.1乗して重みを大幅に下げる
-        const lBigL = rawBigL.map(v => Math.pow(v, 0.1));
+        const lBigL = rawBigL.map(v => Math.pow(v, 0.10));
 
         const lSidL = calcMultiLikelihood(d.lamps.regS, pm.sideR);
 
