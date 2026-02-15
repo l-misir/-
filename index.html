@@ -121,9 +121,10 @@
             .expect-row { font-size: 11px; margin-bottom: 1px; }
         }
 
-        /* 個別設定推測のグラフを一直線に揃えるための修正 */
+        /* グラフのスタイル分け（総合推測は元サイズ、個別推測のみ広げる） */
         .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
-        .bar-label { width: 100px; text-align: left; line-height: 1.2; flex-shrink: 0; }
+        .bar-label { width: 40px; text-align: left; line-height: 1.2; flex-shrink: 0; }
+        .sub-graph-row .bar-label { width: 100px; }
         .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
         .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
         .bar-val { width: 45px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
@@ -388,7 +389,11 @@
         document.getElementById('start-r').value = d.start.r;
     }
 
-    function getP(k, n) { return (k <= 0 || n <= 0) ? "0/0" : `1/${(n/k).toFixed(2)}`; }
+    function getP(k, n) { 
+        if (n <= 0) return "0/0";
+        if (k <= 0) return `0/${Math.round(n)}`; 
+        return `1/${(n/k).toFixed(2)}`; 
+    }
 
     function renderMorningSelector() {
         const pm = ALL_PARAMS[data.machine];
@@ -644,6 +649,10 @@
                 let isHidden = colorRows[0].style.display === 'none';
                 colorRows.forEach(el => { el.style.display = isHidden ? 'table-row' : 'none'; });
             }
+            // 1回目のタップで開閉してしまった個別推測グラフを元に戻す(相殺する)
+            if (hasGraph) {
+                toggleGraph('g-' + id);
+            }
         } else {
             // シングルタップ時（グラフの展開／折りたたみ）即時実行
             if (hasGraph) {
@@ -768,7 +777,7 @@
         
         if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * 10)})</span>`, l:rawSuiR, str:pm.suikaR_str });
 
-        // サイドランプ本体 (グラフありに変更)
+        // サイドランプ本体 (グラフあり)
         const lblSide = isNew ? "BIG(後半)：サイドランプ" : "REG：サイドランプ";
         rows.push({ id:'sl', lab: lblSide, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:lSidL, str:null, hasColors: true });
         
@@ -784,8 +793,8 @@
             let cName = sideCols[i] === 'rainbow' ? lab : `<span style="color:var(${sideCols[i]})">${lab}</span>`;
             rows.push({
                 id: `sl-c${i}`,
-                lab: `　${lblSide}（${lab}）`,
-                val: `${c_v}回 (${cName} / ${pct}%)`,
+                lab: `　${lblSide}（${cName}）`,
+                val: `${c_v}回 <span class="white-txt">(${pct}%)</span>`,
                 l: c_l,
                 str: pm.sideR_str[i],
                 isColorRow: true,
@@ -793,7 +802,7 @@
             });
         });
 
-        // BIG筐体ランプ本体
+        // BIG筐体ランプ本体 (グラフあり)
         rows.push({ id:'bl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm, 'big'), l:lBigL_indiv, str:pm.blamp_str, hasColors: true });
         
         // BIG筐体ランプ（色ごと）
@@ -803,8 +812,8 @@
             let cName = pm.colors[i] === 'rainbow' ? lab : `<span style="color:var(${pm.colors[i]})">${lab}</span>`;
             rows.push({
                 id: `bl-c${i}`,
-                lab: `　BIG：筐体ランプ（${lab}）`,
-                val: `${c_v}回 (${cName} / ${lampCalcB})`,
+                lab: `　BIG：筐体ランプ（${cName}）`,
+                val: `${c_v}回 <span class="white-txt">(${c_v}/${lampCalcB})</span>`,
                 l: c_l,
                 str: pm.lampB_str[i],
                 isColorRow: true,
