@@ -87,7 +87,11 @@
         .minus-mode { background: #900 !important; }
         .selected-lamp { border: 2px solid #fff; background: #666; }
         .active-mode { background: var(--active-btn) !important; color: white; }
-        .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 16px; font-weight: bold; outline: none; padding: 0; margin: 0; height: 1.2em; line-height: 1.2; border-radius: 0; -webkit-appearance: none; }
+        
+        /* 入力フォーム関連のスタイル */
+        .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 16px; font-weight: bold; outline: none; }
+        /* メイン画面の数値入力枠のみブラウザ自動余白を無効化 */
+        .cell input.val-input { padding: 0; margin: 0; height: 100%; line-height: 1.2; border-radius: 0; -webkit-appearance: none; box-sizing: border-box; }
         
         .label-large { font-size: 16px !important; font-weight: bold; color: white; margin-bottom: 0; pointer-events: none; }
 
@@ -102,9 +106,10 @@
         .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
         .expect-val { font-weight: bold; } 
 
-        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; }
-        .detail-table th { background: #222; text-align: left; padding: 6px 4px; border-bottom: 1px solid #444; font-weight: normal; }
-        .detail-table td { padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; }
+        /* 詳細データのレイアウト固定化 (ダブルタップ時の項目ズレを完全に防止) */
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; table-layout: fixed; }
+        .detail-table th { width: 55%; background: #222; text-align: left; padding: 6px 4px; border-bottom: 1px solid #444; font-weight: normal; word-wrap: break-word; }
+        .detail-table td { width: 45%; padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; word-wrap: break-word; }
 
         @media (orientation: landscape) {
             .modal-body { padding: 5px 15px 20px; }
@@ -268,7 +273,6 @@
                 [0.3108, 0.2072, 0.2869, 0.1912, 0.0039],
                 [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
-            // 表示用テキスト
             b_str: ['(1/292)', '(1/280)', '(1/268)', '(1/257)', '(1/244)', '(1/232)'],
             r_str: ['(1/489)', '(1/452)', '(1/420)', '(1/390)', '(1/360)', '(1/332)'],
             gas_str: ['(1/183)', '(1/172)', '(1/163)', '(1/154)', '(1/145)', '(1/136)'],
@@ -320,7 +324,6 @@
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
                [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
-            // 表示用テキスト
             b_str: ['(1/299.2)', '(1/291.2)', '(1/281.3)', '(1/268.6)', '(1/253.0)'],
             r_str: ['(1/496.5)', '(1/471.5)', '(1/442.8)', '(1/409.6)', '(1/372.4)'],
             gas_str: ['(1/186.7)', '(1/180.0)', '(1/172.0)', '(1/162.2)', '(1/150.0)'],
@@ -343,16 +346,12 @@
                 ['(16.00%)', '(25.19%)', '(17.58%)', '(27.55%)', '(24.80%)'],
                 ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.78%)']
             ],
-            // 通常(BIG筐体ランプ等)は紫・虹あり
             colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', '--lamp-white'],
             labels: ['青', '黄', '緑', '紫', RAINBOW_IMG],
-            // サイドランプ用は赤・虹あり
             colors_side: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
             labels_side: ['青', '黄', '緑', '赤', RAINBOW_IMG],
-            // REG筐体ランプ用（虹なし 4色）
             colors_regT: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple'],
             labels_regT: ['青', '黄', '緑', '紫'],
-            
             bigG: 26, regG: 10, suikaDenom: 14
         }
     };
@@ -389,10 +388,11 @@
         document.getElementById('start-r').value = d.start.r;
     }
 
-    function getP(k, n) { 
+    // 0/0表記を0/分母にする、かつ桁数指定
+    function getP(k, n, digits = 2) { 
         if (n <= 0) return "0/0";
         if (k <= 0) return `0/${Math.round(n)}`; 
-        return `1/${(n/k).toFixed(2)}`; 
+        return `1/${(n/k).toFixed(digits)}`; 
     }
 
     function renderMorningSelector() {
@@ -631,7 +631,7 @@
             <div class="bar-row">
                 <div class="bar-label">設定${settings[i]} <span style="font-size:10px;color:#aaa">${strs?strs[i]:''}</span></div>
                 <div class="bar-bg"><div class="bar-fill" style="width:${(p/maxPct)*100}%"></div></div>
-                <div class="bar-val">${p.toFixed(1)}%</div>
+                <div class="bar-val">${p.toFixed(2)}%</div>
             </div>`).join('');
     }
 
@@ -768,14 +768,14 @@
 
         let rows = [
             { id:'g', lab:'通常時回転数', val:`${calcG}回転`, l:null, str:null },
-            { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG)})</span>`, l:rawB, str:pm.b_str },
-            { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG)})</span>`, l:rawR, str:pm.r_str },
-            { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG)})</span>`, l:rawG, str:pm.gas_str },
-            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG)})</span>`, l:rawBell, str:pm.bell_str },
-            { id:'sui', lab: isNew?'BIG(前半)：スイカ':'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom)})</span>`, l:rawSui, str:pm.suika_str }
+            { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG, 2)})</span>`, l:rawB, str:pm.b_str },
+            { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG, 2)})</span>`, l:rawR, str:pm.r_str },
+            { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG, 2)})</span>`, l:rawG, str:pm.gas_str },
+            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG, 3)})</span>`, l:rawBell, str:pm.bell_str },
+            { id:'sui', lab: isNew?'BIG(前半)：スイカ':'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom, 2)})</span>`, l:rawSui, str:pm.suika_str }
         ];
         
-        if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * 10)})</span>`, l:rawSuiR, str:pm.suikaR_str });
+        if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * 10, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
 
         // サイドランプ本体 (グラフあり)
         const lblSide = isNew ? "BIG(後半)：サイドランプ" : "REG：サイドランプ";
@@ -789,12 +789,12 @@
             if (!sideCols[i]) return;
             let c_v = d.lamps.regS[i];
             let c_l = calcLikelihoodDirect(totalSide, c_v, pm.sideR.map(arr => arr[i]));
-            let pct = totalSide > 0 ? ((c_v / totalSide)*100).toFixed(1) : "0.0";
+            let pct = totalSide > 0 ? ((c_v / totalSide)*100).toFixed(2) : "0.00";
             let cName = sideCols[i] === 'rainbow' ? lab : `<span style="color:var(${sideCols[i]})">${lab}</span>`;
             rows.push({
                 id: `sl-c${i}`,
                 lab: `　${lblSide}（${cName}）`,
-                val: `${c_v}回 <span class="white-txt">(${pct}%)</span>`,
+                val: `${c_v}回 <span class="white-txt">（${pct}％）</span>`,
                 l: c_l,
                 str: pm.sideR_str[i],
                 isColorRow: true,
@@ -813,7 +813,7 @@
             rows.push({
                 id: `bl-c${i}`,
                 lab: `　BIG：筐体ランプ（${cName}）`,
-                val: `${c_v}回 <span class="white-txt">(${c_v}/${lampCalcB})</span>`,
+                val: `${c_v}回 <span class="white-txt">（${c_v}/${lampCalcB}）</span>`,
                 l: c_l,
                 str: pm.lampB_str[i],
                 isColorRow: true,
@@ -848,7 +848,8 @@
             
             if (hasGraph) {
                 let gId = `g-${r.id}`;
-                let graphHtml = `<tr id="${gId}" class="sub-graph-row"><td colspan="2"><div style="padding:5px"><p style="font-size:10px;color:#aaa">▼個別設定推測</p>${renderBarGraph(r.l, pm.settings, r.str)}</div></td></tr>`;
+                // paddingを最小限(0 5px 2px 5px)に削り、pタグの上下余白もカット
+                let graphHtml = `<tr id="${gId}" class="sub-graph-row"><td colspan="2" style="padding:0;"><div style="padding: 0px 5px 2px 5px;"><p style="font-size:10px;color:#aaa;margin:2px 0;">▼個別設定推測</p>${renderBarGraph(r.l, pm.settings, r.str)}</div></td></tr>`;
                 htmlRows += graphHtml;
             }
         });
