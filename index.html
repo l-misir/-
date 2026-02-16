@@ -100,7 +100,7 @@
         .modal.active { display: flex; }
         .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 4px 12px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box; }
         /* モーダル内のみスクロール許可 */
-        .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 40px; touch-action: pan-y; }
+        .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 60vh; touch-action: pan-y; }
 
         .expect-box { background: #222; padding: 5px 10px; border: 1px solid #444; margin-bottom: 10px; }
         .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
@@ -695,8 +695,17 @@
             // ダブルタップ時（色詳細を展開／折りたたみ）
             let colorRows = document.querySelectorAll('.' + id + '-colors');
             if(colorRows.length > 0) {
+                const modalBody = document.querySelector('.modal-body');
+                const refEl = document.getElementById('row-' + id);
+                let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
+
                 let isHidden = colorRows[0].style.display === 'none';
                 colorRows.forEach(el => { el.style.display = isHidden ? 'table-row' : 'none'; });
+
+                if (refEl) {
+                    let topAfter = refEl.getBoundingClientRect().top;
+                    modalBody.scrollTop += (topAfter - topBefore);
+                }
             }
             // 1回目のタップで開閉してしまった個別推測グラフを元に戻す(相殺する)
             if (hasGraph) {
@@ -958,9 +967,21 @@
 
     function toggleGraph(id) {
         const el = document.getElementById(id);
+        const modalBody = document.querySelector('.modal-body');
+        
+        // タップした行（基準位置）の座標を記録
+        const refEl = el.previousElementSibling;
+        let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
+
         const isOp = el.classList.contains('open');
         document.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
         if(!isOp) el.classList.add('open');
+
+        // 開閉後のズレをスクロールで補正
+        if (refEl) {
+            let topAfter = refEl.getBoundingClientRect().top;
+            modalBody.scrollTop += (topAfter - topBefore);
+        }
     }
 
     function exportData() {
