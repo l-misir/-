@@ -429,14 +429,17 @@
     function renderWeightSettings() {
         const w = data.weights[data.machine];
         const isNew = data.machine === 'newking';
+        const suiLabel = isNew ? 'BIG(前半)：スイカ' : 'BIG：スイカ';
+        const slLabel = isNew ? 'BIG(後半)：サイドランプ' : 'REG：サイドランプ'; // 機種によって表示名を切り替え
+        
         let html = `
             ${mkW('BIG', 'b', w.b)}
             ${mkW('REG', 'r', w.r)}
             ${mkW('合算', 'gas', w.gas)}
             ${mkW('通常時：ベル', 'bell', w.bell)}
-            ${mkW('BIGスイカ', 'sui', w.sui)}
-            ${isNew ? mkW('REGスイカ', 'suiR', w.suiR) : ''}
-            ${mkW('サイドランプ', 'sl', w.sl)}
+            ${mkW(suiLabel, 'sui', w.sui)}
+            ${isNew ? mkW('REG：スイカ', 'suiR', w.suiR) : '<div style="background: var(--bg-color);"></div>'}
+            ${mkW(slLabel, 'sl', w.sl)}
             ${mkW('BIG：筐体ランプ(朝一)', 'morn', w.morn)}
             ${mkW('BIG：筐体ランプ', 'bl', w.bl)}
             ${mkW('REG：筐体ランプ', 'rl', w.rl)}
