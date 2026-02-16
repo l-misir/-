@@ -421,16 +421,17 @@
         });
         document.getElementById('morning-lamp-selector').innerHTML = html;
     }
+    
     function setMorning(val) { 
         getData().morning = (getData().morning === val) ? -1 : val; 
         save(); renderMorningSelector(); 
     }
-    
+
     function renderWeightSettings() {
         const w = data.weights[data.machine];
         const isNew = data.machine === 'newking';
         const suiLabel = isNew ? 'BIG(前半)：スイカ' : 'BIG：スイカ';
-        const slLabel = isNew ? 'BIG(後半)：サイドランプ' : 'REG：サイドランプ'; // 機種によって表示名を切り替え
+        const slLabel = isNew ? 'BIG(後半)：サイドランプ' : 'REG：サイドランプ';
         
         let html = `
             ${mkW('BIG', 'b', w.b)}
@@ -447,9 +448,11 @@
         `;
         document.getElementById('weight-settings').innerHTML = html;
     }
+    
     function mkW(label, key, val) {
         return `<div class="cell"><div class="label">${label}</div><div style="display:flex; justify-content:center; align-items:baseline; width:100%;"><input type="number" class="val-input weight-input" style="width:40px; text-align:right; padding-right:2px;" data-key="${key}" value="${val}" onchange="saveWeight(this)" onfocus="this.select()"><span style="color:white; font-size:14px; font-weight:bold;">％</span></div></div>`;
     }
+    
     function saveWeight(el) {
         const key = el.dataset.key;
         let val = Number(el.value);
@@ -867,7 +870,7 @@
             rows.push({
                 id: `sl-c${i}`,
                 lab: `　${lblSide}（${cName}）`,
-                val: `${c_v}回 <span class="white-txt">（${pct}％）</span>`,
+                val: `${c_v}回 <span class="white-txt">(${pct}%)</span>`,
                 l: c_l,
                 str: pm.sideR_str[i],
                 isColorRow: true,
@@ -886,7 +889,7 @@
             rows.push({
                 id: `bl-c${i}`,
                 lab: `　BIG：筐体ランプ（${cName}）`,
-                val: `${c_v}回 <span class="white-txt">（${c_v}/${lampCalcB}）</span>`,
+                val: `${c_v}回 <span class="white-txt">(${getP(c_v, lampCalcB, 2)})</span>`,
                 l: c_l,
                 str: pm.lampB_str[i],
                 isColorRow: true,
@@ -905,7 +908,7 @@
             let hasGraph = r.l !== null && r.l !== undefined;
             
             if (r.isColorRow) {
-                let tapEvt = hasGraph ? `onclick="toggleGraph('g-${r.id}')"` : '';
+                let tapEvt = hasGraph ? `onclick="toggleGraph('g-${r.id}')"` : `onclick="event.stopPropagation();"`;
                 htmlRows += `<tr class="${r.parent}-colors" style="display:none;" ${tapEvt}>
                                 <th>${r.lab}</th><td>${r.val}</td>
                              </tr>`;
@@ -915,6 +918,8 @@
                     tapEvt = `onclick="handleRowTap('${r.id}', event, ${hasGraph})"`;
                 } else if (hasGraph) {
                     tapEvt = `onclick="toggleGraph('g-${r.id}')"`;
+                } else {
+                    tapEvt = `onclick="event.stopPropagation();"`;
                 }
                 htmlRows += `<tr id="row-${r.id}" ${tapEvt}><th>${r.lab}</th><td>${r.val}</td></tr>`;
             }
@@ -1048,4 +1053,3 @@
 
 </body>
 </html>
-
