@@ -197,7 +197,7 @@
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
         
-        <p class="section-title" style="margin-top:15px; color:white;">＜設定推測：要素調整 (%)＞</p>
+        <p class="section-title" style="margin-top:15px; color:white;">＜設定推測：要素調整＞</p>
         <div class="grid grid-3" id="weight-settings"></div>
 
         <button onclick="exportData()" class="export-btn">データコピー・画像出力</button>
@@ -437,7 +437,7 @@
             ${mkW('BIGスイカ', 'sui', w.sui)}
             ${isNew ? mkW('REGスイカ', 'suiR', w.suiR) : ''}
             ${mkW('サイドランプ', 'sl', w.sl)}
-            ${mkW('筐体ランプ(朝一)', 'morn', w.morn)}
+            ${mkW('BIG：筐体ランプ(朝一)', 'morn', w.morn)}
             ${mkW('BIG：筐体ランプ', 'bl', w.bl)}
             ${mkW('REG：筐体ランプ', 'rl', w.rl)}
             ${mkW('レトロサウンド', 'ret', w.ret)}
@@ -445,7 +445,7 @@
         document.getElementById('weight-settings').innerHTML = html;
     }
     function mkW(label, key, val) {
-        return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input weight-input" data-key="${key}" value="${val}" onchange="saveWeight(this)" onfocus="this.select()"></div>`;
+        return `<div class="cell"><div class="label">${label}</div><div style="display:flex; justify-content:center; align-items:baseline; width:100%;"><input type="number" class="val-input weight-input" style="width:40px; text-align:right; padding-right:2px;" data-key="${key}" value="${val}" onchange="saveWeight(this)" onfocus="this.select()"><span style="color:white; font-size:14px; font-weight:bold;">％</span></div></div>`;
     }
     function saveWeight(el) {
         const key = el.dataset.key;
