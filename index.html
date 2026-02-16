@@ -197,7 +197,7 @@
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
         
-        <p class="section-title" style="margin-top:15px; color:#0ff;">＜設定推測：要素調整 (%)＞</p>
+        <p class="section-title" style="margin-top:15px; color:white;">＜設定推測：要素調整 (%)＞</p>
         <div class="grid grid-3" id="weight-settings"></div>
 
         <button onclick="exportData()" class="export-btn">データコピー・画像出力</button>
@@ -244,8 +244,8 @@
     const DEFAULTS = {
         machine: 'king', mode: 'tap', viewMode: 'personal',
         weights: {
-            king: { b: 90, r: 90, gas: 80, bell: 85, sui: 25, sl: 100, morn: 2, bl: 15, rl: 100, ret: 10 },
-            newking: { b: 90, r: 90, gas: 80, bell: 85, sui: 25, suiR: 15, sl: 100, morn: 2, bl: 15, rl: 100, ret: 10 }
+            king: { b: 90, r: 90, gas: 80, bell: 85, sui: 25, sl: 100, morn: 1, bl: 15, rl: 100, ret: 1 },
+            newking: { b: 90, r: 90, gas: 80, bell: 85, sui: 25, suiR: 15, sl: 100, morn: 1, bl: 15, rl: 100, ret: 1 }
         },
         king: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
         newking: JSON.parse(JSON.stringify(SINGLE_DEFAULT))
@@ -1045,3 +1045,4 @@
 
 </body>
 </html>
+
