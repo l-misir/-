@@ -213,7 +213,7 @@
     <div class="modal-body">
         <p class="section-title" id="title-predict">＜推測設定＞</p>
         <div id="predict-bars" style="background:#222; padding:5px 10px; border-radius:5px;"></div>
-        <p class="section-title" id="title-expect">＜期待値＞</p>
+        <p class="section-title" id="title-expect">＜実践値＞</p>
         <div class="expect-box" id="expect-info"></div>
         <p class="section-title" id="title-detail">＜詳細データ＞</p>
         <table class="detail-table" id="detail-rows"></table>
@@ -431,7 +431,7 @@
         const w = data.weights[data.machine];
         const isNew = data.machine === 'newking';
         const suiLabel = isNew ? 'BIG(前半)：スイカ' : 'BIG：スイカ';
-        const slLabel = isNew ? 'BIG(後半)：サイドランプ' : 'REG：サイドランプ';
+        const slLabel = isNew ? 'BIG(後半)：サイドランプ' : 'REG：サイドランプ'; 
         
         let html = `
             ${mkW('BIG', 'b', w.b)}
@@ -448,11 +448,9 @@
         `;
         document.getElementById('weight-settings').innerHTML = html;
     }
-    
     function mkW(label, key, val) {
         return `<div class="cell"><div class="label">${label}</div><div style="display:flex; justify-content:center; align-items:baseline; width:100%;"><input type="number" class="val-input weight-input" style="width:40px; text-align:right; padding-right:2px;" data-key="${key}" value="${val}" onchange="saveWeight(this)" onfocus="this.select()"><span style="color:white; font-size:14px; font-weight:bold;">％</span></div></div>`;
     }
-    
     function saveWeight(el) {
         const key = el.dataset.key;
         let val = Number(el.value);
@@ -609,7 +607,6 @@
         });
     }
 
-    // 計算関連 (確率1/pを使う場合はInverse、パーセンテージ等はDirect)
     function calcLikelihoodInverse(n, k, probList) {
         if(n <= 0 || k < 0) return probList.map(()=>1);
         let logs = probList.map(p => {
@@ -684,7 +681,7 @@
             </div>`).join('');
     }
 
-    // ダブルタップ検知用（シングルタップは即時実行）
+    // ダブルタップ検知用
     let tapTimers = {};
     function handleRowTap(id, event, hasGraph) {
         let now = Date.now();
@@ -692,7 +689,6 @@
         tapTimers[id] = now;
 
         if (now - last < 300) {
-            // ダブルタップ時（色詳細を展開／折りたたみ）
             let colorRows = document.querySelectorAll('.' + id + '-colors');
             if(colorRows.length > 0) {
                 const modalBody = document.querySelector('.modal-body');
@@ -707,12 +703,10 @@
                     modalBody.scrollTop += (topAfter - topBefore);
                 }
             }
-            // 1回目のタップで開閉してしまった個別推測グラフを元に戻す(相殺する)
             if (hasGraph) {
                 toggleGraph('g-' + id);
             }
         } else {
-            // シングルタップ時（グラフの展開／折りたたみ）即時実行
             if (hasGraph) {
                 toggleGraph('g-' + id);
             }
@@ -730,7 +724,7 @@
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
             document.getElementById(prefix+'title-predict').innerText = `＜推測設定 ${modeStr}＞`;
-            document.getElementById(prefix+'title-expect').innerText = `＜期待値 ${modeStr}＞`;
+            document.getElementById(prefix+'title-expect').innerText = `＜実践値 ${modeStr}＞`;
             document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
         }
 
@@ -806,23 +800,17 @@
         }
         lRegL = lRegL.map(v => Math.pow(v, w.rl / 100));
 
-        // 朝一ランプ推測（白や未入力、虹の場合は推測要素なしとして1）
+        // 朝一ランプ推測
         let lMorn = pm.settings.map(()=>1);
         if (d.morning >= 0 && d.morning <= 3) {
-            // 0:青, 1:黄, 2:緑, 3:赤(紫)
-            // 偶数色: 青(0), 緑(2). 奇数色: 黄(1), 赤紫(3)
             let isEvenColor = (d.morning === 0 || d.morning === 2);
             if (isNew) {
                 lMorn = pm.settings.map((set, i) => {
-                    // 奇数設定(1,3,V) -> index 0,2,4 -> 偶数色0.40, 奇数色0.60
-                    // 偶数設定(2,4) -> index 1,3 -> 偶数色0.60, 奇数色0.40
                     let isEvenSetting = (i === 1 || i === 3);
                     return isEvenSetting ? (isEvenColor ? 0.60 : 0.40) : (isEvenColor ? 0.40 : 0.60);
                 });
             } else {
                 lMorn = pm.settings.map((set, i) => {
-                    // 奇数設定(1,3,5) -> index 0,2,4 -> 偶数色0.45, 奇数色0.55
-                    // 偶数設定(2,4,6) -> index 1,3,5 -> 偶数色0.55, 奇数色0.45
                     let isEvenSetting = (i === 1 || i === 3 || i === 5);
                     return isEvenSetting ? (isEvenColor ? 0.55 : 0.45) : (isEvenColor ? 0.45 : 0.55);
                 });
@@ -835,10 +823,36 @@
 
         const sumL = totalL.reduce((a,b)=>a+b,0) || 1;
         const pcts = totalL.map(v => v/sumL);
-        let expSet = 0; 
-        pcts.forEach((p, i) => { expSet += p * (i+1); });
+        
+        let bestIdx = 0;
+        let maxPct = -1;
+        pcts.forEach((p, i) => { if(p > maxPct) { maxPct = p; bestIdx = i; } });
+
+        let highSetRate = 0;
+        if (isNew) {
+            highSetRate = pcts[3] + pcts[4]; // 4, V
+        } else {
+            highSetRate = pcts[3] + pcts[4] + pcts[5]; // 4, 5, 6
+        }
+
         const expRate = pcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
         const diff = (calcG * 3) * (expRate/100 - 1);
+
+        let usedBell = c.bell;
+        if (data.viewMode === 'total' && s.g > 0) {
+            usedBell += (s.g / pm.bell[bestIdx]);
+        }
+
+        let diffReal = 0;
+        if (isNew) {
+            diffReal = (calcB * 312) + (calcR * 130) + (usedBell * 8) - (calcG * 2.404);
+        } else {
+            diffReal = (calcB * 260) + (calcR * 120) + (usedBell * 9) - (calcG * 2.494);
+        }
+
+        let diffRealColor = '#0f0';
+        if (Math.round(diffReal) < 0) diffRealColor = '#ff4444';
+        else if (Math.round(diffReal) === 0) diffRealColor = '#ffffff';
 
         let colorStyle = '#0f0';
         if (expRate < 100) colorStyle = '#ff4444'; 
@@ -846,7 +860,8 @@
 
         document.getElementById(prefix+'expect-info').innerHTML = `
             <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${totalG_disp} G</div></div>
-            <div class="expect-row"><div>期待設定</div><div class="expect-val" style="color:${colorStyle}">${expSet.toFixed(2)}</div></div>
+            <div class="expect-row" style="margin-bottom:8px;"><div>現在獲得枚数</div><div class="expect-val" style="color:${diffRealColor}">${Math.round(diffReal) > 0 ? '+' : ''}${Math.round(diffReal)} 枚</div></div>
+            <div class="expect-row"><div>高設定(4以上)期待度</div><div class="expect-val" style="color:${highSetRate >= 0.5 ? '#0f0' : '#fff'}">${(highSetRate*100).toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待機械割</div><div class="expect-val" style="color:${colorStyle}">${expRate.toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val" style="color:${colorStyle}">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
@@ -935,7 +950,6 @@
             
             if (hasGraph) {
                 let gId = `g-${r.id}`;
-                // paddingを最小限(0 5px 2px 5px)に削り、pタグの上下余白もカット
                 let graphHtml = `<tr id="${gId}" class="sub-graph-row"><td colspan="2" style="padding:0;"><div style="padding: 0px 5px 2px 5px;"><p style="font-size:10px;color:#aaa;margin:2px 0;">▼個別設定推測</p>${renderBarGraph(r.l, pm.settings, r.str)}</div></td></tr>`;
                 htmlRows += graphHtml;
             }
@@ -967,21 +981,9 @@
 
     function toggleGraph(id) {
         const el = document.getElementById(id);
-        const modalBody = document.querySelector('.modal-body');
-        
-        // タップした行（基準位置）の座標を記録
-        const refEl = el.previousElementSibling;
-        let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
-
         const isOp = el.classList.contains('open');
         document.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
         if(!isOp) el.classList.add('open');
-
-        // 開閉後のズレをスクロールで補正
-        if (refEl) {
-            let topAfter = refEl.getBoundingClientRect().top;
-            modalBody.scrollTop += (topAfter - topBefore);
-        }
     }
 
     function exportData() {
@@ -1065,7 +1067,7 @@
         <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span></p>
         <p class="section-title" style="color:#ddd" id="cap-title-predict">＜推測設定＞</p>
         <div id="cap-predict-bars" style="background:#222; padding:5px 10px; border-radius:5px; margin-bottom:10px;"></div>
-        <p class="section-title" style="color:#ddd" id="cap-title-expect">＜期待値＞</p>
+        <p class="section-title" style="color:#ddd" id="cap-title-expect">＜実践値＞</p>
         <div id="cap-expect-info" class="expect-box"></div>
         <p class="section-title" style="color:#ddd" id="cap-title-detail">＜詳細データ＞</p>
         <table class="detail-table" id="cap-detail-rows"></table>
@@ -1074,4 +1076,3 @@
 
 </body>
 </html>
-
