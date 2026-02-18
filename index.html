@@ -681,14 +681,14 @@
             </div>`).join('');
     }
 
-    // ダブルタップ検知用
-    let tapTimers = {};
-    function handleRowTap(id, event, hasGraph) {
-        let now = Date.now();
-        let last = tapTimers[id] || 0;
-        tapTimers[id] = now;
+    // 長押し検知用
+    let pressTimer = null;
+    let isLongPress = false;
 
-        if (now - last < 300) {
+    function startPress(id, event) {
+        isLongPress = false;
+        pressTimer = setTimeout(() => {
+            isLongPress = true;
             let colorRows = document.querySelectorAll('.' + id + '-colors');
             if(colorRows.length > 0) {
                 const modalBody = document.querySelector('.modal-body');
@@ -703,13 +703,18 @@
                     modalBody.scrollTop += (topAfter - topBefore);
                 }
             }
-            if (hasGraph) {
-                toggleGraph('g-' + id);
-            }
-        } else {
-            if (hasGraph) {
-                toggleGraph('g-' + id);
-            }
+        }, 500); // 500ミリ秒で長押し判定
+    }
+
+    function cancelPress() {
+        if (pressTimer) clearTimeout(pressTimer);
+    }
+
+    function endPress(id, event, hasGraph) {
+        if (pressTimer) clearTimeout(pressTimer);
+        // 長押ししていなければ通常のタップ（グラフ開閉）として処理
+        if (!isLongPress && hasGraph) {
+            toggleGraph('g-' + id);
         }
     }
 
@@ -939,7 +944,8 @@
             } else {
                 let tapEvt = '';
                 if (r.hasColors) {
-                    tapEvt = `onclick="handleRowTap('${r.id}', event, ${hasGraph})"`;
+                    // 長押し対応のイベント群（スマホ＆PC両対応、コンテキストメニュー防止）
+                    tapEvt = `ontouchstart="startPress('${r.id}', event)" ontouchend="endPress('${r.id}', event, ${hasGraph})" ontouchmove="cancelPress()" onmousedown="startPress('${r.id}', event)" onmouseup="endPress('${r.id}', event, ${hasGraph})" onmouseleave="cancelPress()" oncontextmenu="event.preventDefault();"`;
                 } else if (hasGraph) {
                     tapEvt = `onclick="toggleGraph('g-${r.id}')"`;
                 } else {
