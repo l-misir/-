@@ -112,7 +112,7 @@
         .detail-table td { width: 45%; padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; word-wrap: break-word; }
 
         @media (orientation: landscape) {
-            .modal-body { padding: 5px 15px 20px; }
+            .modal-body { padding: 5px 15px 60vh; }
             .modal-body .section-title { margin: 4px 0 1px; font-size: 10px; }
             .modal-body .cell { min-height: 30px; padding: 2px; }
             .modal-body .value { font-size: 16px; }
@@ -383,7 +383,11 @@
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
     }
 
-    function save() { localStorage.setItem('hana_v20_data', JSON.stringify(data)); renderMain(); }
+    // 入力枠のフォーカス消失を防ぐため、skipRenderフラグを追加
+    function save(skipRender = false) { 
+        localStorage.setItem('hana_v20_data', JSON.stringify(data)); 
+        if(!skipRender) renderMain(); 
+    }
     function getData() { return data[data.machine]; }
 
     function init() {
@@ -548,7 +552,7 @@
     }
 
     function mkC(id, label, val, step=1) {
-        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Number(this.value);save();" onfocus="this.select()"></div>`;
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Number(this.value);save(true);" onfocus="this.select()"></div>`;
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
     }
 
@@ -572,7 +576,7 @@
             const v = d.lamps[type][i];
             const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save();" onfocus="this.select()"></div>`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save(true);" onfocus="this.select()"></div>`;
             return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
         }).join('');
     }
@@ -593,7 +597,8 @@
                 el.classList.add('touch-active');
                 timer = setTimeout(() => { if(!isC) el.classList.add('minus-mode'); }, 450);
             };
-            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY - sy) > 10) { isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); }};
+            // 誤タップ防止のため、ズレの許容範囲を10pxから30pxへ大幅に緩和
+            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY - sy) > 30 || Math.abs(e.touches[0].clientX - sx) > 30) { isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); }};
             el.ontouchend = () => {
                 clearTimeout(timer);
                 if(isC) return;
@@ -681,11 +686,11 @@
             </div>`).join('');
     }
 
-    // 長押し検知用
+    // 長押し・タップ検知用
     let pressTimer = null;
     let isLongPress = false;
 
-    function startPress(id, event) {
+    function startPress(id) {
         isLongPress = false;
         pressTimer = setTimeout(() => {
             isLongPress = true;
@@ -710,10 +715,9 @@
         if (pressTimer) clearTimeout(pressTimer);
     }
 
-    function endPress(id, event, hasGraph) {
-        if (pressTimer) clearTimeout(pressTimer);
-        // 長押ししていなければ通常のタップ（グラフ開閉）として処理
-        if (!isLongPress && hasGraph) {
+    function handleTap(id, hasGraph) {
+        if (isLongPress) return;
+        if (hasGraph) {
             toggleGraph('g-' + id);
         }
     }
@@ -833,6 +837,12 @@
         let maxPct = -1;
         pcts.forEach((p, i) => { if(p > maxPct) { maxPct = p; bestIdx = i; } });
 
+        // --- 期待機械割・期待獲得枚数のノイズ除去（トップの1/10未満の設定を除外して再計算） ---
+        let threshold = maxPct / 10;
+        let validPcts = pcts.map(p => p >= threshold ? p : 0);
+        let validSum = validPcts.reduce((a,b) => a+b, 0);
+        let normPcts = validSum > 0 ? validPcts.map(p => p / validSum) : pcts;
+
         let highSetRate = 0;
         if (isNew) {
             highSetRate = pcts[3] + pcts[4]; // 4, V
@@ -840,7 +850,7 @@
             highSetRate = pcts[3] + pcts[4] + pcts[5]; // 4, 5, 6
         }
 
-        const expRate = pcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
+        const expRate = normPcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
         const diff = (calcG * 3) * (expRate/100 - 1);
 
         let usedBell = c.bell;
@@ -850,9 +860,9 @@
 
         let diffReal = 0;
         if (isNew) {
-            diffReal = (calcB * 312) + (calcR * 130) + (usedBell * 8) - (calcG * 2.404);
+            diffReal = (calcB * 311.5) + (calcR * 129.5) + (usedBell * 8) - (calcG * 2.405);
         } else {
-            diffReal = (calcB * 260) + (calcR * 120) + (usedBell * 9) - (calcG * 2.494);
+            diffReal = (calcB * 259.6) + (calcR * 119.6) + (usedBell * 9) - (calcG * 2.494);
         }
 
         let diffRealColor = '#0f0';
@@ -944,8 +954,8 @@
             } else {
                 let tapEvt = '';
                 if (r.hasColors) {
-                    // 長押し対応のイベント群（スマホ＆PC両対応、コンテキストメニュー防止）
-                    tapEvt = `ontouchstart="startPress('${r.id}', event)" ontouchend="endPress('${r.id}', event, ${hasGraph})" ontouchmove="cancelPress()" onmousedown="startPress('${r.id}', event)" onmouseup="endPress('${r.id}', event, ${hasGraph})" onmouseleave="cancelPress()" oncontextmenu="event.preventDefault();"`;
+                    // 長押し用イベントと、単発タップ用(onclick)を綺麗に分離
+                    tapEvt = `onclick="handleTap('${r.id}', ${hasGraph})" ontouchstart="startPress('${r.id}')" ontouchend="cancelPress()" ontouchmove="cancelPress()" onmousedown="startPress('${r.id}')" onmouseup="cancelPress()" onmouseleave="cancelPress()" oncontextmenu="event.preventDefault();"`;
                 } else if (hasGraph) {
                     tapEvt = `onclick="toggleGraph('g-${r.id}')"`;
                 } else {
@@ -987,9 +997,21 @@
 
     function toggleGraph(id) {
         const el = document.getElementById(id);
+        const modalBody = document.querySelector('.modal-body');
+        
+        // タップした行（基準位置）の座標を記録
+        const refEl = el.previousElementSibling;
+        let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
+
         const isOp = el.classList.contains('open');
         document.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
         if(!isOp) el.classList.add('open');
+
+        // 開閉後のズレをスクロールで補正
+        if (refEl) {
+            let topAfter = refEl.getBoundingClientRect().top;
+            modalBody.scrollTop += (topAfter - topBefore);
+        }
     }
 
     function exportData() {
