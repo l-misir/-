@@ -592,16 +592,23 @@
     function attachEvents() {
         document.querySelectorAll('.cell.t-btn, .cell.t-lamp').forEach(el => {
             let sy, sx, isC, timer;
-            el.ontouchstart = (e) => {
-                sy = e.touches[0].clientY; sx = e.touches[0].clientX; isC = false;
+            
+            const handleStart = (y, x) => {
+                sy = y; sx = x; isC = false;
                 el.classList.add('touch-active');
                 timer = setTimeout(() => { if(!isC) el.classList.add('minus-mode'); }, 450);
             };
-            // 誤タップ防止のため、ズレの許容範囲を10pxから30pxへ大幅に緩和
-            el.ontouchmove = (e) => { if(Math.abs(e.touches[0].clientY - sy) > 30 || Math.abs(e.touches[0].clientX - sx) > 30) { isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); }};
-            el.ontouchend = () => {
+            
+            const handleMove = (y, x) => {
+                // 誤タップ防止のため、ズレの許容範囲を10pxから30pxへ大幅に緩和
+                if(Math.abs(y - sy) > 30 || Math.abs(x - sx) > 30) { 
+                    isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); 
+                }
+            };
+            
+            const handleEnd = () => {
                 clearTimeout(timer);
-                if(isC) return;
+                if(isC || !el.classList.contains('touch-active')) return;
                 const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
                 const d = getData();
                 if(el.dataset.id) d.cur[el.dataset.id] = Math.max(0, d.cur[el.dataset.id] + step);
@@ -609,6 +616,27 @@
                 el.classList.remove('touch-active', 'minus-mode');
                 save();
             };
+
+            const handleCancel = () => {
+                if(el.classList.contains('touch-active')) {
+                    isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode');
+                }
+            };
+
+            // スマホ用 (Touch Events)
+            el.ontouchstart = (e) => handleStart(e.touches[0].clientY, e.touches[0].clientX);
+            el.ontouchmove = (e) => handleMove(e.touches[0].clientY, e.touches[0].clientX);
+            el.ontouchend = handleEnd;
+            el.ontouchcancel = handleCancel;
+
+            // PC用 (Mouse Events)
+            el.onmousedown = (e) => { if(e.button === 0) handleStart(e.clientY, e.clientX); };
+            el.onmousemove = (e) => { if(el.classList.contains('touch-active')) handleMove(e.clientY, e.clientX); };
+            el.onmouseup = handleEnd;
+            el.onmouseleave = handleCancel;
+            
+            // PCでの右クリックメニュー防止（長押し時の邪魔になるため）
+            el.oncontextmenu = (e) => e.preventDefault();
         });
     }
 
@@ -1107,5 +1135,6 @@
 
 </body>
 </html>
+
 
 
