@@ -590,6 +590,8 @@
     }
 
     function attachEvents() {
+        let isTouchDevice = false; // スマホ操作とマウス操作の重複を防止するフラグ
+
         document.querySelectorAll('.cell.t-btn, .cell.t-lamp').forEach(el => {
             let sy, sx, isC, timer;
             
@@ -600,7 +602,6 @@
             };
             
             const handleMove = (y, x) => {
-                // 誤タップ防止のため、ズレの許容範囲を10pxから30pxへ大幅に緩和
                 if(Math.abs(y - sy) > 30 || Math.abs(x - sx) > 30) { 
                     isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); 
                 }
@@ -611,10 +612,22 @@
                 if(isC || !el.classList.contains('touch-active')) return;
                 const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
                 const d = getData();
-                if(el.dataset.id) d.cur[el.dataset.id] = Math.max(0, d.cur[el.dataset.id] + step);
-                else d.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, d.lamps[el.dataset.type][el.dataset.idx] + step);
+                
+                // 画面全体を作り直さず、対象の数値だけを直接書き換える（高速化＆色変化バグ防止）
+                let newVal = 0;
+                if(el.dataset.id) {
+                    d.cur[el.dataset.id] = Math.max(0, d.cur[el.dataset.id] + step);
+                    newVal = d.cur[el.dataset.id];
+                } else {
+                    d.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, d.lamps[el.dataset.type][el.dataset.idx] + step);
+                    newVal = d.lamps[el.dataset.type][el.dataset.idx];
+                }
+                
+                el.querySelector('.value').innerText = newVal;
                 el.classList.remove('touch-active', 'minus-mode');
-                save();
+                
+                save(true); // 画面再描画をスキップしてデータのみ保存
+                try { setTimeout(calc, 0); } catch(e) {} // バックグラウンドの推測数値を更新
             };
 
             const handleCancel = () => {
@@ -624,18 +637,41 @@
             };
 
             // スマホ用 (Touch Events)
-            el.ontouchstart = (e) => handleStart(e.touches[0].clientY, e.touches[0].clientX);
-            el.ontouchmove = (e) => handleMove(e.touches[0].clientY, e.touches[0].clientX);
-            el.ontouchend = handleEnd;
-            el.ontouchcancel = handleCancel;
+            el.ontouchstart = (e) => {
+                isTouchDevice = true;
+                e.preventDefault(); // ズームやダブルタップ、遅れてくるゴーストクリックを完全防止
+                handleStart(e.touches[0].clientY, e.touches[0].clientX);
+            };
+            el.ontouchmove = (e) => {
+                e.preventDefault();
+                handleMove(e.touches[0].clientY, e.touches[0].clientX);
+            };
+            el.ontouchend = (e) => {
+                e.preventDefault();
+                handleEnd();
+            };
+            el.ontouchcancel = (e) => {
+                handleCancel();
+            };
 
             // PC用 (Mouse Events)
-            el.onmousedown = (e) => { if(e.button === 0) handleStart(e.clientY, e.clientX); };
-            el.onmousemove = (e) => { if(el.classList.contains('touch-active')) handleMove(e.clientY, e.clientX); };
-            el.onmouseup = handleEnd;
-            el.onmouseleave = handleCancel;
+            el.onmousedown = (e) => { 
+                if (isTouchDevice || e.button !== 0) return; 
+                handleStart(e.clientY, e.clientX); 
+            };
+            el.onmousemove = (e) => { 
+                if (isTouchDevice || !el.classList.contains('touch-active')) return; 
+                handleMove(e.clientY, e.clientX); 
+            };
+            el.onmouseup = (e) => { 
+                if (isTouchDevice || e.button !== 0) return;
+                handleEnd(); 
+            };
+            el.onmouseleave = () => { 
+                if (isTouchDevice) return;
+                handleCancel(); 
+            };
             
-            // PCでの右クリックメニュー防止（長押し時の邪魔になるため）
             el.oncontextmenu = (e) => e.preventDefault();
         });
     }
