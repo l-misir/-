@@ -322,7 +322,7 @@
             mornRate: 0.75,
             highSetRateIdx: [3, 4, 5],
             calcDiffReal: (calcB, calcR, usedBell, calcG) => {
-                return (calcB * 215.65) + (calcR * 107.65) + (usedBell * 10) - (calcG * 2.524);
+                return (calcB * 239.6) + (calcR * 119.6) + (usedBell * 10) - (calcG * 2.476);
             }
         },
         king: {
@@ -384,7 +384,7 @@
             mornRate: 0.75,
             highSetRateIdx: [3, 4, 5],
             calcDiffReal: (calcB, calcR, usedBell, calcG) => {
-                return (calcB * 251.64) + (calcR * 95.64) + (usedBell * 9) - (calcG * 2.515);
+                return (calcB * 251.65) + (calcR * 95.65) + (usedBell * 9) - (calcG * 2.522);
             }
         },
         star: {
@@ -415,7 +415,7 @@
             mornRate: 0.75,
             highSetRateIdx: [3, 4, 5],
             calcDiffReal: (calcB, calcR, usedBell, calcG) => {
-                return (calcB * 239.64) + (calcR * 95.64) + (usedBell * 8) - (calcG * 2.511);
+                return (calcB * 239.65) + (calcR * 95.65) + (usedBell * 8) - (calcG * 2.511);
             }
         },
         newking: {
@@ -713,8 +713,6 @@
     }
 
     function attachEvents() {
-        let isTouchDevice = false; // スマホ操作とマウス操作の重複を防止するフラグ
-
         document.querySelectorAll('.cell.t-btn, .cell.t-lamp').forEach(el => {
             let sy, sx, isC, timer;
             
@@ -725,6 +723,8 @@
             };
             
             const handleMove = (y, x) => {
+                if(!el.classList.contains('touch-active')) return;
+                // 誤タップ防止：指やマウスが大きくズレたらキャンセル
                 if(Math.abs(y - sy) > 30 || Math.abs(x - sx) > 30) { 
                     isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); 
                 }
@@ -736,7 +736,7 @@
                 const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
                 const d = getData();
                 
-                // 画面全体を作り直さず、対象の数値だけを直接書き換える（高速化＆色変化バグ防止）
+                // 画面全体を作り直さず、対象の数値だけを直接書き換える
                 let newVal = 0;
                 if(el.dataset.id) {
                     d.cur[el.dataset.id] = Math.max(0, d.cur[el.dataset.id] + step);
@@ -759,42 +759,30 @@
                 }
             };
 
-            // スマホ用 (Touch Events)
-            el.ontouchstart = (e) => {
-                isTouchDevice = true;
-                e.preventDefault(); // ズームやダブルタップ、遅れてくるゴーストクリックを完全防止
-                handleStart(e.touches[0].clientY, e.touches[0].clientX);
-            };
-            el.ontouchmove = (e) => {
-                e.preventDefault();
-                handleMove(e.touches[0].clientY, e.touches[0].clientX);
-            };
-            el.ontouchend = (e) => {
-                e.preventDefault();
-                handleEnd();
-            };
-            el.ontouchcancel = (e) => {
-                handleCancel();
-            };
-
-            // PC用 (Mouse Events)
-            el.onmousedown = (e) => { 
-                if (isTouchDevice || e.button !== 0) return; 
-                handleStart(e.clientY, e.clientX); 
-            };
-            el.onmousemove = (e) => { 
-                if (isTouchDevice || !el.classList.contains('touch-active')) return; 
-                handleMove(e.clientY, e.clientX); 
-            };
-            el.onmouseup = (e) => { 
-                if (isTouchDevice || e.button !== 0) return;
-                handleEnd(); 
-            };
-            el.onmouseleave = () => { 
-                if (isTouchDevice) return;
-                handleCancel(); 
+            // 【完全リニューアル】Pointer Events でスマホとPCの入力を美しく統合
+            el.onpointerdown = (e) => {
+                // PCマウスの場合、右クリックは弾く（左クリックとスマホタップのみ許可）
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                
+                // 押したまま指（マウス）がボタン枠外に少し出ても、離した判定を追跡できるようにする
+                el.setPointerCapture(e.pointerId);
+                handleStart(e.clientY, e.clientX);
             };
             
+            el.onpointermove = (e) => {
+                handleMove(e.clientY, e.clientX);
+            };
+            
+            el.onpointerup = (e) => {
+                el.releasePointerCapture(e.pointerId);
+                handleEnd();
+            };
+            
+            el.onpointercancel = () => {
+                handleCancel();
+            };
+            
+            // 長押し時のブラウザ標準メニュー（テキスト選択やコピーなど）を禁止
             el.oncontextmenu = (e) => e.preventDefault();
         });
     }
