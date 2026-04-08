@@ -714,29 +714,41 @@
 
     function attachEvents() {
         document.querySelectorAll('.cell.t-btn, .cell.t-lamp').forEach(el => {
-            let sy, sx, isC, timer;
+            let sy, sx, isC, minusTimer, visualTimer;
             
             const handleStart = (y, x) => {
                 sy = y; sx = x; isC = false;
-                el.classList.add('touch-active');
-                timer = setTimeout(() => { if(!isC) el.classList.add('minus-mode'); }, 450);
+                
+                // ① 水色への変化を「70ミリ秒」遅らせる（スクロール時の誤発光防止）
+                visualTimer = setTimeout(() => { 
+                    if(!isC) el.classList.add('touch-active'); 
+                }, 70);
+                
+                // ② 赤色（マイナス）への変化時間を「300ミリ秒」に短縮（※さらに短くしたい場合はここを変更）
+                minusTimer = setTimeout(() => { 
+                    if(!isC) el.classList.add('minus-mode'); 
+                }, 300);
             };
             
             const handleMove = (y, x) => {
-                if(!el.classList.contains('touch-active')) return;
-                // 誤タップ防止：指やマウスが大きくズレたらキャンセル
+                // 指が50px以上ズレたらスクロールとみなし、タイマーを止めて色も消す
                 if(Math.abs(y - sy) > 50 || Math.abs(x - sx) > 50) { 
-                    isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); 
+                    isC = true; 
+                    clearTimeout(visualTimer); 
+                    clearTimeout(minusTimer); 
+                    el.classList.remove('touch-active', 'minus-mode'); 
                 }
             };
             
             const handleEnd = () => {
-                clearTimeout(timer);
-                if(isC || !el.classList.contains('touch-active')) return;
-                const step = (el.classList.contains('minus-mode') ? -1 : 1) * Number(el.dataset.step || 1);
+                clearTimeout(visualTimer);
+                clearTimeout(minusTimer);
+                if(isC) return; // スクロールキャンセルされていれば終了
+                
+                const isMinus = el.classList.contains('minus-mode');
+                const step = (isMinus ? -1 : 1) * Number(el.dataset.step || 1);
                 const d = getData();
                 
-                // 画面全体を作り直さず、対象の数値だけを直接書き換える
                 let newVal = 0;
                 if(el.dataset.id) {
                     d.cur[el.dataset.id] = Math.max(0, d.cur[el.dataset.id] + step);
@@ -747,24 +759,29 @@
                 }
                 
                 el.querySelector('.value').innerText = newVal;
-                el.classList.remove('touch-active', 'minus-mode');
                 
-                save(true); // 画面再描画をスキップしてデータのみ保存
-                try { setTimeout(calc, 0); } catch(e) {} // バックグラウンドの推測数値を更新
+                // ③ 超高速タップ（70ms未満）でも「押した感」を出すためのフラッシュ演出
+                if(!isMinus) {
+                    el.classList.add('touch-active');
+                    setTimeout(() => el.classList.remove('touch-active'), 100);
+                } else {
+                    el.classList.remove('touch-active', 'minus-mode');
+                }
+                
+                save(true);
+                try { setTimeout(calc, 0); } catch(e) {}
             };
 
             const handleCancel = () => {
-                if(el.classList.contains('touch-active')) {
-                    isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode');
-                }
+                isC = true; 
+                clearTimeout(visualTimer);
+                clearTimeout(minusTimer);
+                el.classList.remove('touch-active', 'minus-mode');
             };
 
-            // 【完全リニューアル】Pointer Events でスマホとPCの入力を美しく統合
+            // Pointer Events
             el.onpointerdown = (e) => {
-                // PCマウスの場合、右クリックは弾く（左クリックとスマホタップのみ許可）
                 if (e.pointerType === 'mouse' && e.button !== 0) return;
-                
-                // 押したまま指（マウス）がボタン枠外に少し出ても、離した判定を追跡できるようにする
                 el.setPointerCapture(e.pointerId);
                 handleStart(e.clientY, e.clientX);
             };
@@ -782,7 +799,6 @@
                 handleCancel();
             };
             
-            // 長押し時のブラウザ標準メニュー（テキスト選択やコピーなど）を禁止
             el.oncontextmenu = (e) => e.preventDefault();
         });
     }
@@ -1254,10 +1270,14 @@
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function resetAll() { if(confirm("現在選択中の機種データを全消去しますか？")) { 
-        data[data.machine] = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
-        save(); location.reload(); 
-    }}
+    function resetAll() { 
+        if(confirm("現在選択中の機種データを全消去しますか？")) { 
+            data[data.machine] = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
+            save(true); // 裏側でデータを保存
+            init();     // 通信を発生させず、内部的に画面を初期化する（爆速化）
+            closeModal('setting-modal'); // ついでに設定画面を閉じる
+        }
+    }
 
     window.onload = init;
 </script>
