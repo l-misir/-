@@ -725,7 +725,7 @@
             const handleMove = (y, x) => {
                 if(!el.classList.contains('touch-active')) return;
                 // 誤タップ防止：指やマウスが大きくズレたらキャンセル
-                if(Math.abs(y - sy) > 30 || Math.abs(x - sx) > 30) { 
+                if(Math.abs(y - sy) > 50 || Math.abs(x - sx) > 50) { 
                     isC = true; clearTimeout(timer); el.classList.remove('touch-active', 'minus-mode'); 
                 }
             };
