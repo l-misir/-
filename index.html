@@ -22,7 +22,7 @@
         }
 
         .container { 
-            padding: 5px 10px 80px; width: 100%; height: calc(100vh - 32px);
+            padding: 5px 10px 80px; width: 100%; height: calc(100vh - 48px);
             box-sizing: border-box; overflow: hidden; touch-action: none;
         }
 
@@ -60,11 +60,11 @@
         /* ヘッダー */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 12px; background: #000; position: sticky; top: 0; z-index: 100;
-            border-bottom: 1px solid #333; height: 32px; box-sizing: border-box;
+            padding: 8px 16px; background: #000; position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid #333; height: 48px; box-sizing: border-box;
         }
-        .header-icon { font-size: 20px; cursor: pointer; color: white; padding: 5px; }
-        .header-title { font-size: 14px; font-weight: bold; border-bottom: 2px solid white; }
+        .header-icon { font-size: 28px; cursor: pointer; color: white; padding: 5px; }
+        .header-title { font-size: 20px; font-weight: bold; border-bottom: 2px solid white; }
         
         /* レイアウト */
         .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
@@ -112,18 +112,12 @@
         .detail-table td { width: 45%; padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; word-wrap: break-word; }
 
         @media (orientation: landscape) {
-            .modal-body { padding: 5px 15px 60vh; }
-            .modal-body .section-title { margin: 4px 0 1px; font-size: 10px; }
-            .modal-body .cell { min-height: 30px; padding: 2px; }
-            .modal-body .value { font-size: 16px; }
-            .modal-body .label { font-size: 9px; }
-            .modal-body .val-input { font-size: 16px; }
-            .modal-body button { padding: 8px; margin-top: 10px; font-size: 12px; }
-            .detail-table th, .detail-table td { padding: 4px 4px; font-size: 11px; }
-            .bar-row { margin: 2px 0; font-size: 11px; }
-            .bar-bg { height: 8px; }
-            .expect-box { padding: 4px 8px; margin-bottom: 6px; }
-            .expect-row { font-size: 11px; margin-bottom: 1px; }
+            .modal-body { padding: 10px 15px 60vh; }
+            .modal-body .section-title { margin: 6px 0 2px; font-size: 11px; }
+            .bar-row { margin: 6px 0; font-size: 13px; }
+            .bar-bg { height: 10px; }
+            .expect-box { padding: 5px 10px; margin-bottom: 10px; }
+            .expect-row { font-size: 13px; margin-bottom: 2px; }
         }
 
         /* グラフのスタイル分け（総合推測は元サイズ、個別推測のみ広げる） */
@@ -296,6 +290,7 @@
     const ALL_PARAMS = {
         houou: {
             name: "ハナハナホウオウ～天翔～",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
             settings: ['1','2','3','4','5','6'],
             payout: [97, 99, 101, 103, 106, 109],
             b: [297, 284, 273, 262, 249, 236],
@@ -327,6 +322,7 @@
         },
         king: {
             name: "キングハナハナ",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
             settings: ['1','2','3','4','5','6'],
             payout: [97, 99, 101, 104, 107, 110],
             b: [292, 280, 268, 257, 244, 232],
@@ -358,6 +354,7 @@
         },
         dragon: {
             name: "ドラゴンハナハナ～閃光～",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
             settings: ['1','2','3','4','5','6'],
             payout: [97, 99, 101, 104, 107, 110],
             b: [256, 246, 235, 224, 212, 199],
@@ -389,6 +386,7 @@
         },
         star: {
             name: "スターハナハナ",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
             settings: ['1','2','3','4','5','6'],
             payout: [97, 99, 101, 104, 107, 110],
             b: [270, 262, 252, 240, 229, 218],
@@ -420,6 +418,7 @@
         },
         newking: {
             name: "ニューキングハナハナⅤ",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG(前半)：スイカ', suiR: 'REG：スイカ', sl: 'BIG(後半)：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
             settings: ['1','2','3','4','V'],
             payout: [97, 99, 101, 104, 108],
             b: [299.2, 291.2, 281.3, 268.6, 253.0],
@@ -557,21 +556,21 @@
     function renderWeightSettings() {
         const w = data.weights[data.machine];
         const isNew = data.machine === 'newking';
-        const suiLabel = isNew ? 'BIG(前半)：スイカ' : 'BIG：スイカ';
-        const slLabel = isNew ? 'BIG(後半)：サイドランプ' : 'REG：サイドランプ'; 
+        const pm = ALL_PARAMS[data.machine];
+        const labels = pm.w_labels;
         
         let html = `
-            ${mkW('BIG', 'b', w.b)}
-            ${mkW('REG', 'r', w.r)}
-            ${mkW('合算', 'gas', w.gas)}
-            ${mkW('通常時：ベル', 'bell', w.bell)}
-            ${mkW(suiLabel, 'sui', w.sui)}
-            ${isNew ? mkW('REG：スイカ', 'suiR', w.suiR) : '<div style="background: var(--bg-color);"></div>'}
-            ${mkW(slLabel, 'sl', w.sl)}
-            ${mkW('BIG：筐体ランプ(朝一)', 'morn', w.morn)}
-            ${mkW('BIG：筐体ランプ', 'bl', w.bl)}
-            ${mkW('REG：筐体ランプ', 'rl', w.rl)}
-            ${mkW('レトロサウンド', 'ret', w.ret)}
+            ${mkW(labels.b, 'b', w.b)}
+            ${mkW(labels.r, 'r', w.r)}
+            ${mkW(labels.gas, 'gas', w.gas)}
+            ${mkW(labels.bell, 'bell', w.bell)}
+            ${mkW(labels.sui, 'sui', w.sui)}
+            ${isNew ? mkW(labels.suiR, 'suiR', w.suiR) : '<div style="background: var(--bg-color);"></div>'}
+            ${mkW(labels.sl, 'sl', w.sl)}
+            ${mkW(labels.morn, 'morn', w.morn)}
+            ${mkW(labels.bl, 'bl', w.bl)}
+            ${mkW(labels.rl, 'rl', w.rl)}
+            ${mkW(labels.ret, 'ret', w.ret)}
         `;
         document.getElementById('weight-settings').innerHTML = html;
     }
@@ -616,6 +615,8 @@
         const c = d.cur; const s = d.start;
         const vG = c.g; const vB = c.b; const vR = c.r;
         const isNew = data.machine === 'newking';
+        const pm = ALL_PARAMS[data.machine];
+        const labels = pm.w_labels;
         
         let html = '';
 
@@ -631,15 +632,15 @@
                     </div>
                     <p class="section-title">＜現在＞</p>
                     <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
-                    <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
+                    <p class="section-title">＜${labels.bell}＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
                     <p class="section-title">＜ボーナス：スイカ＞</p>
-                    <div class="grid grid-2">${mkC('suika', 'BIG(前半)', c.suika)}${mkC('suikaR', 'REG', c.suikaR)}</div>
+                    <div class="grid grid-2">${mkC('suika', labels.sui, c.suika)}${mkC('suikaR', labels.suiR, c.suikaR)}</div>
                 </div>
                 <div class="col-right">
-                    <p class="section-title">＜BIG(後半)：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
-                    <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
-                    <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5" style="grid-template-columns: repeat(4, 1fr);">${mkL('regT')}</div>
-                    <p class="section-title">＜レトロサウンド＞</p>
+                    <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                    <p class="section-title">＜${labels.bl}＞</p><div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-5" style="grid-template-columns: repeat(4, 1fr);">${mkL('regT')}</div>
+                    <p class="section-title">＜${labels.ret}＞</p>
                     <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
                 </div>
             </div>`;
@@ -655,14 +656,14 @@
                     </div>
                     <p class="section-title">＜現在＞</p>
                     <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
-                    <p class="section-title">＜通常時：ベル＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
-                    <p class="section-title">＜BIG：スイカ＞</p><div class="grid">${mkC('suika','&nbsp;',c.suika)}</div>
+                    <p class="section-title">＜${labels.bell}＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
+                    <p class="section-title">＜${labels.sui}＞</p><div class="grid">${mkC('suika','&nbsp;',c.suika)}</div>
                 </div>
                 <div class="col-right">
-                    <p class="section-title">＜BIG：筐体ランプ＞</p><div class="grid grid-5">${mkL('big')}</div>
-                    <p class="section-title">＜REG：サイドランプ＞</p><div class="grid grid-5">${mkL('regS')}</div>
-                    <p class="section-title">＜REG：筐体ランプ＞</p><div class="grid grid-5">${mkL('regT')}</div>
-                    <p class="section-title">＜レトロサウンド＞</p>
+                    <p class="section-title">＜${labels.bl}＞</p><div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                    <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜${labels.ret}＞</p>
                     <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
                 </div>
             </div>`;
@@ -920,6 +921,7 @@
         const pm = ALL_PARAMS[data.machine];
         const isNew = data.machine === 'newking';
         const w = data.weights[data.machine];
+        const labels = pm.w_labels;
         
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
@@ -1073,20 +1075,17 @@
 
         let rows = [
             { id:'g', lab:'通常時回転数', val:`${calcG}回転`, l:null, str:null },
-            { id:'b', lab:'BIG', val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG, 2)})</span>`, l:rawB, str:pm.b_str },
-            { id:'r', lab:'REG', val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG, 2)})</span>`, l:rawR, str:pm.r_str },
-            { id:'gas', lab:'合算', val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG, 2)})</span>`, l:rawG, str:pm.gas_str },
-            { id:'bel', lab:'通常時：ベル', val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG, 3)})</span>`, l:rawBell, str:pm.bell_str },
-            { id:'sui', lab: isNew?'BIG(前半)：スイカ':'BIG：スイカ', val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom, 2)})</span>`, l:rawSui, str:pm.suika_str }
+            { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG, 2)})</span>`, l:rawB, str:pm.b_str },
+            { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG, 2)})</span>`, l:rawR, str:pm.r_str },
+            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG, 2)})</span>`, l:rawG, str:pm.gas_str },
+            { id:'bel', lab: labels.bell, val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG, 3)})</span>`, l:rawBell, str:pm.bell_str },
+            { id:'sui', lab: labels.sui, val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom, 2)})</span>`, l:rawSui, str:pm.suika_str }
         ];
         
-        if(isNew) rows.push({ id:'suiR', lab:'REG：スイカ', val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * 10, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
+        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * 10, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
 
-        // サイドランプ本体 (グラフあり)
-        const lblSide = isNew ? "BIG(後半)：サイドランプ" : "REG：サイドランプ";
-        rows.push({ id:'sl', lab: lblSide, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });
+        rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });
         
-        // サイドランプ（色ごと）
         let sideCols = isNew ? pm.colors_side : pm.colors;
         let sideLabs = isNew ? pm.labels_side : pm.labels;
         let totalSide = d.lamps.regS.reduce((a,b)=>a+b,0);
@@ -1098,7 +1097,7 @@
             let cName = sideCols[i] === 'rainbow' ? lab : `<span style="color:var(${sideCols[i]})">${lab}</span>`;
             rows.push({
                 id: `sl-c${i}`,
-                lab: `　${lblSide}（${cName}）`,
+                lab: `　${labels.sl}（${cName}）`,
                 val: `${c_v}回 <span class="white-txt">(${pct}%)</span>`,
                 l: c_l,
                 str: pm.sideR_str[i],
@@ -1107,17 +1106,15 @@
             });
         });
 
-        // BIG筐体ランプ本体 (グラフあり)
-        rows.push({ id:'bl', lab: 'BIG：筐体ランプ', val:mkLmpT(bigLamps, pm, 'big'), l:lBigL_indiv, str:pm.blamp_str, hasColors: true });
+        rows.push({ id:'bl', lab: labels.bl, val:mkLmpT(bigLamps, pm, 'big'), l:lBigL_indiv, str:pm.blamp_str, hasColors: true });
         
-        // BIG筐体ランプ（色ごと）
         pm.labels.forEach((lab, i) => {
             let c_v = bigLamps[i];
             let c_l = calcLikelihoodDirect(lampCalcB, c_v, pm.lampB.map(arr => arr[i]));
             let cName = pm.colors[i] === 'rainbow' ? lab : `<span style="color:var(${pm.colors[i]})">${lab}</span>`;
             rows.push({
                 id: `bl-c${i}`,
-                lab: `　BIG：筐体ランプ（${cName}）`,
+                lab: `　${labels.bl}（${cName}）`,
                 val: `${c_v}回 <span class="white-txt">(${getP(c_v, lampCalcB, 2)})</span>`,
                 l: c_l,
                 str: pm.lampB_str[i],
@@ -1126,9 +1123,8 @@
             });
         });
 
-        // REG筐体ランプはデータが不完全なためグラフ非表示（l: null）
-        rows.push({ id:'rl', lab:'REG：筐体ランプ', val:mkLmpT(d.lamps.regT, pm, 'regT'), l:null, str:null });
-        rows.push({ id:'ret', lab:'レトロサウンド', val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:rawRet, str:pm.retro_str });
+        rows.push({ id:'rl', lab: labels.rl, val:mkLmpT(d.lamps.regT, pm, 'regT'), l:null, str:null });
+        rows.push({ id:'ret', lab: labels.ret, val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:rawRet, str:pm.retro_str });
 
         const container = document.getElementById(prefix+'detail-rows');
         
@@ -1244,8 +1240,28 @@
     }
 
     function generateImage() {
-        document.getElementById('cap-machine').innerText = ALL_PARAMS[data.machine].name;
+        const pm = ALL_PARAMS[data.machine];
+        const w = data.weights[data.machine];
+        const w_labels = pm.w_labels;
+
+        document.getElementById('cap-machine').innerText = pm.name;
         calc('cap');
+        
+        let wHtml = '<p style="margin: 0 0 5px; font-weight: bold;">＜要素調整＞</p><div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px 10px;">';
+        const keys = ['b', 'r', 'gas', 'bell', 'sui', 'suiR', 'sl', 'morn', 'bl', 'rl', 'ret'];
+        
+        keys.forEach(key => {
+            if (w[key] !== undefined && w_labels[key]) {
+                if (key === 'suiR' && data.machine !== 'newking') return;
+                wHtml += `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #333;">
+                            <span>${w_labels[key]}</span>
+                            <span style="font-weight:bold; color:white;">${w[key]}%</span>
+                          </div>`;
+            }
+        });
+        wHtml += '</div>';
+        document.getElementById('cap-weight-info').innerHTML = wHtml;
+
         const target = document.getElementById('capture-content');
         const container = document.getElementById('capture-container');
         container.style.visibility = 'visible';
@@ -1283,8 +1299,8 @@
 </script>
 
 <div id="capture-container" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; visibility:hidden; overflow:hidden;">
-    <div id="capture-content" style="width:400px; background:#1a1a1a; padding:20px; box-sizing:border-box;">
-        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px;">ハナハナカウンター</h3>
+    <div id="capture-content" style="width:400px; background:#1a1a1a; padding:10px 20px 20px; box-sizing:border-box;">
+        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px; font-size:20px;">ハナハナカウンター</h3>
         <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span></p>
         <p class="section-title" style="color:#ddd" id="cap-title-predict">＜推測設定＞</p>
         <div id="cap-predict-bars" style="background:#222; padding:5px 10px; border-radius:5px; margin-bottom:10px;"></div>
@@ -1292,6 +1308,7 @@
         <div id="cap-expect-info" class="expect-box"></div>
         <p class="section-title" style="color:#ddd" id="cap-title-detail">＜詳細データ＞</p>
         <table class="detail-table" id="cap-detail-rows"></table>
+        <div id="cap-weight-info" style="margin-top:15px; border-top:1px solid #444; padding-top:10px; color:#ddd; font-size:11px;"></div>
     </div>
 </div>
 
