@@ -19,6 +19,9 @@
             font-family: -apple-system, sans-serif; margin: 0; padding: 0; height: 100%;
             user-select: none; -webkit-user-select: none; 
             touch-action: none; overflow: hidden;
+            /* 横画面時の文字化け（拡大）防止 */
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
 
         .container { 
@@ -70,8 +73,13 @@
             display: inline-flex; align-items: center; justify-content: center;
             -webkit-tap-highlight-color: transparent;
         }
-        /* 機種名の大きさを元に戻す */
-        .header-title { font-size: 14px; font-weight: bold; border-bottom: 2px solid white; }
+        /* ヘッダータイトルの共通設定 */
+        .header-title, .modal-title { 
+            font-size: 14px; 
+            font-weight: bold; 
+            border-bottom: 2px solid white;
+            line-height: 1.2;
+        }
         
         /* レイアウト */
         .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
@@ -88,7 +96,8 @@
         .grid-2 { grid-template-columns: 1fr 1fr; }
         
         .cell { background: var(--cell-bg); padding: 2px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; }
-        .label { font-size: 9px; color: white; margin-bottom: 1px; pointer-events: none; }
+        /* 縦画面時の文字と数値の隙間を詰める（-3pxの部分を-2や-4にして好みに微調整できます） */
+        .label { font-size: 9px; color: white; margin-bottom: -3px; pointer-events: none; }
         .value { font-size: 16px; font-weight: bold; line-height: 1.2; pointer-events: none; }
         .touch-active { background: #55aaff !important; }
         .minus-mode { background: #900 !important; }
@@ -105,8 +114,21 @@
         /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; }
         .modal.active { display: flex; }
-        /* モーダルのヘッダーをメインタブと完全に同じサイズに統一 */
-        .modal-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #000; border-bottom: 1px solid #333; height: 40px; box-sizing: border-box; }
+
+        /* モーダル用タイトルの微調整 */
+        .modal-title { color: white; border-bottom: 2px solid white; }
+
+        .modal-header { 
+            flex: 0 0 auto; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0 16px; /* 左右の余白を調整 */
+            background: #000; 
+            border-bottom: 1px solid #333; 
+            height: 48px; 
+            box-sizing: border-box; 
+        }
         /* モーダル内のみスクロール許可 */
         .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px 60vh; touch-action: pan-y; }
 
@@ -120,8 +142,15 @@
         .detail-table td { width: 45%; padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; word-wrap: break-word; }
 
         @media (orientation: landscape) {
+            .label { margin-bottom: 1px; }
+            
             .modal-body { padding: 10px 15px 60vh; }
-            .modal-body .section-title { margin: 6px 0 2px; font-size: 11px; }
+            /* font-sizeを固定し、text-size-adjustと合わせて拡大を防止 */
+            .modal-body .section-title { 
+                margin: 6px 0 2px; 
+                font-size: 11px; 
+                line-height: 1;
+            }
             .bar-row { margin: 6px 0; font-size: 13px; }
             .bar-bg { height: 10px; }
             .expect-box { padding: 5px 10px; margin-bottom: 10px; }
@@ -170,7 +199,7 @@
 <div id="setting-modal" class="modal">
     <div class="modal-header">
         <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
-        <div style="font-weight:bold; color:white;">設定</div>
+        <div class="modal-title">設定</div>
         <div class="header-icon" onclick="closeModal('setting-modal')">✕</div>
     </div>
     <div class="modal-body">
@@ -214,7 +243,7 @@
 <div id="predict-modal" class="modal">
     <div class="modal-header">
         <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
-        <div style="font-weight:bold; color:white;">設定推測</div>
+        <div class="modal-title">設定推測</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
