@@ -43,17 +43,6 @@
             display: inline-block;
         }
         
-        .rainbow-img {
-            display: inline-block;
-            width: 1em;
-            height: 1em;
-            vertical-align: middle;
-            background-image: url('gif画像');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-
         .rainbow-icon {
             height: 1.1em;
             vertical-align: -0.2em; 
@@ -94,6 +83,7 @@
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
         
         .cell { background: var(--cell-bg); padding: 2px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; }
         /* 縦画面時の文字と数値の隙間を詰める（-3pxの部分を-2や-4にして好みに微調整できます） */
@@ -175,13 +165,6 @@
         #img-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:300; flex-direction:column; align-items:center; justify-content:center; }
         #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
         #img-controls { display: flex; gap: 20px; }
-        
-        #capture-target {
-            position: fixed; top: 0; left: 0; z-index: -9999;
-            width: 400px; background: #1a1a1a; color: white; padding: 20px;
-            font-family: -apple-system, sans-serif;
-            visibility: visible; 
-        }
     </style>
 </head>
 <body>
@@ -265,8 +248,6 @@
     </div>
 </div>
 
-<div id="capture-target"></div>
-
 <script>
     document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
 
@@ -308,8 +289,8 @@
         [0.2319, 0.3478, 0.1679, 0.2519, 0.0005],
         [0.3357, 0.2238, 0.2637, 0.1758, 0.0010],
         [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
-        [0.3108, 0.2072, 0.2869, 0.1912, 0.0039],
-        [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
+        [0.3108, 0.2072, 0.2868, 0.1912, 0.0040],
+        [0.2480, 0.2480, 0.2480, 0.2480, 0.0080]
     ];
     const COMMON_LAMP_B_STR = [
         ['(1/32.77)', '(1/29.13)', '(1/26.21)', '(1/23.83)', '(1/21.85)', '(1/20.16)'],
@@ -321,9 +302,9 @@
     const COMMON_SIDE_R_STR = [
         ['(35.99%)', '(23.19%)', '(33.57%)', '(21.56%)', '(31.08%)', '(24.80%)'],
         ['(23.99%)', '(34.78%)', '(22.38%)', '(32.34%)', '(20.72%)', '(24.80%)'],
-        ['(23.99%)', '(16.79%)', '(26.37%)', '(18.37%)', '(28.69%)', '(24.80%)'],
+        ['(23.99%)', '(16.79%)', '(26.37%)', '(18.37%)', '(28.68%)', '(24.80%)'],
         ['(16.00%)', '(25.19%)', '(17.58%)', '(27.55%)', '(19.12%)', '(24.80%)'],
-        ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.39%)', '(0.78%)']
+        ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.40%)', '(0.80%)']
     ];
     
     const ALL_PARAMS = {
@@ -486,8 +467,8 @@
             r_str: ['(1/496.5)', '(1/471.5)', '(1/442.8)', '(1/409.6)', '(1/372.4)'],
             gas_str: ['(1/186.7)', '(1/180.0)', '(1/172.0)', '(1/162.2)', '(1/150.0)'],
             bell_str: ['(1/7.596)', '(1/7.473)', '(1/7.446)', '(1/7.354)', '(1/7.245)'],
-            suika_str: ['(1/33.77)', '(1/31.67)', '(1/27.38)', '(1/20.51)', '(1/19.32)'],
-            suikaR_str: ['(1/85)', '(1/75)', '(1/65)', '(1/55)', '(1/53)'],
+            suika_str: ['(1/36.00)', '(1/32.00)', '(1/28.00)', '(1/24.00)', '(1/20.00)'],
+            suikaR_str: ['(1/70)', '(1/65)', '(1/60)', '(1/55)', '(1/50)'],
             blamp_str: ['(1/10.50)', '(1/9.50)', '(1/8.43)', '(1/7.68)', '(1/6.11)'],
             retro_str: ['(1/16.15)', '(1/13.49)', '(1/12.47)', '(1/10.71)', '(1/7.77)'],
             lampB_str: [
@@ -498,11 +479,11 @@
                 ['(1/6553.60)', '(1/3276.80)', '(1/1638.40)', '(1/655.36)', '(1/131.07)']
             ],
             sideR_str: [
-                ['(35.99%)', '(23.19%)', '(33.57%)', '(21.56%)', '(24.80%)'],
-                ['(23.99%)', '(34.78%)', '(22.38%)', '(32.34%)', '(24.80%)'],
-                ['(23.99%)', '(16.79%)', '(26.37%)', '(18.37%)', '(24.80%)'],
-                ['(16.00%)', '(25.19%)', '(17.58%)', '(27.55%)', '(24.80%)'],
-                ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.78%)']
+                ['(35.99%)', '(23.19%)', '(33.57%)', '(21.56%)', '(26.50%)'],
+                ['(23.99%)', '(34.78%)', '(22.38%)', '(32.34%)', '(20.00%)'],
+                ['(23.99%)', '(16.79%)', '(26.37%)', '(18.37%)', '(28.50%)'],
+                ['(16.00%)', '(25.19%)', '(17.58%)', '(27.55%)', '(25.60%)'],
+                ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.40%)']
             ],
             colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', '--lamp-white'],
             labels: ['青', '黄', '緑', '紫', RAINBOW_IMG],
@@ -535,7 +516,14 @@
                 d.weights = JSON.parse(JSON.stringify(DEFAULTS.weights));
             } else {
                 machines.forEach(m => {
-                    if (!d.weights[m]) d.weights[m] = JSON.parse(JSON.stringify(DEFAULTS.weights[m]));
+                    if (!d.weights[m]) {
+                        d.weights[m] = JSON.parse(JSON.stringify(DEFAULTS.weights[m]));
+                    } else {
+                        // 保存データに無い重みキー(後から追加されたもの)を初期値で補完
+                        Object.keys(DEFAULTS.weights[m]).forEach(k => {
+                            if (d.weights[m][k] === undefined) d.weights[m][k] = DEFAULTS.weights[m][k];
+                        });
+                    }
                 });
             }
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
@@ -678,7 +666,7 @@
                 <div class="col-right">
                     <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
                     <p class="section-title">＜${labels.bl}＞</p><div class="grid grid-5">${mkL('big')}</div>
-                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-5" style="grid-template-columns: repeat(4, 1fr);">${mkL('regT')}</div>
+                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-4">${mkL('regT')}</div>
                     <p class="section-title">＜${labels.ret}＞</p>
                     <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
                 </div>
@@ -699,9 +687,9 @@
                     <p class="section-title">＜${labels.sui}＞</p><div class="grid">${mkC('suika','&nbsp;',c.suika)}</div>
                 </div>
                 <div class="col-right">
+                    <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
                     <p class="section-title">＜${labels.bl}＞</p><div class="grid grid-5">${mkL('big')}</div>
-                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
-                    <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-5">${mkL('regT')}</div>
                     <p class="section-title">＜${labels.ret}＞</p>
                     <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
                 </div>
@@ -711,11 +699,11 @@
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
         updateHeader();
-        try { setTimeout(calc, 0); } catch(e) {}
+        setTimeout(calc, 0);
     }
 
     function mkC(id, label, val, step=1) {
-        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Number(this.value);save(true);" onfocus="this.select()"></div>`;
+        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
     }
 
@@ -739,7 +727,7 @@
             const v = d.lamps[type][i];
             const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Number(this.value);save(true);" onfocus="this.select()"></div>`;
+            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
             return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
         }).join('');
     }
@@ -809,7 +797,7 @@
                 }
                 
                 save(true);
-                try { setTimeout(calc, 0); } catch(e) {}
+                setTimeout(calc, 0);
             };
 
             const handleCancel = () => {
@@ -844,7 +832,7 @@
     }
 
     function calcLikelihoodInverse(n, k, probList) {
-        if(n <= 0 || k < 0) return probList.map(()=>1);
+        if(n <= 0 || k < 0 || k > n) return probList.map(()=>1);
         let logs = probList.map(p => {
             const pr = 1/p;
             return k * Math.log(pr) + (n - k) * Math.log(1 - pr);
@@ -855,7 +843,7 @@
     }
 
     function calcLikelihoodDirect(n, k, probList) {
-        if(n <= 0 || k < 0) return probList.map(()=>1);
+        if(n <= 0 || k < 0 || k > n) return probList.map(()=>1);
         let logs = probList.map(pr => {
             if(pr <= 0 || pr >= 1) return (k===0 && pr<=0) || (k===n && pr>=1) ? 0 : -Infinity;
             return k * Math.log(pr) + (n - k) * Math.log(1 - pr);
@@ -920,21 +908,28 @@
     // 長押し・タップ検知用
     let pressTimer = null;
     let isLongPress = false;
+    let lastTouchTime = 0;
 
-    function startPress(id) {
+    function startPress(id, isTouch) {
+        if (isTouch) {
+            lastTouchTime = Date.now();
+        } else if (Date.now() - lastTouchTime < 800) {
+            return; // タッチ直後に発生する合成マウスイベントを無視（長押し誤爆防止）
+        }
         isLongPress = false;
         pressTimer = setTimeout(() => {
             isLongPress = true;
-            let colorRows = document.querySelectorAll('.' + id + '-colors');
+            const table = document.getElementById('detail-rows');
+            let colorRows = table ? table.querySelectorAll('.' + id + '-colors') : [];
             if(colorRows.length > 0) {
-                const modalBody = document.querySelector('.modal-body');
+                const modalBody = table.closest('.modal-body');
                 const refEl = document.getElementById('row-' + id);
                 let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
 
                 let isHidden = colorRows[0].style.display === 'none';
                 colorRows.forEach(el => { el.style.display = isHidden ? 'table-row' : 'none'; });
 
-                if (refEl) {
+                if (refEl && modalBody) {
                     let topAfter = refEl.getBoundingClientRect().top;
                     modalBody.scrollTop += (topAfter - topBefore);
                 }
@@ -1006,18 +1001,22 @@
 
         let lSuiR = pm.settings.map(()=>1);
         let rawSuiR = null;
-        if(isNew && c.suikaR > 0) {
-            rawSuiR = calcLikelihoodInverse(actR * 10, c.suikaR, pm.suikaR);
-            lSuiR = rawSuiR.map(v => Math.pow(v, w.suiR / 100));
+        if(isNew) {
+            // 0回でも「出ていない」こと自体が推測材料になるため常に計算する
+            rawSuiR = calcLikelihoodInverse(actR * pm.regG, c.suikaR, pm.suikaR);
+            lSuiR = rawSuiR.map(v => Math.pow(v, (w.suiR || 0) / 100));
         }
 
         let bigLamps = [...d.lamps.big];
         let lampCalcB = actB;
 
+        // 朝一1回目のBIGランプは偶奇示唆の別抽選のため、通常のBIGランプ推測から除外する。
+        // 仕様: 朝一の色はBIGランプのカウンターには含めない（アンダーバー表示のみ）。
+        // よって色カウントは触らず、BIG総回数だけ1回分減らす（白として誤計上されるのを防ぐ）。
         if (d.morning >= 0 && lampCalcB > 0) {
             lampCalcB -= 1;
         }
-        
+
         // 総合予測用のランプ計算
         const rawBigL = calcBigLampLikelihood(bigLamps, pm.lampB, lampCalcB);
         const lBigL_multi = rawBigL.map(v => Math.pow(v, w.bl / 100));
@@ -1121,7 +1120,7 @@
             { id:'sui', lab: labels.sui, val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom, 2)})</span>`, l:rawSui, str:pm.suika_str }
         ];
         
-        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * 10, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
+        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * pm.regG, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
 
         rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });
         
@@ -1163,34 +1162,37 @@
         });
 
         rows.push({ id:'rl', lab: labels.rl, val:mkLmpT(d.lamps.regT, pm, 'regT'), l:null, str:null });
-        rows.push({ id:'ret', lab: labels.ret, val:`${c.retro}回 <span class="white-txt">(${c.retro}/${c.retro_d})</span>`, l:rawRet, str:pm.retro_str });
+        rows.push({ id:'ret', lab: labels.ret, val:`${c.retro}回 <span class="white-txt">(${getP(c.retro, c.retro_d, 2)})</span>`, l:rawRet, str:pm.retro_str });
 
         const container = document.getElementById(prefix+'detail-rows');
-        
+        const interactive = !targetId; // 画像出力用テーブルにはイベントを付けない
+
         let htmlRows = '';
         rows.forEach((r, i) => {
             let hasGraph = r.l !== null && r.l !== undefined;
-            
+
             if (r.isColorRow) {
-                let tapEvt = hasGraph ? `onclick="toggleGraph('g-${r.id}')"` : `onclick="event.stopPropagation();"`;
-                htmlRows += `<tr class="${r.parent}-colors" style="display:none;" ${tapEvt}>
+                let tapEvt = interactive ? (hasGraph ? `onclick="toggleGraph('${prefix}g-${r.id}')"` : `onclick="event.stopPropagation();"`) : '';
+                htmlRows += `<tr class="${prefix}${r.parent}-colors" style="display:none;" ${tapEvt}>
                                 <th>${r.lab}</th><td>${r.val}</td>
                              </tr>`;
             } else {
                 let tapEvt = '';
-                if (r.hasColors) {
-                    // 長押し用イベントと、単発タップ用(onclick)を綺麗に分離
-                    tapEvt = `onclick="handleTap('${r.id}', ${hasGraph})" ontouchstart="startPress('${r.id}')" ontouchend="cancelPress()" ontouchmove="cancelPress()" onmousedown="startPress('${r.id}')" onmouseup="cancelPress()" onmouseleave="cancelPress()" oncontextmenu="event.preventDefault();"`;
-                } else if (hasGraph) {
-                    tapEvt = `onclick="toggleGraph('g-${r.id}')"`;
-                } else {
-                    tapEvt = `onclick="event.stopPropagation();"`;
+                if (interactive) {
+                    if (r.hasColors) {
+                        // 長押し用イベントと、単発タップ用(onclick)を綺麗に分離
+                        tapEvt = `onclick="handleTap('${r.id}', ${hasGraph})" ontouchstart="startPress('${r.id}', true)" ontouchend="cancelPress()" ontouchmove="cancelPress()" onmousedown="startPress('${r.id}')" onmouseup="cancelPress()" onmouseleave="cancelPress()" oncontextmenu="event.preventDefault();"`;
+                    } else if (hasGraph) {
+                        tapEvt = `onclick="toggleGraph('${prefix}g-${r.id}')"`;
+                    } else {
+                        tapEvt = `onclick="event.stopPropagation();"`;
+                    }
                 }
-                htmlRows += `<tr id="row-${r.id}" ${tapEvt}><th>${r.lab}</th><td>${r.val}</td></tr>`;
+                htmlRows += `<tr id="${prefix}row-${r.id}" ${tapEvt}><th>${r.lab}</th><td>${r.val}</td></tr>`;
             }
-            
+
             if (hasGraph) {
-                let gId = `g-${r.id}`;
+                let gId = `${prefix}g-${r.id}`;
                 let graphHtml = `<tr id="${gId}" class="sub-graph-row"><td colspan="2" style="padding:0;"><div style="padding: 0px 5px 2px 5px;"><p style="font-size:10px;color:#aaa;margin:2px 0;">▼個別設定推測</p>${renderBarGraph(r.l, pm.settings, r.str)}</div></td></tr>`;
                 htmlRows += graphHtml;
             }
@@ -1222,18 +1224,20 @@
 
     function toggleGraph(id) {
         const el = document.getElementById(id);
-        const modalBody = document.querySelector('.modal-body');
-        
+        if (!el) return;
+        const modalBody = el.closest('.modal-body');
+
         // タップした行（基準位置）の座標を記録
         const refEl = el.previousElementSibling;
         let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
 
         const isOp = el.classList.contains('open');
-        document.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
+        const scope = el.closest('table') || document;
+        scope.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
         if(!isOp) el.classList.add('open');
 
         // 開閉後のズレをスクロールで補正
-        if (refEl) {
+        if (refEl && modalBody) {
             let topAfter = refEl.getBoundingClientRect().top;
             modalBody.scrollTop += (topAfter - topBefore);
         }
@@ -1268,14 +1272,34 @@
             txt = row.join('\t');
         }
 
-        navigator.clipboard.writeText(txt).then(() => {
+        const finish = (copied) => {
+            const msg = copied ? "データをコピーしました。" : "データのコピーに失敗しました。";
             if (typeof html2canvas === 'undefined') {
-                alert("データをコピーしました。"); return;
+                alert(msg); return;
             }
-            if(confirm("データをコピーしました。\n設定推測画像を生成しますか？\n(キャンセルで終了)")) {
+            if(confirm(msg + "\n設定推測画像を生成しますか？\n(キャンセルで終了)")) {
                 setTimeout(() => generateImage(), 100);
             }
-        });
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(() => finish(true)).catch(() => finish(legacyCopy(txt)));
+        } else {
+            finish(legacyCopy(txt));
+        }
+    }
+
+    // 非HTTPS環境(file://等)用のコピーフォールバック
+    function legacyCopy(txt) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = txt;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch(e) { return false; }
     }
 
     function generateImage() {
