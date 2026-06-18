@@ -165,6 +165,69 @@
         #img-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:300; flex-direction:column; align-items:center; justify-content:center; }
         #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
         #img-controls { display: flex; gap: 20px; }
+
+        /* --- 履歴モーダル --- */
+        #history-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:#111; flex-direction:column; }
+        #history-modal.active { display:flex; }
+        #history-modal .modal-header { flex-shrink:0; }
+        #history-modal .modal-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 15px 40px; }
+        .hist-summary { background:#222; border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+        .hist-summary .bar-row { display:flex; align-items:center; margin:3px 0; font-size:12px; }
+        .hist-summary .bar-label { width:42px; text-align:right; margin-right:6px; color:#ccc; flex-shrink:0; }
+        .hist-summary .bar-track { flex:1; height:18px; background:#333; border-radius:3px; overflow:hidden; position:relative; }
+        .hist-summary .bar-fill { height:100%; border-radius:3px; transition: width 0.3s; }
+        .hist-summary .bar-val { width:72px; text-align:right; margin-left:6px; color:#fff; flex-shrink:0; }
+        .hist-item { background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:10px 12px; margin-bottom:8px; cursor:pointer; transition:background 0.15s; }
+        .hist-item:active { background:#2a2a2a; }
+        .hist-item-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .hist-item-date { font-size:12px; color:#aaa; }
+        .hist-item-machine { font-size:11px; color:#888; }
+        .hist-item-body { display:flex; justify-content:space-between; align-items:center; }
+        .hist-item-stats { font-size:13px; color:#ddd; }
+        .hist-item-stats span { margin-right:8px; }
+        .hist-item-result { text-align:right; }
+        .hist-item-setting { font-size:15px; font-weight:bold; }
+        .hist-item-prob { font-size:11px; color:#aaa; }
+        .hist-item-diff { font-size:11px; margin-top:1px; }
+        .hist-empty { text-align:center; color:#666; padding:40px 0; font-size:14px; }
+        .hist-loading { text-align:center; color:#888; padding:40px 0; }
+        .hist-error { text-align:center; color:#f44; padding:20px 0; font-size:13px; }
+        .hist-count { font-size:11px; color:#888; text-align:right; margin-bottom:4px; }
+
+        /* 信頼度フィルタ */
+        .hist-filter { display:flex; gap:4px; margin-bottom:10px; flex-wrap:wrap; }
+        .hist-filter-btn { flex:1 1 auto; min-width:48px; padding:6px 4px; background:#222; color:#aaa; border:1px solid #333; border-radius:5px; font-size:11px; cursor:pointer; text-align:center; user-select:none; }
+        .hist-filter-btn.active { background:#0066cc; color:#fff; border-color:#0088ff; }
+        .hist-item.excluded { opacity:0.35; }
+        .hist-item-reliability { font-size:10px; margin-top:2px; font-weight:bold; }
+        .hist-filter-label { font-size:10px; color:#888; margin:8px 0 4px; }
+
+        /* 信頼度ランク色 */
+        .rank-low0 { color:#666; }     /* 最低 */
+        .rank-low1 { color:#4a9eff; }  /* 低 */
+        .rank-mid  { color:#ffa500; }  /* 中 */
+        .rank-high { color:#6f6; }     /* 高 */
+        .rank-top  { color:#f66; }     /* 最高 */
+        .rank-rainbow {
+            background: linear-gradient(90deg, #ff5555 0%, #ffa500 20%, #ffff44 40%, #44ff44 60%, #44aaff 80%, #cc66ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: bold;
+        }
+        .rank-unknown { color:#444; }  /* 旧データ */
+
+        /* 信頼度フィルタボタン: ランク色を背景に薄く反映 */
+        .hist-filter-btn[data-rel="rainbow"] { border-color:#a55; }
+        .hist-filter-btn[data-rel="rainbow"].active {
+            background: linear-gradient(90deg, #ff5555, #ffa500, #ffff44, #44ff44, #44aaff, #cc66ff);
+            color:#000; border-color:#fff; font-weight:bold;
+        }
+
+        /* --- GAS設定 --- */
+        .gas-input { width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:5px; box-sizing:border-box; font-size:13px; margin-top:4px; }
+        .gas-input::placeholder { color:#666; }
+        .gas-note { font-size:10px; color:#888; margin-top:2px; }
     </style>
 </head>
 <body>
@@ -218,14 +281,19 @@
         <p class="section-title" style="margin-top:15px; color:white;">＜設定推測：要素調整＞</p>
         <div class="grid grid-3" id="weight-settings"></div>
 
-        <button onclick="exportData()" class="export-btn">データコピー・画像出力</button>
+        <p class="section-title" style="margin-top:15px; color:white;">＜スプレッドシート連携＞</p>
+        <input type="text" class="gas-input" id="gas-url" placeholder="GAS WebアプリのURLを貼り付け" onchange="saveGasConfig()" value="">
+        <input type="text" class="gas-input" id="gas-token" placeholder="トークン（初期値: hanahana2026）" onchange="saveGasConfig()" value="" style="margin-top:6px;">
+        <p class="gas-note">※ GASコードのTOKENと同じ文字列を入力</p>
+
+        <button onclick="exportData()" class="export-btn">データ保存・画像出力</button>
         <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px; font-weight:bold;">リセット</button>
     </div>
 </div>
 
 <div id="predict-modal" class="modal">
     <div class="modal-header">
-        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="header-icon" onclick="openHistory()" style="font-size:18px;">📋</div>
         <div class="modal-title">設定推測</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
@@ -236,6 +304,42 @@
         <div class="expect-box" id="expect-info"></div>
         <p class="section-title" id="title-detail">＜詳細データ＞</p>
         <table class="detail-table" id="detail-rows"></table>
+    </div>
+</div>
+
+<div id="history-modal">
+    <div class="modal-header">
+        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="modal-title">実戦履歴</div>
+        <div class="header-icon" onclick="closeHistory()">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="section-title" id="hist-summary-title">＜設定ツモ率＞</p>
+        <div class="hist-filter-label">集計対象の信頼度</div>
+        <div class="hist-filter" id="rel-filter">
+            <div class="hist-filter-btn active" data-rel="0" onclick="setRelFilter(0)">全て</div>
+            <div class="hist-filter-btn" data-rel="1" onclick="setRelFilter(1)">最低↑</div>
+            <div class="hist-filter-btn" data-rel="2" onclick="setRelFilter(2)">低↑</div>
+            <div class="hist-filter-btn" data-rel="3" onclick="setRelFilter(3)">中↑</div>
+            <div class="hist-filter-btn" data-rel="4" onclick="setRelFilter(4)">高↑</div>
+            <div class="hist-filter-btn" data-rel="5" onclick="setRelFilter(5)">最高↑</div>
+            <div class="hist-filter-btn" data-rel="rainbow" onclick="setRelFilter(6)">虹</div>
+        </div>
+        <div class="hist-filter-label">推定設定</div>
+        <div class="hist-filter" id="setting-filter">
+            <div class="hist-filter-btn active" data-set="" onclick="clearSettingFilter()">全て</div>
+            <div class="hist-filter-btn" data-set="設定1" onclick="toggleSettingFilter('設定1')">1</div>
+            <div class="hist-filter-btn" data-set="設定2" onclick="toggleSettingFilter('設定2')">2</div>
+            <div class="hist-filter-btn" data-set="設定3" onclick="toggleSettingFilter('設定3')">3</div>
+            <div class="hist-filter-btn" data-set="設定4" onclick="toggleSettingFilter('設定4')">4</div>
+            <div class="hist-filter-btn" data-set="設定5" onclick="toggleSettingFilter('設定5')">5</div>
+            <div class="hist-filter-btn" data-set="設定6" onclick="toggleSettingFilter('設定6')">6</div>
+            <div class="hist-filter-btn" data-set="設定V" onclick="toggleSettingFilter('設定V')">V</div>
+        </div>
+        <div class="hist-summary" id="hist-summary"></div>
+        <p class="section-title">＜履歴一覧＞</p>
+        <div class="hist-count" id="hist-count"></div>
+        <div id="hist-list"></div>
     </div>
 </div>
 
@@ -445,8 +549,8 @@
             r: [496.5, 471.5, 442.8, 409.6, 372.4],
             gassan: [186.7, 180.0, 172.0, 162.2, 150.0],
             bell: [7.596, 7.473, 7.446, 7.354, 7.245],
-            suika: [36.00, 32.00, 28.00, 24.00, 20.00],
-            suikaR: [70, 65, 60, 55, 50],
+            suika: [33.77, 31.67, 27.38, 20.51, 19.32],
+            suikaR: [85, 75, 65, 55, 53],
             blamp: [10.50, 9.50, 8.43, 7.68, 6.11],
             retro: [16.15, 13.49, 12.47, 10.71, 7.77],
             lampB: [
@@ -461,7 +565,7 @@
                [0.2319, 0.3478, 0.1679, 0.2519, 0.0005],
                [0.3357, 0.2238, 0.2637, 0.1758, 0.0010],
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
-               [0.2650, 0.2185, 0.2850, 0.2560, 0.0040]
+               [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
             ],
             b_str: ['(1/299.2)', '(1/291.2)', '(1/281.3)', '(1/268.6)', '(1/253.0)'],
             r_str: ['(1/496.5)', '(1/471.5)', '(1/442.8)', '(1/409.6)', '(1/372.4)'],
@@ -502,6 +606,112 @@
     };
 
     let data = loadData();
+    let lastCalcResult = null; // 最新の推測結果を保持(シート保存用)
+
+    // --- スプレッドシート連携: 機種別シート構造 ---
+    // ヘッダー先頭は空文字 = A列空欄。データ行も先頭は空欄を入れる。
+    // 末尾4列は機種共通: 推測設定, 高設定期待度, 差枚数, 復元用JSON
+    const SHEET_CONFIG = {
+        houou: {
+            sheetName: 'ハナハナホウオウ天翔',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        king: {
+            sheetName: 'キングハナハナ',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        dragon: {
+            sheetName: 'ドラゴンハナハナ閃光',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        star: {
+            sheetName: 'スターハナハナ',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        newking: {
+            sheetName: 'ニューキングハナハナV',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG前半)', 'スイカ(REG)',
+                      'BIG後半サイド：青', 'BIG後半サイド：黃', 'BIG後半サイド：緑', 'BIG後半サイド：赤', 'BIG後半サイド：虹',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：紫', 'BIG筐体：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：紫',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        }
+    };
+    // シート名→機種ID 逆引き
+    const SHEET_TO_MACHINE = {};
+    Object.keys(SHEET_CONFIG).forEach(m => { SHEET_TO_MACHINE[SHEET_CONFIG[m].sheetName] = m; });
+
+    // 推測結果の信頼度(0-1)を、対数尤度比から算出
+    // LLR(トップと2位の対数尤度差)が大きいほど確からしさが高い
+    // 紫ランプ等の確定示唆があれば自然に1に近づき、サンプル不足では低くなる
+    function calcReliability(totalL) {
+        if (!totalL || totalL.length < 2) return 0;
+        const logL = totalL.map(v => Math.log(Math.max(v, 1e-300)));
+        const sorted = [...logL].sort((a, b) => b - a);
+        const llr = sorted[0] - sorted[1];
+        if (!isFinite(llr) || isNaN(llr)) return 0;
+        // LLRが大きいほど確信度が高い。LLR=2で約63%、LLR=4で約86%、LLR=6で約95%
+        return Math.max(0, Math.min(1, 1 - Math.exp(-llr / 2)));
+    }
+
+    // 信頼度ランク定義
+    // -1: 旧データ(JSON/信頼度なし), 0: 全て対象, 1-6: ランク
+    const RANK_LABELS = ['?', '最低', '低', '中', '高', '最高', '虹'];
+    const RANK_CSSCLASS = ['rank-unknown', 'rank-low0', 'rank-low1', 'rank-mid', 'rank-high', 'rank-top', 'rank-rainbow'];
+
+    // 機種ごとの最高設定確定示唆:
+    // ニューキングⅤ: REG筐体ランプ「紫」(regT[3]) が出ていれば設定V確定
+    // 他機種: REG筐体ランプ「虹」(regT[4]) が出ていれば設定6確定
+    function hasMaxSettingConfirmed(machineData, machineId) {
+        if (!machineData || !machineData.lamps || !machineData.lamps.regT) return false;
+        const t = machineData.lamps.regT;
+        if (machineId === 'newking') return (t[3] || 0) > 0;
+        return (t[4] || 0) > 0;
+    }
+
+    // 信頼度ランク
+    // rank=0: 旧データ(信頼度不明)
+    // rank=1: 最低 (<10%)
+    // rank=2: 低   (10-25%)
+    // rank=3: 中   (25-50%)
+    // rank=4: 高   (50-80%)
+    // rank=5: 最高 (80%以上、ただし最高設定確定示唆なし)
+    // rank=6: 虹   (最高設定の確定示唆あり = REG筐体ランプ紫or虹)
+    function reliabilityRank(rel, maxConfirmed) {
+        if (maxConfirmed === true) return 6; // 虹は確定示唆ありの時のみ
+        if (rel === null || rel === undefined || isNaN(rel)) return 0;
+        if (rel >= 0.80) return 5;
+        if (rel >= 0.50) return 4;
+        if (rel >= 0.25) return 3;
+        if (rel >= 0.10) return 2;
+        return 1;
+    }
+
+    // 履歴フィルタ状態
+    let relFilterRank = 0;            // 0=全て / 1..6=そのランク以上(6は虹のみ)
+    let settingFilter = new Set();    // 空 = 全設定を対象
+
 
     function loadData() {
         try {
@@ -527,7 +737,9 @@
                 });
             }
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
-            
+            if (!d.gasUrl) d.gasUrl = '';
+            if (!d.gasToken) d.gasToken = 'hanahana2026';
+
             return d;
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
     }
@@ -541,6 +753,8 @@
 
     function init() {
         document.getElementById('machine-select').value = data.machine || 'houou';
+        document.getElementById('gas-url').value = data.gasUrl || '';
+        document.getElementById('gas-token').value = data.gasToken || 'hanahana2026';
         syncInputs();
         renderMorningSelector();
         renderWeightSettings();
@@ -1066,10 +1280,17 @@
 
         const sumL = totalL.reduce((a,b)=>a+b,0) || 1;
         const pcts = totalL.map(v => v/sumL);
-        
+
         let bestIdx = 0;
         let maxPct = -1;
         pcts.forEach((p, i) => { if(p > maxPct) { maxPct = p; bestIdx = i; } });
+
+        // 保存用に推測結果をキャッシュ（メインcalcの時のみ）
+        if (!targetId) {
+            const reliability = calcReliability(totalL);
+            const maxConfirmed = hasMaxSettingConfirmed(d, data.machine);
+            lastCalcResult = { pcts, bestIdx, settings: pm.settings, highSetRateIdx: pm.highSetRateIdx, payout: pm.payout, reliability, maxConfirmed };
+        }
 
         // --- 期待機械割・期待獲得枚数のノイズ除去（トップの1/10未満の設定を除外して再計算） ---
         let threshold = maxPct / 10;
@@ -1272,19 +1493,425 @@
             txt = row.join('\t');
         }
 
-        const finish = (copied) => {
-            const msg = copied ? "データをコピーしました。" : "データのコピーに失敗しました。";
-            if (typeof html2canvas === 'undefined') {
-                alert(msg); return;
-            }
-            if(confirm(msg + "\n設定推測画像を生成しますか？\n(キャンセルで終了)")) {
+        // クリップボードにコピー
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(() => afterCopy(true)).catch(() => afterCopy(legacyCopy(txt)));
+        } else {
+            afterCopy(legacyCopy(txt));
+        }
+    }
+
+    function afterCopy(copied) {
+        const copyMsg = copied ? "データをコピーしました。" : "データのコピーに失敗しました。";
+
+        if (!data.gasUrl) {
+            // GAS未設定: 従来動作
+            if (typeof html2canvas === 'undefined') { alert(copyMsg); return; }
+            if (confirm(copyMsg + "\n設定推測画像を生成しますか？")) {
                 setTimeout(() => generateImage(), 100);
             }
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(txt).then(() => finish(true)).catch(() => finish(legacyCopy(txt)));
+            return;
+        }
+
+        // GAS設定済み: 保存確認
+        if (confirm(copyMsg + "\nスプレッドシートに保存しますか？")) {
+            saveToSheet(() => {
+                if (typeof html2canvas !== 'undefined' && confirm("保存しました。\n設定推測画像を生成しますか？")) {
+                    setTimeout(() => generateImage(), 100);
+                }
+            });
         } else {
-            finish(legacyCopy(txt));
+            if (typeof html2canvas !== 'undefined' && confirm("保存をスキップしました。\n設定推測画像を生成しますか？")) {
+                setTimeout(() => generateImage(), 100);
+            }
+        }
+    }
+
+    // --- スプレッドシート連携 ---
+
+    function saveGasConfig() {
+        data.gasUrl = document.getElementById('gas-url').value.trim();
+        data.gasToken = document.getElementById('gas-token').value.trim() || 'hanahana2026';
+        save(true);
+    }
+
+    function saveToSheet(onSuccess) {
+        if (!data.gasUrl) { alert('GAS URLが設定されていません。'); return; }
+
+        calc(); // 最新化
+        const m = data.machine;
+        const pm = ALL_PARAMS[m];
+        const cfg = SHEET_CONFIG[m];
+        if (!cfg) { alert('この機種はシート保存に未対応です。'); return; }
+
+        const dat = getData();
+        const c = dat.cur, s = dat.start;
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            calcG = Math.max(0, c.g - s.g);
+            calcB = Math.max(0, c.b - s.b);
+            calcR = Math.max(0, c.r - s.r);
+        } else {
+            calcG = c.g; calcB = c.b; calcR = c.r;
+        }
+        const bonusG = (calcB * pm.bigG) + (calcR * pm.regG);
+        const totalG = calcG + bonusG;
+
+        // 推測結果
+        let predictedSetting = '-';
+        let highProb = 0;
+        let expRate = 100;
+        if (lastCalcResult) {
+            const r = lastCalcResult;
+            predictedSetting = '設定' + r.settings[r.bestIdx];
+            r.highSetRateIdx.forEach(idx => { highProb += r.pcts[idx]; });
+
+            let threshold = r.pcts[r.bestIdx] / 10;
+            let validPcts = r.pcts.map(p => p >= threshold ? p : 0);
+            let validSum = validPcts.reduce((a,b) => a+b, 0);
+            let normPcts = validSum > 0 ? validPcts.map(p => p / validSum) : r.pcts;
+            expRate = normPcts.reduce((a, b, i) => a + (b * r.payout[i]), 0);
+        }
+
+        // 差枚計算
+        const bIdx = lastCalcResult ? lastCalcResult.bestIdx : 0;
+        let usedBell = c.bell;
+        if (calcG >= 500 && c.bell === 0) usedBell = calcG / pm.bell[bIdx];
+        if (data.viewMode === 'total' && s.g > 0) usedBell += (s.g / pm.bell[bIdx]);
+        const diffReal = Math.round(pm.calcDiffReal(calcB, calcR, usedBell, calcG));
+
+        // 日付
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+
+        // CSV互換の行データを構築
+        // 共通先頭: '', 日付, 総回転, 通常時, ボーナス, BIG, REG, ベル
+        const head = ['', dateStr, totalG, calcG, bonusG, calcB, calcR, c.bell];
+        let mid;
+        if (m === 'newking') {
+            // スイカ前半, スイカREG, サイドランプ(5), BIG筐体(5), REG筐体(4)
+            mid = [c.suika, c.suikaR, ...dat.lamps.regS, ...dat.lamps.big, ...dat.lamps.regT.slice(0, 4)];
+        } else {
+            // スイカ, BIG筐体(5), REGサイド(5), REG筐体(5)
+            mid = [c.suika, ...dat.lamps.big, ...dat.lamps.regS, ...dat.lamps.regT];
+        }
+        // 共通末尾: レトロ達成, レトロ発生, 推測設定, 期待度, 差枚, JSON
+        const reliability = (lastCalcResult && lastCalcResult.reliability !== undefined)
+            ? lastCalcResult.reliability : 0;
+        const maxConfirmed = (lastCalcResult && lastCalcResult.maxConfirmed) === true;
+        const restoreData = {
+            machine: m,
+            viewMode: data.viewMode,
+            machineData: JSON.parse(JSON.stringify(dat)),
+            weights: JSON.parse(JSON.stringify(data.weights[m])),
+            reliability: reliability,
+            maxConfirmed: maxConfirmed
+        };
+        const tail = [
+            c.retro_d, c.retro,
+            predictedSetting,
+            (highProb * 100).toFixed(1) + '%',
+            diffReal,
+            JSON.stringify(restoreData)
+        ];
+        const rowData = [...head, ...mid, ...tail];
+
+        const payload = {
+            token: data.gasToken,
+            sheetName: cfg.sheetName,
+            headers: cfg.headers,
+            rowData: rowData
+        };
+
+        const btn = document.querySelector('.export-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+
+        fetch(data.gasUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // CORSプリフライト回避
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) { if (onSuccess) onSuccess(); }
+            else { alert('保存エラー: ' + (res.error || '不明')); }
+        })
+        .catch(err => {
+            alert('通信エラー: ' + err.message + '\n\nURLとネットワーク接続を確認してください。');
+        })
+        .finally(() => {
+            if (btn) { btn.disabled = false; btn.textContent = 'データ保存・画像出力'; }
+        });
+    }
+
+    function openHistory() {
+        if (!data.gasUrl) {
+            alert('スプレッドシート連携が設定されていません。\n⚙️設定画面からGAS URLを入力してください。');
+            return;
+        }
+        const modal = document.getElementById('history-modal');
+        modal.classList.add('active');
+        document.getElementById('hist-list').innerHTML = '<div class="hist-loading">読み込み中...</div>';
+        document.getElementById('hist-summary').innerHTML = '';
+        document.getElementById('hist-count').textContent = '';
+
+        const url = data.gasUrl + '?action=getAll&token=' + encodeURIComponent(data.gasToken);
+        fetch(url)
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success) { throw new Error(res.error || '取得失敗'); }
+            window._historyRowsRaw = res.data;
+            // 信頼度フィルタのボタン状態を再反映(モーダル再表示時に状態維持)
+            document.querySelectorAll('#rel-filter .hist-filter-btn').forEach(btn => {
+                const v = btn.dataset.rel;
+                const matched = (relFilterRank === 0 && v === '0')
+                    || (relFilterRank === 6 && v === 'rainbow')
+                    || (parseInt(v) === relFilterRank);
+                btn.classList.toggle('active', matched);
+            });
+            // 設定フィルタのボタン状態
+            const allBtn = document.querySelector('#setting-filter [data-set=""]');
+            if (allBtn) allBtn.classList.toggle('active', settingFilter.size === 0);
+            document.querySelectorAll('#setting-filter [data-set]:not([data-set=""])').forEach(btn => {
+                btn.classList.toggle('active', settingFilter.has(btn.dataset.set));
+            });
+            renderHistory(res.data);
+        })
+        .catch(err => {
+            document.getElementById('hist-list').innerHTML = '<div class="hist-error">読み込みエラー: ' + err.message + '</div>';
+        });
+    }
+
+    function closeHistory() {
+        document.getElementById('history-modal').classList.remove('active');
+    }
+
+    function renderHistory(rawRows) {
+        // GASからのraw行をパースして統一形式に
+        const rows = rawRows.map(r => {
+            const v = r.values || [];
+            const machineId = SHEET_TO_MACHINE[r.sheet] || null;
+            const machineName = machineId ? ALL_PARAMS[machineId].name : r.sheet;
+            const len = v.length;
+            // JSON内の reliability / maxConfirmed を取得
+            let reliability = null;
+            let maxConfirmed = false;
+            const jsonStr = v[len - 1] || '';
+            if (jsonStr) {
+                try {
+                    const parsed = JSON.parse(jsonStr);
+                    if (typeof parsed.reliability === 'number') reliability = parsed.reliability;
+                    // 明示フラグが無くても machineData.lamps.regT から判定
+                    if (parsed.maxConfirmed === true) {
+                        maxConfirmed = true;
+                    } else if (parsed.machineData && parsed.machineData.lamps && parsed.machineData.lamps.regT) {
+                        maxConfirmed = hasMaxSettingConfirmed(parsed.machineData, parsed.machine || SHEET_TO_MACHINE[r.sheet]);
+                    }
+                } catch(e) {}
+            }
+            return {
+                sheet: r.sheet,
+                rowNum: r.row,
+                date: v[1] || '',
+                spins: v[3] || 0,
+                big: v[5] || 0,
+                reg: v[6] || 0,
+                predictedSetting: v[len - 4] || '',
+                highSettingProb: v[len - 3] || '',
+                diff: v[len - 2] || 0,
+                jsonData: jsonStr,
+                reliability: reliability,
+                maxConfirmed: maxConfirmed,
+                machineId: machineId,
+                machineName: machineName
+            };
+        });
+
+        // --- 信頼度ランク + 設定フィルタで集計対象を絞る ---
+        const includedRows = rows.filter(r => {
+            if (relFilterRank > 0) {
+                const rank = reliabilityRank(r.reliability, r.maxConfirmed);
+                if (rank === 0) return false; // 旧データ
+                if (relFilterRank === 6) {
+                    if (rank !== 6) return false; // 虹のみ
+                } else {
+                    if (rank < relFilterRank) return false;
+                }
+            }
+            if (settingFilter.size > 0) {
+                if (!settingFilter.has(String(r.predictedSetting || ''))) return false;
+            }
+            return true;
+        });
+
+        // --- 設定ツモ率サマリ(対象のみ) ---
+        const settingCount = {};
+        includedRows.forEach(r => {
+            const s = String(r.predictedSetting || '');
+            if (s.startsWith('設定')) {
+                settingCount[s] = (settingCount[s] || 0) + 1;
+            }
+        });
+        const total = includedRows.length;
+        const barColors = { '設定1':'#888', '設定2':'#4a9eff', '設定3':'#ffa500', '設定4':'#6f6', '設定5':'#f66', '設定6':'#f6f', '設定V':'#ff4466' };
+
+        let summaryHtml = '';
+        if (total === 0) {
+            summaryHtml = '<div style="color:#666; font-size:12px; text-align:center; padding:8px 0;">データなし</div>';
+        } else {
+            // 設定順にソート（V は最後）
+            const order = { '設定1':1,'設定2':2,'設定3':3,'設定4':4,'設定5':5,'設定6':6,'設定V':7 };
+            const allLabels = Object.keys(settingCount).sort((a,b) => (order[a]||99) - (order[b]||99));
+            const maxCount = Math.max(...allLabels.map(l => settingCount[l] || 0), 1);
+            allLabels.forEach(label => {
+                const cnt = settingCount[label] || 0;
+                const pct = (cnt / total * 100).toFixed(1);
+                const w = (cnt / maxCount * 100).toFixed(1);
+                const color = barColors[label] || '#888';
+                summaryHtml += `<div class="bar-row">
+                    <div class="bar-label">${label.replace('設定','')}</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color};"></div></div>
+                    <div class="bar-val">${pct}% (${cnt}回)</div>
+                </div>`;
+            });
+        }
+        document.getElementById('hist-summary').innerHTML = summaryHtml;
+        const excludedCount = rows.length - includedRows.length;
+        document.getElementById('hist-count').textContent = excludedCount > 0
+            ? `集計対象${total}件 / 除外${excludedCount}件`
+            : (rows.length > 0 ? `全${rows.length}件` : '');
+
+        // --- 履歴リスト（新しい順） ---
+        const listEl = document.getElementById('hist-list');
+        if (rows.length === 0) {
+            listEl.innerHTML = '<div class="hist-empty">まだ履歴がありません</div>';
+            return;
+        }
+        const includedSet = new Set(includedRows.map(r => r.rowNum + '@' + r.sheet));
+        const reversed = [...rows].reverse();
+        let listHtml = '';
+        reversed.forEach((r, i) => {
+            const idx = rows.length - 1 - i;
+            const diffVal = parseInt(r.diff) || 0;
+            const diffColor = diffVal > 0 ? '#4f4' : diffVal < 0 ? '#f44' : '#fff';
+            const diffSign = diffVal > 0 ? '+' : '';
+            const ps = String(r.predictedSetting || '');
+            const settingColor = ps.includes('V') ? '#ff4466'
+                : ps.match(/[4-6]/) ? '#6f6' : '#fff';
+            const isIncluded = includedSet.has(r.rowNum + '@' + r.sheet);
+            const excludedClass = isIncluded ? '' : ' excluded';
+            const rank = reliabilityRank(r.reliability, r.maxConfirmed);
+            const rankLabel = RANK_LABELS[rank];
+            const rankClass = RANK_CSSCLASS[rank];
+            const relText = (r.reliability !== null && r.reliability !== undefined && !isNaN(r.reliability))
+                ? `信頼度 <span class="${rankClass}">${rankLabel}</span>`
+                : `信頼度 <span class="${rankClass}">-</span>`;
+            listHtml += `<div class="hist-item${excludedClass}" onclick="restoreHistory(${idx})" data-idx="${idx}">
+                <div class="hist-item-header">
+                    <div class="hist-item-date">${r.date || '---'}</div>
+                    <div class="hist-item-machine">${r.machineName || ''}</div>
+                </div>
+                <div class="hist-item-body">
+                    <div class="hist-item-stats">
+                        <span>${r.spins || 0}G</span>
+                        <span>B:${r.big || 0}</span>
+                        <span>R:${r.reg || 0}</span>
+                        <div class="hist-item-reliability">${relText}</div>
+                    </div>
+                    <div class="hist-item-result">
+                        <div class="hist-item-setting" style="color:${settingColor}">${r.predictedSetting || '-'}</div>
+                        <div class="hist-item-prob">${r.highSettingProb || ''}</div>
+                        <div class="hist-item-diff" style="color:${diffColor}">${diffSign}${diffVal}枚</div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        listEl.innerHTML = listHtml;
+        window._historyRows = rows;
+    }
+
+    function setRelFilter(rank) {
+        relFilterRank = rank;
+        document.querySelectorAll('#rel-filter .hist-filter-btn').forEach(btn => {
+            const v = btn.dataset.rel;
+            const matched = (rank === 0 && v === '0')
+                || (rank === 6 && v === 'rainbow')
+                || (parseInt(v) === rank);
+            btn.classList.toggle('active', matched);
+        });
+        if (window._historyRowsRaw) renderHistory(window._historyRowsRaw);
+    }
+
+    function toggleSettingFilter(setting) {
+        if (settingFilter.has(setting)) settingFilter.delete(setting);
+        else settingFilter.add(setting);
+        // 「全て」ボタンの状態を更新
+        const allBtn = document.querySelector('#setting-filter [data-set=""]');
+        if (allBtn) allBtn.classList.toggle('active', settingFilter.size === 0);
+        // 各設定ボタンのアクティブ状態
+        document.querySelectorAll('#setting-filter [data-set]:not([data-set=""])').forEach(btn => {
+            btn.classList.toggle('active', settingFilter.has(btn.dataset.set));
+        });
+        if (window._historyRowsRaw) renderHistory(window._historyRowsRaw);
+    }
+
+    function clearSettingFilter() {
+        settingFilter.clear();
+        document.querySelectorAll('#setting-filter .hist-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.set === '');
+        });
+        if (window._historyRowsRaw) renderHistory(window._historyRowsRaw);
+    }
+
+    function restoreHistory(idx) {
+        const rows = window._historyRows;
+        if (!rows || !rows[idx]) return;
+        const r = rows[idx];
+        const dateStr = r.date || '不明';
+        const machineName = r.machineName || '';
+
+        if (!confirm(`${dateStr} ${machineName} のデータを復元しますか？\n\n※ 現在の入力データは上書きされます。`)) return;
+
+        let restored = false;
+
+        // [1] 復元用JSONがあれば優先
+        if (r.jsonData) {
+            try {
+                const rd = JSON.parse(r.jsonData);
+                const m = rd.machine;
+                if (m && data[m] !== undefined && rd.machineData) {
+                    data.machine = m;
+                    data[m] = rd.machineData;
+                    if (rd.weights) data.weights[m] = rd.weights;
+                    if (rd.viewMode) data.viewMode = rd.viewMode;
+                    restored = true;
+                }
+            } catch(e) { /* fall through */ }
+        }
+
+        // [2] JSONが無い/壊れている場合は、シート名と列値から基本データを再構築
+        if (!restored && r.machineId && r.sheet) {
+            const m = r.machineId;
+            const v = rows[idx];
+            // valuesは renderHistory で消えるので、_historyRowsに values を保存しておく必要があるが、
+            // ここでは抽出済みの spins/big/reg のみ復元する（ランプ等は完全復元できない）
+            data.machine = m;
+            const fresh = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
+            fresh.cur.g = parseInt(v.spins) || 0;
+            fresh.cur.b = parseInt(v.big) || 0;
+            fresh.cur.r = parseInt(v.reg) || 0;
+            data[m] = fresh;
+            restored = true;
+            alert('部分復元: このデータは古い形式のため、回転数/BIG/REGのみ復元します。');
+        }
+
+        if (restored) {
+            save(true);
+            init();
+            closeHistory();
+            setTimeout(() => calc(), 50);
+        } else {
+            alert('復元に失敗しました。');
         }
     }
 
@@ -1348,7 +1975,7 @@
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); if(id==='predict-modal') closeHistory(); }
     function resetAll() { 
         if(confirm("現在選択中の機種データを全消去しますか？")) { 
             data[data.machine] = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
