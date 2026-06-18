@@ -544,8 +544,8 @@
             r: [496.5, 471.5, 442.8, 409.6, 372.4],
             gassan: [186.7, 180.0, 172.0, 162.2, 150.0],
             bell: [7.596, 7.473, 7.446, 7.354, 7.245],
-            suika: [33.77, 31.67, 27.38, 20.51, 19.32],
-            suikaR: [85, 75, 65, 55, 53],
+            suika: [36.00, 32.00, 28.00, 24.00, 20.00],
+            suikaR: [70, 65, 60, 55, 50],
             blamp: [10.50, 9.50, 8.43, 7.68, 6.11],
             retro: [16.15, 13.49, 12.47, 10.71, 7.77],
             lampB: [
@@ -560,7 +560,7 @@
                [0.2319, 0.3478, 0.1679, 0.2519, 0.0005],
                [0.3357, 0.2238, 0.2637, 0.1758, 0.0010],
                [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
-               [0.2480, 0.2480, 0.2480, 0.2480, 0.0078]
+               [0.2650, 0.2000, 0.2850, 0.2560, 0.0040]
             ],
             b_str: ['(1/299.2)', '(1/291.2)', '(1/281.3)', '(1/268.6)', '(1/253.0)'],
             r_str: ['(1/496.5)', '(1/471.5)', '(1/442.8)', '(1/409.6)', '(1/372.4)'],
@@ -1833,7 +1833,27 @@
         // --- 履歴リスト（新しい順） ---
         const listEl = document.getElementById('hist-list');
         if (rows.length === 0) {
-            listEl.innerHTML = '<div class="hist-empty">まだ履歴がありません</div>';
+            // 他シートにデータがあるかチェック(シート名不一致の検出用)
+            const otherSheets = {};
+            (rawRows || []).forEach(r => {
+                if (r.sheet !== currentSheetName) {
+                    otherSheets[r.sheet] = (otherSheets[r.sheet] || 0) + 1;
+                }
+            });
+            const otherSheetList = Object.keys(otherSheets);
+            const machineName = ALL_PARAMS[data.machine] ? ALL_PARAMS[data.machine].name : data.machine;
+            let msg = `<div class="hist-empty">${machineName}のデータはまだありません</div>`;
+            if (otherSheetList.length > 0) {
+                msg += `<div class="hist-empty" style="font-size:11px; margin-top:14px; color:#999; line-height:1.6;">`;
+                msg += `※ 他のシートには以下のデータがあります:<br>`;
+                otherSheetList.forEach(s => {
+                    msg += `&nbsp;&nbsp;・「${s}」: ${otherSheets[s]}件<br>`;
+                });
+                msg += `<br>機種を切り替えるか、スプレッドシートのシート名を以下に合わせてください:<br>`;
+                msg += `&nbsp;&nbsp;<span style="color:#fb6;">「${currentSheetName}」</span>`;
+                msg += `</div>`;
+            }
+            listEl.innerHTML = msg;
             return;
         }
         // 表示は includedRows のみ(条件外は完全非表示)
