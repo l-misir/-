@@ -1881,10 +1881,12 @@
             return;
         }
         // 表示は includedRows のみ(条件外は完全非表示)
+        // クリック時のインデックスは _historyRowsCalculated(全シート横断の生配列)に対応させる
+        const allCalc = window._historyRowsCalculated || [];
         const reversed = [...includedRows].reverse();
         let listHtml = '';
         reversed.forEach((r, i) => {
-            const idx = rows.indexOf(r);
+            const idx = allCalc.indexOf(r);
             const diffVal = parseInt(r.diff) || 0;
             const diffColor = diffVal > 0 ? '#4f4' : diffVal < 0 ? '#f44' : '#fff';
             const diffSign = diffVal > 0 ? '+' : '';
