@@ -747,7 +747,7 @@
             }
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
             if (!d.gasUrl) d.gasUrl = '';
-            if (!d.gasToken) d.gasToken = 'hanahana2026';
+            if (!d.gasToken) d.gasToken = 'HANAHANACOUNTER1';
 
             return d;
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
@@ -763,7 +763,7 @@
     function init() {
         document.getElementById('machine-select').value = data.machine || 'houou';
         document.getElementById('gas-url').value = data.gasUrl || '';
-        document.getElementById('gas-token').value = data.gasToken || 'hanahana2026';
+        document.getElementById('gas-token').value = data.gasToken || 'HANAHANACOUNTER1';
         syncInputs();
         renderMorningSelector();
         renderWeightSettings();
@@ -1541,7 +1541,7 @@
 
     function saveGasConfig() {
         data.gasUrl = document.getElementById('gas-url').value.trim();
-        data.gasToken = document.getElementById('gas-token').value.trim() || 'hanahana2026';
+        data.gasToken = document.getElementById('gas-token').value.trim() || 'HANAHANACOUNTER1';
         save(true);
     }
 
