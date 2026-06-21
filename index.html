@@ -334,7 +334,6 @@
         <div class="hist-fill-notice" id="hist-fill-notice" style="display:none;"></div>
         <div class="hist-count" id="hist-count"></div>
         <div id="hist-list"></div>
-        <button class="hist-fill-btn" id="hist-fill-btn" style="display:none;" onclick="fillMissingData()">不足データを補完する</button>
     </div>
 </div>
 
@@ -1606,25 +1605,9 @@
             // スイカ, BIG筐体(5), REGサイド(5), REG筐体(5)
             mid = [c.suika, ...dat.lamps.big, ...dat.lamps.regS, ...dat.lamps.regT];
         }
-        // 共通末尾: レトロ達成, レトロ発生, 推測設定, 期待度, 差枚, JSON
-        const reliability = (lastCalcResult && lastCalcResult.reliability !== undefined)
-            ? lastCalcResult.reliability : 0;
-        const maxConfirmed = (lastCalcResult && lastCalcResult.maxConfirmed) === true;
-        const restoreData = {
-            machine: m,
-            viewMode: data.viewMode,
-            machineData: JSON.parse(JSON.stringify(dat)),
-            weights: JSON.parse(JSON.stringify(data.weights[m])),
-            reliability: reliability,
-            maxConfirmed: maxConfirmed
-        };
-        const tail = [
-            c.retro_d, c.retro,
-            predictedSetting,
-            (highProb * 100).toFixed(1) + '%',
-            diffReal,
-            JSON.stringify(restoreData)
-        ];
+        // 末尾4列(推測設定/高設定期待度/差枚数/復元用JSON)は空欄。
+        // 履歴表示時に最新の weights / ロジックで再計算する方針のため、保存時は計算しない。
+        const tail = [c.retro_d, c.retro, '', '', '', ''];
         const rowData = [...head, ...mid, ...tail];
 
         const payload = {
@@ -1669,7 +1652,7 @@
         const url = data.gasUrl + '?action=getAll&token=' + encodeURIComponent(data.gasToken);
         fetch(url)
         .then(r => r.json())
-        .then(res => {
+        .then(async res => {
             if (!res.success) { throw new Error(res.error || '取得失敗'); }
             window._historyRowsRaw = res.data;
             renderSettingFilter();
@@ -1678,11 +1661,105 @@
                 const matched = (relFilterRank === 6 && v === 'rainbow') || (parseInt(v) === relFilterRank);
                 btn.classList.toggle('active', matched);
             });
-            renderHistory(res.data);
+            document.getElementById('hist-list').innerHTML = '<div class="hist-loading">推測値を計算中...</div>';
+            await new Promise(rs => setTimeout(rs, 10));
+            await calculateAllHistoryRows();
+            renderHistory();
         })
         .catch(err => {
             document.getElementById('hist-list').innerHTML = '<div class="hist-error">読み込みエラー: ' + err.message + '</div>';
         });
+    }
+
+    async function calculateAllHistoryRows() {
+        const rawRows = window._historyRowsRaw || [];
+        const calculated = [];
+        const backup = JSON.parse(JSON.stringify(data));
+        const listEl = document.getElementById('hist-list');
+
+        for (let i = 0; i < rawRows.length; i++) {
+            const r = rawRows[i];
+            const v = r.values || [];
+            const totalG = Number(v[2]);
+            if (!isFinite(totalG) || totalG <= 0) continue;
+
+            const m = SHEET_TO_MACHINE[r.sheet];
+            if (!m) {
+                calculated.push({
+                    sheet: r.sheet, rowNum: r.row, machineId: null,
+                    machineName: r.sheet,
+                    date: formatHistDate(v[1]),
+                    spins: Number(v[3]) || 0, big: Number(v[5]) || 0, reg: Number(v[6]) || 0,
+                    predictedSetting: '', highSettingProb: '',
+                    reliability: null, maxConfirmed: false, diff: 0,
+                    rawValues: v
+                });
+                continue;
+            }
+
+            data.machine = m;
+            const dat = data[m];
+            dat.start = { g:0, b:0, r:0 };
+            dat.morning = -1;
+            dat.cur.g = Number(v[3]) || 0;
+            dat.cur.b = Number(v[5]) || 0;
+            dat.cur.r = Number(v[6]) || 0;
+            dat.cur.bell = Number(v[7]) || 0;
+            if (m === 'newking') {
+                dat.cur.suika  = Number(v[8]) || 0;
+                dat.cur.suikaR = Number(v[9]) || 0;
+                dat.lamps.regS = [10,11,12,13,14].map(i => Number(v[i]) || 0);
+                dat.lamps.big  = [15,16,17,18,19].map(i => Number(v[i]) || 0);
+                dat.lamps.regT = [20,21,22,23].map(i => Number(v[i]) || 0);
+                dat.cur.retro_d = Number(v[24]) || 0;
+                dat.cur.retro   = Number(v[25]) || 0;
+            } else {
+                dat.cur.suika  = Number(v[8]) || 0;
+                dat.lamps.big  = [9,10,11,12,13].map(i => Number(v[i]) || 0);
+                dat.lamps.regS = [14,15,16,17,18].map(i => Number(v[i]) || 0);
+                dat.lamps.regT = [19,20,21,22,23].map(i => Number(v[i]) || 0);
+                dat.cur.retro_d = Number(v[24]) || 0;
+                dat.cur.retro   = Number(v[25]) || 0;
+            }
+            data.viewMode = 'personal';
+
+            try { calc(); } catch(e) { console.error('calc error row', r.row, e); continue; }
+            const lcr = lastCalcResult;
+            if (!lcr) continue;
+
+            const pm = ALL_PARAMS[m];
+            const predictedSetting = '設定' + lcr.settings[lcr.bestIdx];
+            let highProb = 0;
+            lcr.highSetRateIdx.forEach(idx => { highProb += lcr.pcts[idx]; });
+
+            const bIdx = lcr.bestIdx;
+            let usedBell = dat.cur.bell;
+            if (dat.cur.g >= 500 && dat.cur.bell === 0) usedBell = dat.cur.g / pm.bell[bIdx];
+            const diffReal = Math.round(pm.calcDiffReal(dat.cur.b, dat.cur.r, usedBell, dat.cur.g));
+
+            calculated.push({
+                sheet: r.sheet, rowNum: r.row, machineId: m,
+                machineName: pm.name,
+                date: formatHistDate(v[1]),
+                spins: dat.cur.g, big: dat.cur.b, reg: dat.cur.r,
+                predictedSetting,
+                highSettingProb: (highProb * 100).toFixed(1) + '%',
+                reliability: lcr.reliability,
+                maxConfirmed: lcr.maxConfirmed === true,
+                diff: diffReal,
+                rawValues: v
+            });
+
+            if (i % 10 === 9) {
+                if (listEl) listEl.innerHTML = `<div class="hist-loading">計算中... (${i+1}/${rawRows.length})</div>`;
+                await new Promise(rs => setTimeout(rs, 0));
+            }
+        }
+
+        Object.keys(backup).forEach(k => { data[k] = backup[k]; });
+        try { calc(); } catch(e) {}
+
+        window._historyRowsCalculated = calculated;
     }
 
     function closeHistory() {
@@ -1711,58 +1788,11 @@
         return str;
     }
 
-    function renderHistory(rawRows) {
-        // 現在選択中の機種のシート名(他機種のデータは除外)
+    function renderHistory() {
+        const allRows = window._historyRowsCalculated || [];
         const currentSheetName = SHEET_CONFIG[data.machine]
             ? SHEET_CONFIG[data.machine].sheetName : null;
-
-        // 機種フィルタ + ヘッダー/無効行除外をしてから整形
-        const rows = rawRows
-            .filter(r => !currentSheetName || r.sheet === currentSheetName)
-            .filter(r => {
-                // C列(idx 2)=総回転数が数値でない場合はヘッダー行とみなす
-                const v = r.values || [];
-                const totalG = Number(v[2]);
-                return isFinite(totalG) && totalG > 0;
-            })
-            .map(r => {
-            const v = r.values || [];
-            const machineId = SHEET_TO_MACHINE[r.sheet] || null;
-            const machineName = machineId ? ALL_PARAMS[machineId].name : r.sheet;
-            const len = v.length;
-            // JSON内の reliability / maxConfirmed を取得
-            let reliability = null;
-            let maxConfirmed = false;
-            const jsonStr = v[len - 1] || '';
-            if (jsonStr) {
-                try {
-                    const parsed = JSON.parse(jsonStr);
-                    if (typeof parsed.reliability === 'number') reliability = parsed.reliability;
-                    // 明示フラグが無くても machineData.lamps.regT から判定
-                    if (parsed.maxConfirmed === true) {
-                        maxConfirmed = true;
-                    } else if (parsed.machineData && parsed.machineData.lamps && parsed.machineData.lamps.regT) {
-                        maxConfirmed = hasMaxSettingConfirmed(parsed.machineData, parsed.machine || SHEET_TO_MACHINE[r.sheet]);
-                    }
-                } catch(e) {}
-            }
-            return {
-                sheet: r.sheet,
-                rowNum: r.row,
-                date: formatHistDate(v[1]),
-                spins: v[3] || 0,
-                big: v[5] || 0,
-                reg: v[6] || 0,
-                predictedSetting: v[len - 4] || '',
-                highSettingProb: v[len - 3] || '',
-                diff: v[len - 2] || 0,
-                jsonData: jsonStr,
-                reliability: reliability,
-                maxConfirmed: maxConfirmed,
-                machineId: machineId,
-                machineName: machineName
-            };
-        });
+        const rows = allRows.filter(r => !currentSheetName || r.sheet === currentSheetName);
 
         // 信頼度ランク + 推定設定でフィルタ
         const includedRows = rows.filter(r => {
@@ -1779,18 +1809,13 @@
             return true;
         });
 
-        // 旧データの件数と補完ボタン表示
-        const missingCount = rows.filter(r => reliabilityRank(r.reliability, r.maxConfirmed) === 0).length;
-        const fillBtn = document.getElementById('hist-fill-btn');
+        // 機種不明データの通知のみ
+        const unknownCount = rows.filter(r => r.machineId === null).length;
         const fillNotice = document.getElementById('hist-fill-notice');
-        if (missingCount > 0) {
-            fillBtn.style.display = 'block';
-            fillBtn.textContent = `${missingCount}件の不足データを補完する`;
-            fillBtn.disabled = false;
+        if (unknownCount > 0) {
             fillNotice.style.display = 'block';
-            fillNotice.textContent = `※ ${missingCount}件の古いデータは推測設定・信頼度が未記録のため集計から除外されています`;
+            fillNotice.textContent = `※ ${unknownCount}件は機種が特定できないため集計から除外されています`;
         } else {
-            fillBtn.style.display = 'none';
             fillNotice.style.display = 'none';
         }
 
@@ -1833,9 +1858,8 @@
         // --- 履歴リスト（新しい順） ---
         const listEl = document.getElementById('hist-list');
         if (rows.length === 0) {
-            // 他シートにデータがあるかチェック(シート名不一致の検出用)
             const otherSheets = {};
-            (rawRows || []).forEach(r => {
+            (window._historyRowsCalculated || []).forEach(r => {
                 if (r.sheet !== currentSheetName) {
                     otherSheets[r.sheet] = (otherSheets[r.sheet] || 0) + 1;
                 }
@@ -1902,7 +1926,7 @@
             const matched = (rank === 6 && v === 'rainbow') || (parseInt(v) === rank);
             btn.classList.toggle('active', matched);
         });
-        if (window._historyRowsRaw) renderHistory(window._historyRowsRaw);
+        if (window._historyRowsCalculated) renderHistory();
     }
 
     function toggleSettingFilter(setting) {
@@ -1915,7 +1939,7 @@
         document.querySelectorAll('#setting-filter [data-set]:not([data-set=""])').forEach(btn => {
             btn.classList.toggle('active', settingFilter.has(btn.dataset.set));
         });
-        if (window._historyRowsRaw) renderHistory(window._historyRowsRaw);
+        if (window._historyRowsCalculated) renderHistory();
     }
 
     function clearSettingFilter() {
@@ -1923,198 +1947,56 @@
         document.querySelectorAll('#setting-filter .hist-filter-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.set === '');
         });
-        if (window._historyRowsRaw) renderHistory(window._historyRowsRaw);
+        if (window._historyRowsCalculated) renderHistory();
     }
 
-    async function fillMissingData() {
-        if (!data.gasUrl) { alert('GAS URLが設定されていません。'); return; }
-        if (!window._historyRowsRaw) return;
-
-        const currentSheetName = SHEET_CONFIG[data.machine] ? SHEET_CONFIG[data.machine].sheetName : null;
-        if (!currentSheetName) { alert('機種設定エラー'); return; }
-
-        const targets = window._historyRowsRaw.filter(r => {
-            if (r.sheet !== currentSheetName) return false;
-            const v = r.values || [];
-            const totalG = Number(v[2]);
-            if (!isFinite(totalG) || totalG <= 0) return false;
-            const len = v.length;
-            const jsonStr = v[len - 1] || '';
-            if (!jsonStr) return true;
-            try {
-                const parsed = JSON.parse(jsonStr);
-                return typeof parsed.reliability !== 'number';
-            } catch(e) { return true; }
-        });
-
-        if (targets.length === 0) { alert('補完が必要なデータはありません。'); return; }
-
-        if (!confirm(`${targets.length}件のデータを補完します。\nランプ等の入力データから推測設定・信頼度を再計算してシートに書き戻します。\n\n続行しますか?`)) return;
-
-        const btn = document.getElementById('hist-fill-btn');
-        btn.disabled = true;
-
-        const dataBackup = JSON.parse(JSON.stringify(data));
-        const m = data.machine;
-        const pm = ALL_PARAMS[m];
-        const cfg = SHEET_CONFIG[m];
-        const updates = [];
-
-        for (let ti = 0; ti < targets.length; ti++) {
-            const target = targets[ti];
-            const v = target.values;
-            const dat = data[m];
-            dat.start = { g:0, b:0, r:0 };
-            dat.morning = -1;
-            dat.cur.g = Number(v[3]) || 0;
-            dat.cur.b = Number(v[5]) || 0;
-            dat.cur.r = Number(v[6]) || 0;
-            dat.cur.bell = Number(v[7]) || 0;
-            if (m === 'newking') {
-                dat.cur.suika  = Number(v[8]) || 0;
-                dat.cur.suikaR = Number(v[9]) || 0;
-                dat.lamps.regS = [10,11,12,13,14].map(i => Number(v[i]) || 0);
-                dat.lamps.big  = [15,16,17,18,19].map(i => Number(v[i]) || 0);
-                dat.lamps.regT = [20,21,22,23].map(i => Number(v[i]) || 0);
-                dat.cur.retro_d = Number(v[24]) || 0;
-                dat.cur.retro   = Number(v[25]) || 0;
-            } else {
-                dat.cur.suika  = Number(v[8]) || 0;
-                dat.lamps.big  = [9,10,11,12,13].map(i => Number(v[i]) || 0);
-                dat.lamps.regS = [14,15,16,17,18].map(i => Number(v[i]) || 0);
-                dat.lamps.regT = [19,20,21,22,23].map(i => Number(v[i]) || 0);
-                dat.cur.retro_d = Number(v[24]) || 0;
-                dat.cur.retro   = Number(v[25]) || 0;
-            }
-            data.viewMode = 'personal';
-
-            try { calc(); } catch(e) { console.error('calc error', e); continue; }
-            const lcr = lastCalcResult;
-            if (!lcr) continue;
-
-            const predictedSetting = '設定' + lcr.settings[lcr.bestIdx];
-            let highProb = 0;
-            lcr.highSetRateIdx.forEach(idx => { highProb += lcr.pcts[idx]; });
-            let threshold = lcr.pcts[lcr.bestIdx] / 10;
-            let validPcts = lcr.pcts.map(p => p >= threshold ? p : 0);
-            let validSum = validPcts.reduce((a,b)=>a+b,0);
-            let normPcts = validSum > 0 ? validPcts.map(p => p / validSum) : lcr.pcts;
-            const bIdx = lcr.bestIdx;
-            let usedBell = dat.cur.bell;
-            if (dat.cur.g >= 500 && dat.cur.bell === 0) usedBell = dat.cur.g / pm.bell[bIdx];
-            const diffReal = Math.round(pm.calcDiffReal(dat.cur.b, dat.cur.r, usedBell, dat.cur.g));
-
-            const restoreData = {
-                machine: m,
-                viewMode: 'personal',
-                machineData: JSON.parse(JSON.stringify(dat)),
-                weights: JSON.parse(JSON.stringify(data.weights[m])),
-                reliability: lcr.reliability,
-                maxConfirmed: lcr.maxConfirmed === true
-            };
-            const lastCol = cfg.headers.length;
-            updates.push({
-                row: target.row,
-                values: {
-                    [String(lastCol - 4)]: predictedSetting,
-                    [String(lastCol - 3)]: (highProb * 100).toFixed(1) + '%',
-                    [String(lastCol - 2)]: diffReal,
-                    [String(lastCol - 1)]: JSON.stringify(restoreData)
-                }
-            });
-
-            if (ti % 5 === 4) {
-                btn.textContent = `計算中... (${ti+1}/${targets.length})`;
-                await new Promise(rs => setTimeout(rs, 0));
-            }
-        }
-
-        Object.keys(dataBackup).forEach(k => { data[k] = dataBackup[k]; });
-        save(true);
-
-        if (updates.length === 0) {
-            alert('補完可能なデータがありませんでした。');
-            btn.disabled = false;
-            return;
-        }
-
-        btn.textContent = `保存中... (${updates.length}件)`;
-
-        try {
-            const response = await fetch(data.gasUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    token: data.gasToken,
-                    action: 'updateBatch',
-                    sheetName: currentSheetName,
-                    updates: updates
-                })
-            });
-            const res = await response.json();
-            if (res.success) {
-                alert(`${updates.length}件のデータを補完しました。`);
-                openHistory();
-            } else {
-                alert('補完エラー: ' + (res.error || '不明') + '\n\nGASを最新版に更新する必要がある可能性があります。');
-                btn.disabled = false;
-            }
-        } catch (e) {
-            alert('通信エラー: ' + e.message);
-            btn.disabled = false;
-        }
-    }
 
     function restoreHistory(idx) {
-        const rows = window._historyRows;
+        const rows = window._historyRowsCalculated;
         if (!rows || !rows[idx]) return;
         const r = rows[idx];
         const dateStr = r.date || '不明';
         const machineName = r.machineName || '';
+        const m = r.machineId;
 
+        if (!m || !data[m]) {
+            alert('機種が特定できないため復元できません。');
+            return;
+        }
         if (!confirm(`${dateStr} ${machineName} のデータを復元しますか？\n\n※ 現在の入力データは上書きされます。`)) return;
 
-        let restored = false;
-
-        // [1] 復元用JSONがあれば優先
-        if (r.jsonData) {
-            try {
-                const rd = JSON.parse(r.jsonData);
-                const m = rd.machine;
-                if (m && data[m] !== undefined && rd.machineData) {
-                    data.machine = m;
-                    data[m] = rd.machineData;
-                    if (rd.weights) data.weights[m] = rd.weights;
-                    if (rd.viewMode) data.viewMode = rd.viewMode;
-                    restored = true;
-                }
-            } catch(e) { /* fall through */ }
-        }
-
-        // [2] JSONが無い/壊れている場合は、シート名と列値から基本データを再構築
-        if (!restored && r.machineId && r.sheet) {
-            const m = r.machineId;
-            const v = rows[idx];
-            // valuesは renderHistory で消えるので、_historyRowsに values を保存しておく必要があるが、
-            // ここでは抽出済みの spins/big/reg のみ復元する（ランプ等は完全復元できない）
-            data.machine = m;
-            const fresh = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
-            fresh.cur.g = parseInt(v.spins) || 0;
-            fresh.cur.b = parseInt(v.big) || 0;
-            fresh.cur.r = parseInt(v.reg) || 0;
-            data[m] = fresh;
-            restored = true;
-            alert('部分復元: このデータは古い形式のため、回転数/BIG/REGのみ復元します。');
-        }
-
-        if (restored) {
-            save(true);
-            init();
-            closeHistory();
-            setTimeout(() => calc(), 50);
+        // スプレッドシートの生データから機種データを構築
+        const v = r.rawValues || [];
+        data.machine = m;
+        const dat = data[m];
+        dat.start = { g:0, b:0, r:0 };
+        dat.morning = -1;
+        dat.cur.g = Number(v[3]) || 0;
+        dat.cur.b = Number(v[5]) || 0;
+        dat.cur.r = Number(v[6]) || 0;
+        dat.cur.bell = Number(v[7]) || 0;
+        if (m === 'newking') {
+            dat.cur.suika  = Number(v[8]) || 0;
+            dat.cur.suikaR = Number(v[9]) || 0;
+            dat.lamps.regS = [10,11,12,13,14].map(i => Number(v[i]) || 0);
+            dat.lamps.big  = [15,16,17,18,19].map(i => Number(v[i]) || 0);
+            dat.lamps.regT = [20,21,22,23].map(i => Number(v[i]) || 0);
+            dat.cur.retro_d = Number(v[24]) || 0;
+            dat.cur.retro   = Number(v[25]) || 0;
         } else {
-            alert('復元に失敗しました。');
+            dat.cur.suika  = Number(v[8]) || 0;
+            dat.lamps.big  = [9,10,11,12,13].map(i => Number(v[i]) || 0);
+            dat.lamps.regS = [14,15,16,17,18].map(i => Number(v[i]) || 0);
+            dat.lamps.regT = [19,20,21,22,23].map(i => Number(v[i]) || 0);
+            dat.cur.retro_d = Number(v[24]) || 0;
+            dat.cur.retro   = Number(v[25]) || 0;
         }
+        data.viewMode = 'personal';
+
+        save(true);
+        init();
+        closeHistory();
+        setTimeout(() => calc(), 50);
     }
 
     // 非HTTPS環境(file://等)用のコピーフォールバック
