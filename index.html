@@ -341,7 +341,7 @@
     <div style="color:white; margin-bottom:10px; font-weight:bold;">画像を生成しました</div>
     <img id="img-preview" src="">
     <div id="img-controls">
-        <button onclick="downloadImage()" style="padding:10px 20px; background:#007aff; color:white; border:none; border-radius:5px; font-weight:bold;">画像を保存</button>
+        <button onclick="downloadImage()" style="padding:10px 20px; background:#007aff; color:white; border:none; border-radius:5px; font-weight:bold;">画像を保存・共有</button>
         <button onclick="document.getElementById('img-modal').style.display='none'" style="padding:10px 20px; background:#555; color:white; border:none; border-radius:5px;">閉じる</button>
     </div>
 </div>
@@ -747,7 +747,7 @@
             }
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
             if (!d.gasUrl) d.gasUrl = '';
-            if (!d.gasToken) d.gasToken = 'HANAHANACOUNTER1';
+            if (!d.gasToken) d.gasToken = 'hanahana2026';
 
             return d;
         } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
@@ -763,7 +763,7 @@
     function init() {
         document.getElementById('machine-select').value = data.machine || 'houou';
         document.getElementById('gas-url').value = data.gasUrl || '';
-        document.getElementById('gas-token').value = data.gasToken || 'HANAHANACOUNTER1';
+        document.getElementById('gas-token').value = data.gasToken || 'hanahana2026';
         syncInputs();
         renderMorningSelector();
         renderWeightSettings();
@@ -1540,8 +1540,14 @@
     // --- スプレッドシート連携 ---
 
     function saveGasConfig() {
-        data.gasUrl = document.getElementById('gas-url').value.trim();
-        data.gasToken = document.getElementById('gas-token').value.trim() || 'HANAHANACOUNTER1';
+        const url = document.getElementById('gas-url').value.trim();
+        let token = document.getElementById('gas-token').value.trim();
+        if (!token) {
+            token = 'hanahana2026';
+            document.getElementById('gas-token').value = token;
+        }
+        data.gasUrl = url;
+        data.gasToken = token;
         save(true);
     }
 
@@ -1628,6 +1634,9 @@
         .then(r => r.json())
         .then(res => {
             if (res.success) { if (onSuccess) onSuccess(); }
+            else if (res.error === 'unauthorized') {
+                alert('保存エラー: トークン不一致\n\n設定画面のトークン「' + data.gasToken + '」とGASコードの TOKEN 変数を一致させてください。');
+            }
             else { alert('保存エラー: ' + (res.error || '不明')); }
         })
         .catch(err => {
@@ -1653,7 +1662,12 @@
         fetch(url)
         .then(r => r.json())
         .then(async res => {
-            if (!res.success) { throw new Error(res.error || '取得失敗'); }
+            if (!res.success) {
+                if (res.error === 'unauthorized') {
+                    throw new Error('トークン不一致: アプリの設定画面のトークンとGASコードの TOKEN 変数を一致させてください。\n\n現在アプリが送信中のトークン: 「' + data.gasToken + '」');
+                }
+                throw new Error(res.error || '取得失敗');
+            }
             window._historyRowsRaw = res.data;
             renderSettingFilter();
             document.querySelectorAll('#rel-filter .hist-filter-btn').forEach(btn => {
@@ -2053,11 +2067,44 @@
         });
     }
 
-    function downloadImage() {
+    async function downloadImage() {
+        const imgSrc = document.getElementById('img-preview').src;
+        const filename = `hana_setting_${data.machine}_${Date.now()}.png`;
+
+        // dataURL → Blob
+        let blob;
+        try {
+            const res = await fetch(imgSrc);
+            blob = await res.blob();
+        } catch(e) {
+            // 失敗したら従来のダウンロード方式にフォールバック
+            return fallbackDownload(imgSrc, filename);
+        }
+
+        // Web Share API が画像ファイル共有に対応していれば、共有シートを開く
+        // → スマホでは「画像を保存」を選んで写真アプリに直接保存可
+        const file = new File([blob], filename, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: '設定推測結果' });
+                return; // 共有完了
+            } catch(e) {
+                // ユーザーがキャンセル or 共有失敗 → ダウンロードへフォールバック
+                if (e.name === 'AbortError') return; // キャンセルは何もしない
+            }
+        }
+
+        // 共有未対応(PC等) or 失敗 → 従来のダウンロード
+        fallbackDownload(imgSrc, filename);
+    }
+
+    function fallbackDownload(href, filename) {
         const link = document.createElement('a');
-        link.download = `hana_setting_${data.machine}_${Date.now()}.png`;
-        link.href = document.getElementById('img-preview').src;
+        link.download = filename;
+        link.href = href;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
