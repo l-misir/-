@@ -237,7 +237,7 @@
 
 <div class="header">
     <div class="header-icon" onclick="openModal('predict-modal')">🔍</div>
-    <div class="header-title" id="disp-machine">---</div>
+    <div class="header-title" id="disp-machine" onclick="toggleDummy()" style="cursor:pointer; -webkit-user-select:none; user-select:none;">---</div>
     <div class="header-icon" onclick="openModal('setting-modal')">⚙️</div>
 </div>
 
@@ -602,6 +602,47 @@
     let data = loadData();
     let lastCalcResult = null; // 最新の推測結果を保持(シート保存用)
 
+    // --- ダミー表示モード（機種名タップでON/OFF） ---
+    let dummyMode = false;
+    let dummySeed = 0;
+
+    function toggleDummy() {
+        dummyMode = !dummyMode;
+        dummySeed = Math.floor(Math.random() * 1000000); // タップごとに変化
+        renderMain();
+    }
+
+    // ダミー数値生成
+    // kind: 'none' = 変化なし（ゲーム数, BIG, REG）
+    //       'two'  = 前後に2桁ずつ追加（ベル, スイカ系, レトロ系）
+    //       'one'  = 前後に1桁ずつ追加（ランプ等その他）
+    function dummyNum(val, idx, kind) {
+        if (!dummyMode || kind === 'none') return val;
+        const v = Math.max(0, val);
+        const s = String(v);
+        function rng(offset) {
+            let h = dummySeed + idx * 2654435761 + offset * 40503;
+            h = ((h >>> 16) ^ h) * 45679;
+            h = ((h >>> 16) ^ h) * 45679;
+            return Math.abs(h % 100000);
+        }
+        if (kind === 'two') {
+            const pre = (rng(1) % 90) + 10;   // 10-99（0始まり回避）
+            const post = String(rng(2) % 100).padStart(2, '0'); // 00-99
+            return `${pre}${s}${post}`;
+        }
+        const pre = (rng(1) % 9) + 1;         // 1-9
+        const post = rng(2) % 10;             // 0-9
+        return `${pre}${s}${post}`;
+    }
+
+    // カウンター種別 → ダミー化ルール
+    function dummyKind(id) {
+        if (id === 'g' || id === 'b' || id === 'r') return 'none';
+        if (id === 'bell' || id === 'suika' || id === 'suikaR' || id === 'retro_d' || id === 'retro') return 'two';
+        return 'one';
+    }
+
     // --- スプレッドシート連携: 機種別シート構造 ---
     // ヘッダー先頭は空文字 = A列空欄。データ行も先頭は空欄を入れる。
     // 末尾4列は機種共通: 推測設定, 高設定期待度, 差枚数, 復元用JSON
@@ -769,6 +810,7 @@
         renderWeightSettings();
         renderMain();
         renderSettingFilter();
+        setTimeout(fetchInbox, 500); // 起動時にも背面タップ分を取込
     }
 
     function syncInputs() {
@@ -920,15 +962,22 @@
             </div>`;
         }
 
+        _dIdx = 0;
         document.getElementById('main-ui').innerHTML = html;
         if(data.mode === 'tap') attachEvents();
         updateHeader();
         setTimeout(calc, 0);
     }
 
+    let _dIdx = 0; // ダミー用セル連番
+
     function mkC(id, label, val, step=1) {
-        if(data.mode === 'input') return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
-        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+        const dv = dummyNum(val, _dIdx++, dummyKind(id));
+        if(data.mode === 'input') {
+            if (dummyMode) return `<div class="cell"><div class="label">${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
+            return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
+        }
+        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
     }
 
     function mkL(type) {
@@ -951,13 +1000,19 @@
             const v = d.lamps[type][i];
             const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
-            if(data.mode === 'input') return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
-            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${v}</div></div>`;
+            const dv = dummyNum(v, _dIdx++, 'one');
+            if(data.mode === 'input') {
+                if (dummyMode) return `<div class="cell"><div class="label" ${cls}>${l}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
+                return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
+            }
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${dv}</div></div>`;
         }).join('');
     }
 
     function updateHeader() {
-        document.getElementById('disp-machine').innerText = ALL_PARAMS[data.machine].name;
+        const nameEl = document.getElementById('disp-machine');
+        nameEl.innerText = ALL_PARAMS[data.machine].name;
+        nameEl.style.opacity = dummyMode ? '0.5' : '1';
         document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
         document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
@@ -995,6 +1050,7 @@
             const handleEnd = () => {
                 clearTimeout(visualTimer);
                 clearTimeout(minusTimer);
+                if (dummyMode) { el.classList.remove('touch-active', 'minus-mode'); return; } // ダミー表示中は無効化
                 if(isC) return; // スクロールキャンセルされていれば終了
                 
                 const isMinus = el.classList.contains('minus-mode');
@@ -1538,6 +1594,64 @@
     }
 
     // --- スプレッドシート連携 ---
+
+    // --- 背面タップ受信箱: ページ復帰時に未取込カウントをマージ ---
+    let inboxFetching = false;
+
+    async function fetchInbox() {
+        if (!data.gasUrl || inboxFetching) return;
+        inboxFetching = true;
+        try {
+            const url = data.gasUrl + '?action=getInbox&token=' + encodeURIComponent(data.gasToken);
+            const res = await fetch(url).then(r => r.json());
+            if (!res.success || !res.data || res.data.length === 0) return;
+
+            // 現在の機種のカウントに加算
+            const d = getData();
+            const validKeys = ['g','b','r','bell','suika','suikaR','retro_d','retro'];
+            let applied = [];
+            let rowIds = [];
+            res.data.forEach(item => {
+                const key = item.key;
+                const n = Number(item.n) || 1;
+                if (validKeys.includes(key)) {
+                    d.cur[key] = Math.max(0, (d.cur[key] || 0) + n);
+                    applied.push(`${key}+${n}`);
+                }
+                rowIds.push(item.row);
+            });
+
+            if (rowIds.length > 0) {
+                // 取込済みマークをGASに送信
+                await fetch(data.gasUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ token: data.gasToken, action: 'clearInbox', rows: rowIds })
+                }).then(r => r.json()).catch(() => null);
+            }
+
+            if (applied.length > 0) {
+                save(true);
+                renderMain();
+                setTimeout(calc, 0);
+                // 取込通知（さりげなく）
+                const note = document.createElement('div');
+                note.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#0a5;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+                note.textContent = `📥 背面タップ分を取込: ${applied.join(', ')}`;
+                document.body.appendChild(note);
+                setTimeout(() => note.remove(), 3000);
+            }
+        } catch(e) {
+            // 通信失敗は無視（次回復帰時に再試行される）
+        } finally {
+            inboxFetching = false;
+        }
+    }
+
+    // ページが表示に戻った時に受信箱を確認
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') fetchInbox();
+    });
 
     function saveGasConfig() {
         const url = document.getElementById('gas-url').value.trim();
