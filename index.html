@@ -1000,12 +1000,13 @@
     let _dIdx = 0; // ダミー用セル連番
 
     function mkC(id, label, val, step=1) {
-        const dv = dummyNum(val, _dIdx++, dummyKind(id));
+        const idx = _dIdx++;
+        const dv = dummyNum(val, idx, dummyKind(id));
         if(data.mode === 'input') {
             if (dummyMode) return `<div class="cell"><div class="label">${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
             return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
         }
-        return `<div class="cell t-btn" data-id="${id}" data-step="${step}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
+        return `<div class="cell t-btn" data-id="${id}" data-step="${step}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
     }
 
     function mkL(type) {
@@ -1028,12 +1029,13 @@
             const v = d.lamps[type][i];
             const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
-            const dv = dummyNum(v, _dIdx++, 'one');
+            const didx = _dIdx++;
+            const dv = dummyNum(v, didx, 'one');
             if(data.mode === 'input') {
                 if (dummyMode) return `<div class="cell"><div class="label" ${cls}>${l}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
                 return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
             }
-            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value">${dv}</div></div>`;
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}" data-didx="${didx}"><div class="label" ${cls}>${l}</div><div class="value">${dv}</div></div>`;
         }).join('');
     }
 
@@ -1093,7 +1095,13 @@
                     newVal = d.lamps[el.dataset.type][el.dataset.idx];
                 }
                 
-                el.querySelector('.value').innerText = newVal;
+                if (dummyMode) {
+                    const didx = parseInt(el.dataset.didx) || 0;
+                    const kind = el.dataset.id ? dummyKind(el.dataset.id) : 'one';
+                    el.querySelector('.value').innerText = dummyNum(newVal, didx, kind);
+                } else {
+                    el.querySelector('.value').innerText = newVal;
+                }
                 
                 // ③ 超高速タップ（70ms未満）でも「押した感」を出すためのフラッシュ演出
                 if(!isMinus) {
@@ -1665,7 +1673,7 @@
                 save(true);
                 renderMain();
                 setTimeout(calc, 0);
-                // 加算対象セルに時計回りアニメを発火
+                // 加算対象セルに時計回りアニメを発火(通知バナーは廃止)
                 setTimeout(() => {
                     Object.keys(totalByKey).forEach(key => {
                         if (!validKeys.includes(key)) return;
@@ -1674,7 +1682,7 @@
                         const cell = document.querySelector(`.cell[data-id="${key}"]`);
                         if (!cell) return;
                         const iter = Math.min(cnt, 20); // 20周で頭打ち
-                        const dur = 0.4; // 1周0.4秒
+                        const dur = 0.8; // 1周0.8秒
                         cell.style.setProperty('--spin-count', iter);
                         cell.style.setProperty('--spin-duration', dur + 's');
                         cell.classList.add('spin-frame');
@@ -1685,12 +1693,6 @@
                         }, dur * 1000 * iter + 100);
                     });
                 }, 50);
-                // 取込通知（さりげなく）
-                const note = document.createElement('div');
-                note.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#0a5;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
-                note.textContent = `📥 背面タップ分を取込: ${applied.join(', ')}`;
-                document.body.appendChild(note);
-                setTimeout(() => note.remove(), 3000);
             }
         } catch(e) {
             // 通信失敗は無視（次回復帰時に再試行される）
