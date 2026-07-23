@@ -166,6 +166,34 @@
         #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
         #img-controls { display: flex; gap: 20px; }
 
+        /* 背面タップ加算アニメーション: 外枠を緑1周 */
+        @property --spin-angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+        .cell.spin-frame { position: relative; }
+        .cell.spin-frame::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 7px;
+            background: conic-gradient(#0a5 var(--spin-angle, 0deg), transparent var(--spin-angle, 0deg));
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+            padding: 3px;
+            pointer-events: none;
+            animation: spin-fill var(--spin-duration, 0.5s) linear;
+            animation-iteration-count: var(--spin-count, 1);
+            z-index: 10;
+        }
+        @keyframes spin-fill {
+            from { --spin-angle: 0deg; }
+            to { --spin-angle: 360deg; }
+        }
+
         /* --- 履歴モーダル --- */
         #history-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:#111; flex-direction:column; }
         #history-modal.active { display:flex; }
@@ -1050,7 +1078,6 @@
             const handleEnd = () => {
                 clearTimeout(visualTimer);
                 clearTimeout(minusTimer);
-                if (dummyMode) { el.classList.remove('touch-active', 'minus-mode'); return; } // ダミー表示中は無効化
                 if(isC) return; // スクロールキャンセルされていれば終了
                 
                 const isMinus = el.classList.contains('minus-mode');
@@ -1606,19 +1633,23 @@
             const res = await fetch(url).then(r => r.json());
             if (!res.success || !res.data || res.data.length === 0) return;
 
-            // 現在の機種のカウントに加算
+            // 現在の機種のカウントに加算(key別に集計)
             const d = getData();
             const validKeys = ['g','b','r','bell','suika','suikaR','retro_d','retro'];
-            let applied = [];
+            const totalByKey = {};
             let rowIds = [];
             res.data.forEach(item => {
                 const key = item.key;
                 const n = Number(item.n) || 1;
-                if (validKeys.includes(key)) {
-                    d.cur[key] = Math.max(0, (d.cur[key] || 0) + n);
-                    applied.push(`${key}+${n}`);
-                }
+                totalByKey[key] = (totalByKey[key] || 0) + n;
                 rowIds.push(item.row);
+            });
+            let applied = [];
+            Object.keys(totalByKey).forEach(key => {
+                if (validKeys.includes(key)) {
+                    d.cur[key] = Math.max(0, (d.cur[key] || 0) + totalByKey[key]);
+                    applied.push(`${key}+${totalByKey[key]}`);
+                }
             });
 
             if (rowIds.length > 0) {
@@ -1634,6 +1665,26 @@
                 save(true);
                 renderMain();
                 setTimeout(calc, 0);
+                // 加算対象セルに時計回りアニメを発火
+                setTimeout(() => {
+                    Object.keys(totalByKey).forEach(key => {
+                        if (!validKeys.includes(key)) return;
+                        const cnt = totalByKey[key];
+                        if (cnt <= 0) return;
+                        const cell = document.querySelector(`.cell[data-id="${key}"]`);
+                        if (!cell) return;
+                        const iter = Math.min(cnt, 20); // 20周で頭打ち
+                        const dur = 0.4; // 1周0.4秒
+                        cell.style.setProperty('--spin-count', iter);
+                        cell.style.setProperty('--spin-duration', dur + 's');
+                        cell.classList.add('spin-frame');
+                        setTimeout(() => {
+                            cell.classList.remove('spin-frame');
+                            cell.style.removeProperty('--spin-count');
+                            cell.style.removeProperty('--spin-duration');
+                        }, dur * 1000 * iter + 100);
+                    });
+                }, 50);
                 // 取込通知（さりげなく）
                 const note = document.createElement('div');
                 note.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#0a5;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
