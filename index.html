@@ -1641,17 +1641,35 @@
             const res = await fetch(url).then(r => r.json());
             if (!res.success || !res.data || res.data.length === 0) return;
 
-            // 現在の機種のカウントに加算(key別に集計)
-            const d = getData();
+            // key別に集計（uidと行番号を両方収集）
             const validKeys = ['g','b','r','bell','suika','suikaR','retro_d','retro'];
             const totalByKey = {};
-            let rowIds = [];
+            const uids = [];
+            const rowIds = [];
             res.data.forEach(item => {
                 const key = item.key;
                 const n = Number(item.n) || 1;
                 totalByKey[key] = (totalByKey[key] || 0) + n;
-                rowIds.push(item.row);
+                if (item.uid) uids.push(item.uid); else rowIds.push(item.row);
             });
+
+            // ★重要: 先に取込済みマークを確定させてから加算する
+            // (マークに失敗した場合は加算せず、次回リトライ → 消失も二重加算も防ぐ)
+            let clearOk = false;
+            try {
+                const clearRes = await fetch(data.gasUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ token: data.gasToken, action: 'clearInbox', uids: uids, rows: rowIds })
+                }).then(r => r.json());
+                clearOk = clearRes && clearRes.success === true;
+            } catch(e) {
+                clearOk = false;
+            }
+            if (!clearOk) return; // 次回の復帰時に再試行される
+
+            // 取込済みマークが確定したので加算
+            const d = getData();
             let applied = [];
             Object.keys(totalByKey).forEach(key => {
                 if (validKeys.includes(key)) {
@@ -1659,15 +1677,6 @@
                     applied.push(`${key}+${totalByKey[key]}`);
                 }
             });
-
-            if (rowIds.length > 0) {
-                // 取込済みマークをGASに送信
-                await fetch(data.gasUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ token: data.gasToken, action: 'clearInbox', rows: rowIds })
-                }).then(r => r.json()).catch(() => null);
-            }
 
             if (applied.length > 0) {
                 save(true);
