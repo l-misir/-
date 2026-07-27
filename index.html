@@ -168,7 +168,7 @@
 
         /* --- テンキー入力パネル（大当たり回転数） --- */
         #hit-panel {
-            display: none; position: fixed; z-index: 900;
+            display: none; position: fixed; z-index: 1400;
             background: #1c1c1e; border: 2px solid #0a5; border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.7); padding: 8px;
             box-sizing: border-box;
@@ -220,25 +220,34 @@
         .bulk-wrap { display:flex; gap:10px; align-items:flex-start; flex:1; min-height:0; }
         .bulk-col-l { flex:1; min-width:0; }
         .bulk-col-r { width:180px; flex-shrink:0; }
-        /* 項目ボタン: 実戦履歴のフィルタと同じ高さ・4列 */
+        /* 項目ボタン: 実戦履歴のフィルタボタンと完全に同じ高さ（1行・padding 7px 2px） */
         .bulk-target-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:3px; margin-bottom:8px; }
         .bulk-target {
             background:#222; border:1px solid #333; border-radius:5px;
-            padding:7px 2px; text-align:center; font-size:10px; color:#aaa; cursor:pointer;
+            padding:7px 2px; text-align:center; font-size:11px; color:#aaa; cursor:pointer;
             white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            user-select:none;
         }
         .bulk-target.active { background:#0066cc; color:#fff; border-color:#0088ff; }
-        .bulk-target .cur { display:block; font-size:12px; font-weight:bold; color:#fff; }
+        .bulk-target .cur { color:#fff; font-weight:bold; margin-left:3px; }
         .bulk-target.active .cur { color:#fff; }
-        /* まとめて加算のテンキー（1画面に収まるサイズ） */
+        /* まとめて加算のテンキー（常に上下配置・1画面に収める） */
+        .bulk-wrap { flex-direction: column !important; gap:0 !important; }
+        .bulk-col-l { width:100% !important; flex:0 0 auto !important; }
+        .bulk-col-r { width:100% !important; max-width:250px; margin:0 auto; flex:0 0 auto !important; }
         #bulk-keys .hit-keys { grid-template-columns: repeat(3, 1fr); gap:4px; }
         #bulk-keys .hit-key { font-size:17px; padding:9px 0; }
         #bulk-keys .hit-key.ok { font-size:13px; }
-        /* 縦画面: 項目を上、テンキーを下 */
-        @media (max-aspect-ratio: 1/1) {
-            .bulk-wrap { flex-direction: column; gap:0; }
-            .bulk-col-l { width:100%; flex:0 0 auto; }
-            .bulk-col-r { width:100%; max-width:250px; margin:0 auto; flex:0 0 auto; }
+        /* 横画面（低い画面）ではさらに詰めて1画面に収める */
+        @media (min-aspect-ratio: 1/1) {
+            #bulk-panel .modal-body { padding:5px 12px; }
+            .bulk-col-r { max-width:210px; }
+            #bulk-keys .hit-key { font-size:14px; padding:5px 0; }
+            #bulk-keys .hit-key.ok { font-size:11px; }
+            #bulk-panel .hit-display { font-size:17px; padding:3px 8px; min-height:24px; margin-bottom:4px; }
+            #bulk-panel .section-title { margin:4px 0 3px !important; font-size:11px; }
+            #bulk-panel .hit-hint { display:none; }
+            .bulk-target { padding:5px 2px; font-size:10px; }
         }
 
         /* --- 大当たり分析モーダル --- */
@@ -444,15 +453,15 @@
 <div id="predict-modal" class="modal">
     <div class="modal-header">
         <div class="header-icon" onclick="openHistory()" style="font-size:18px;">📋</div>
-        <div class="modal-title">設定推測</div>
+        <div class="modal-title"
+             onpointerdown="startPredictPress()" onpointerup="endPredictPress()"
+             onpointerleave="cancelPredictPress()" onpointercancel="cancelPredictPress()"
+             oncontextmenu="event.preventDefault();"
+             style="cursor:pointer; -webkit-user-select:none; user-select:none;">設定推測</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title" id="title-predict"
-           onpointerdown="startPredictPress()" onpointerup="endPredictPress()"
-           onpointerleave="cancelPredictPress()" onpointercancel="cancelPredictPress()"
-           oncontextmenu="event.preventDefault();"
-           style="cursor:pointer; -webkit-user-select:none; user-select:none;">＜推測設定＞</p>
+        <p class="section-title" id="title-predict">＜推測設定＞</p>
         <div id="predict-bars" style="background:#222; padding:5px 10px; border-radius:5px;"></div>
         <p class="section-title" id="title-expect">＜実践値＞</p>
         <div class="expect-box" id="expect-info"></div>
@@ -945,6 +954,7 @@
     function editHitG(idx) {
         const d = getData();
         if (!Array.isArray(d.hits) || !d.hits[idx]) return;
+        hitPanelCentered = true;
         editHitIdx = idx;
         hitInputValue = (d.hits[idx].g == null) ? '' : String(d.hits[idx].g);
         const kind = d.hits[idx].k;
@@ -992,9 +1002,20 @@
     let hitInputKind = 'b';
     let hitInputValue = '';
 
+    let hitPanelCentered = false;
+
     function positionHitPanel() {
         const panel = document.getElementById('hit-panel');
         const isLandscape = window.innerWidth > window.innerHeight;
+        if (hitPanelCentered) {
+            // 分析モーダルからの編集: 画面中央
+            panel.style.top = '50%';
+            panel.style.left = '50%';
+            panel.style.right = 'auto';
+            panel.style.width = isLandscape ? 'min(260px, 46%)' : 'min(270px, 82%)';
+            panel.style.transform = 'translate(-50%, -50%)';
+            return;
+        }
         if (isLandscape) {
             // 横画面: 右カラムに被せる
             panel.style.top = '60px';
@@ -1013,6 +1034,7 @@
     }
 
     function openHitInput(kind) {
+        hitPanelCentered = false;
         hitInputKind = kind;
         hitInputValue = '';
         const panel = document.getElementById('hit-panel');
@@ -1951,10 +1973,7 @@
         
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
-            // メイン推測画面のみ長押しヒントを付ける（長押しで大当たり分析）
-            const tp = document.getElementById(prefix+'title-predict');
-            tp.innerHTML = prefix ? `＜推測設定 ${modeStr}＞`
-                                  : `＜推測設定 ${modeStr}＞ <span style="color:#4a9eff;font-size:10px;">長押しで分析📊</span>`;
+            document.getElementById(prefix+'title-predict').innerText = `＜推測設定 ${modeStr}＞`;
             document.getElementById(prefix+'title-expect').innerText = `＜実践値 ${modeStr}＞`;
             document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
         }
