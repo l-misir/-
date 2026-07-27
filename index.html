@@ -169,43 +169,42 @@
         /* --- テンキー入力パネル（大当たり回転数） --- */
         #hit-panel {
             display: none; position: fixed; z-index: 900;
-            background: #1c1c1e; border: 2px solid #0a5; border-radius: 12px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.7); padding: 12px;
+            background: #1c1c1e; border: 2px solid #0a5; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7); padding: 8px;
             box-sizing: border-box;
         }
         #hit-panel.active { display: block; }
-        .hit-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-        .hit-kind { font-size:13px; font-weight:bold; }
+        .hit-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .hit-kind { font-size:11px; font-weight:bold; }
         .hit-kind.big { color:#ff6; }
         .hit-kind.reg { color:#6cf; }
-        .hit-close { font-size:18px; color:#888; padding:2px 8px; cursor:pointer; }
+        .hit-close { font-size:15px; color:#888; padding:1px 6px; cursor:pointer; }
         .hit-display {
-            background:#000; color:#fff; font-size:32px; font-weight:bold;
-            text-align:right; padding:8px 14px; border-radius:8px; margin-bottom:10px;
-            font-family: monospace; letter-spacing:1px; min-height:44px; box-sizing:border-box;
+            background:#000; color:#fff; font-size:22px; font-weight:bold;
+            text-align:right; padding:5px 10px; border-radius:6px; margin-bottom:6px;
+            font-family: monospace; letter-spacing:1px; min-height:32px; box-sizing:border-box;
         }
-        .hit-display .unit { font-size:16px; color:#888; margin-left:4px; }
-        .hit-keys { display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; }
+        .hit-display .unit { font-size:12px; color:#888; margin-left:3px; }
+        .hit-keys { display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
         .hit-key {
-            background:#333; color:#fff; border:none; border-radius:8px;
-            font-size:22px; font-weight:bold; padding:14px 0; cursor:pointer;
+            background:#333; color:#fff; border:none; border-radius:6px;
+            font-size:16px; font-weight:bold; padding:8px 0; cursor:pointer;
             -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
         }
         .hit-key:active { background:#555; }
-        .hit-key.wide { grid-column: span 2; }
-        .hit-key.ok { background:#0a5; }
+        .hit-key.ok { background:#0a5; font-size:13px; }
         .hit-key.ok:active { background:#0c7; }
-        .hit-key.del { background:#833; font-size:18px; }
-        .hit-hint { font-size:10px; color:#888; margin-top:8px; text-align:center; line-height:1.5; }
+        .hit-key.del { background:#833; font-size:14px; }
+        .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
 
         /* --- マイナス時: 直近記録の削除確認 --- */
         .hit-del-item {
-            background:#2a1515; border:1px solid #833; border-radius:8px;
-            padding:12px; margin-bottom:8px; text-align:center; cursor:pointer;
+            background:#2a1515; border:1px solid #833; border-radius:6px;
+            padding:8px; margin-bottom:5px; text-align:center; cursor:pointer;
         }
         .hit-del-item.armed { background:#833; border-color:#f66; }
-        .hit-del-g { font-size:26px; font-weight:bold; color:#fff; }
-        .hit-del-label { font-size:11px; color:#f99; margin-top:2px; }
+        .hit-del-g { font-size:20px; font-weight:bold; color:#fff; }
+        .hit-del-label { font-size:10px; color:#f99; margin-top:1px; }
 
         /* --- 一括加算パネル（機種名長押し） --- */
         #bulk-panel {
@@ -213,16 +212,25 @@
             z-index:1200; background:#111; flex-direction:column;
         }
         #bulk-panel.active { display:flex; }
-        #bulk-panel .modal-body { flex:1; overflow-y:auto; padding:12px 15px 30px; }
-        .bulk-target-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; }
+        #bulk-panel .modal-body { flex:1; overflow-y:auto; padding:8px 12px 20px; }
+        .bulk-wrap { display:flex; gap:12px; align-items:flex-start; }
+        .bulk-col-l { flex:1; min-width:0; }
+        .bulk-col-r { width:190px; flex-shrink:0; }
+        .bulk-target-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:4px; margin-bottom:8px; }
         .bulk-target {
-            background:#222; border:1px solid #333; border-radius:6px;
-            padding:10px 4px; text-align:center; font-size:11px; color:#aaa; cursor:pointer;
+            background:#222; border:1px solid #333; border-radius:5px;
+            padding:6px 3px; text-align:center; font-size:10px; color:#aaa; cursor:pointer;
         }
         .bulk-target.active { background:#0066cc; color:#fff; border-color:#0088ff; }
-        .bulk-target .cur { display:block; font-size:15px; font-weight:bold; color:#fff; margin-top:3px; }
+        .bulk-target .cur { display:block; font-size:13px; font-weight:bold; color:#fff; margin-top:1px; }
         .bulk-target.active .cur { color:#fff; }
-        #bulk-keys { max-width:320px; margin:0 auto; }
+        #bulk-keys { }
+        /* 縦画面では1カラムに戻す */
+        @media (max-aspect-ratio: 1/1) {
+            .bulk-wrap { flex-direction: column; gap:0; }
+            .bulk-col-r { width:100%; max-width:280px; margin:0 auto; }
+            .bulk-target-grid { grid-template-columns: repeat(3, 1fr); }
+        }
 
         /* --- 大当たり分析モーダル --- */
         #hit-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:#111; flex-direction:column; }
@@ -484,11 +492,17 @@
         <div class="header-icon" onclick="closeBulkPanel()">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title">＜加算する項目＞</p>
-        <div class="bulk-target-grid" id="bulk-targets"></div>
-        <p class="section-title">＜加算する数＞</p>
-        <div class="hit-display" id="bulk-display">0</div>
-        <div id="bulk-keys"></div>
+        <div class="bulk-wrap">
+            <div class="bulk-col-l">
+                <p class="section-title" style="margin-top:0;">＜加算する項目＞</p>
+                <div class="bulk-target-grid" id="bulk-targets"></div>
+            </div>
+            <div class="bulk-col-r">
+                <p class="section-title" style="margin-top:0;">＜加算する数＞</p>
+                <div class="hit-display" id="bulk-display">0</div>
+                <div id="bulk-keys"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -903,14 +917,14 @@
             panel.style.top = '60px';
             panel.style.right = '10px';
             panel.style.left = 'auto';
-            panel.style.width = 'min(300px, 45%)';
+            panel.style.width = 'min(210px, 40%)';
             panel.style.transform = 'none';
         } else {
             // 縦画面: スイカより下あたりに被せる
             panel.style.top = '38%';
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = 'min(300px, 88%)';
+            panel.style.width = 'min(230px, 72%)';
             panel.style.transform = 'translateX(-50%)';
         }
     }
@@ -926,12 +940,12 @@
         document.getElementById('hit-panel-body').innerHTML = `
             <div class="hit-display" id="hit-display">0<span class="unit">G</span></div>
             <div class="hit-keys">
-                ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
+                ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
                 <button class="hit-key del" onclick="hitKey('del')">⌫</button>
                 <button class="hit-key" onclick="hitKey('0')">0</button>
-                <button class="hit-key ok" onclick="hitKey('ok')">OK</button>
+                <button class="hit-key ok" onclick="hitKey('ok')">記録</button>
             </div>
-            <div class="hit-hint">データカウンター表示の回転数を入力<br>未入力でOKすると記録せずに閉じます</div>
+            <div class="hit-hint">未入力で「記録」を押すと記録せず閉じます</div>
         `;
         panel.classList.add('active');
         positionHitPanel();
@@ -1078,12 +1092,12 @@
 
         document.getElementById('bulk-keys').innerHTML = `
             <div class="hit-keys">
-                ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="hit-key" onclick="bulkKey('${n}')">${n}</button>`).join('')}
+                ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="bulkKey('${n}')">${n}</button>`).join('')}
                 <button class="hit-key del" onclick="bulkKey('del')">⌫</button>
                 <button class="hit-key" onclick="bulkKey('0')">0</button>
                 <button class="hit-key ok" onclick="bulkKey('ok')">加算</button>
             </div>
-            <div class="hit-hint">項目を選んで数を入力 → 加算<br>続けて別の項目にも加算できます</div>
+            <div class="hit-hint">項目を選んで数を入力 → 加算</div>
         `;
     }
 
@@ -1894,7 +1908,10 @@
         
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
-            document.getElementById(prefix+'title-predict').innerText = `＜推測設定 ${modeStr}＞`;
+            // メイン推測画面のみ 📊 を残す（タップで大当たり分析を開く導線）
+            const tp = document.getElementById(prefix+'title-predict');
+            tp.innerHTML = prefix ? `＜推測設定 ${modeStr}＞`
+                                  : `＜推測設定 ${modeStr}＞ <span style="color:#4a9eff;">📊</span>`;
             document.getElementById(prefix+'title-expect').innerText = `＜実践値 ${modeStr}＞`;
             document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
         }
