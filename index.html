@@ -196,10 +196,15 @@
         .hit-key.ok:active { background:#0c7; }
         .hit-key.del { background:#833; font-size:14px; }
         .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
-        .hit-keys-wrap { display:flex; gap:8px; align-items:flex-start; }
-        .hit-keys-wrap .hit-keys { flex:0 0 auto; width:132px; }
+        .hit-keys-wrap { display:flex; gap:10px; align-items:flex-start; }
+        .hit-keys-wrap .hit-keys { flex:0 0 auto; width:186px; }
         .hit-side { flex:1; min-width:0; }
-        .hit-side .hit-display { margin-bottom:4px; }
+        .hit-side .hit-display { margin-bottom:6px; font-size:26px; min-height:38px; }
+        /* パネル内のキーを大きく */
+        #hit-panel .hit-key { font-size:21px; padding:12px 0; }
+        #hit-panel .hit-key.ok { font-size:16px; }
+        #hit-panel .hit-key.del { font-size:17px; }
+        #hit-panel .hit-hint { font-size:10px; }
 
         /* --- マイナス時: 直近記録の削除確認 --- */
         .hit-del-item {
@@ -453,11 +458,8 @@
 <div id="predict-modal" class="modal">
     <div class="modal-header">
         <div class="header-icon" onclick="openHistory()" style="font-size:18px;">📋</div>
-        <div class="modal-title"
-             onpointerdown="startPredictPress()" onpointerup="endPredictPress()"
-             onpointerleave="cancelPredictPress()" onpointercancel="cancelPredictPress()"
-             oncontextmenu="event.preventDefault();"
-             style="cursor:pointer; -webkit-user-select:none; user-select:none;">設定推測</div>
+        <div class="modal-title" onclick="openHitModal()"
+             style="cursor:pointer; -webkit-user-select:none; user-select:none;">設定推測 📊</div>
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
@@ -931,22 +933,6 @@
     }
 
     // ============================================================
-    // 推測設定タイトルの長押し → 大当たり分析
-    // ============================================================
-    let predictPressTimer = null;
-    let predictLongPressed = false;
-
-    function startPredictPress() {
-        predictLongPressed = false;
-        predictPressTimer = setTimeout(() => {
-            predictLongPressed = true;
-            openHitModal();
-        }, 550);
-    }
-    function endPredictPress() { clearTimeout(predictPressTimer); predictLongPressed = false; }
-    function cancelPredictPress() { clearTimeout(predictPressTimer); predictLongPressed = false; }
-
-    // ============================================================
     // 当選履歴のG数を編集
     // ============================================================
     let editHitIdx = -1;
@@ -957,6 +943,7 @@
         hitPanelCentered = true;
         editHitIdx = idx;
         hitInputValue = (d.hits[idx].g == null) ? '' : String(d.hits[idx].g);
+        hitInputFresh = (hitInputValue !== ''); // 既存値がある場合は最初の入力で上書き
         const kind = d.hits[idx].k;
 
         const panel = document.getElementById('hit-panel');
@@ -982,18 +969,12 @@
     }
 
     function hitEditSave() {
-        const d = getData();
-        if (editHitIdx >= 0 && Array.isArray(d.hits) && d.hits[editHitIdx]) {
-            const g = parseInt(hitInputValue, 10);
-            d.hits[editHitIdx].g = (!isNaN(g) && g >= 0) ? g : null;
-            syncGameCountFromHits();
-            save(true);
-            renderMain();
-            setTimeout(calc, 0);
-        }
+        commitHitInput();
         editHitIdx = -1;
+        renderMain();
+        setTimeout(calc, 0);
         closeHitPanel();
-        renderHitModal();
+        if (document.getElementById('hit-modal').classList.contains('active')) renderHitModal();
     }
 
     // ============================================================
@@ -1001,6 +982,7 @@
     // ============================================================
     let hitInputKind = 'b';
     let hitInputValue = '';
+    let hitInputFresh = false; // true のとき最初の数字入力で既存値をクリア
 
     let hitPanelCentered = false;
 
@@ -1012,7 +994,7 @@
             panel.style.top = '50%';
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = isLandscape ? 'min(260px, 46%)' : 'min(270px, 82%)';
+            panel.style.width = isLandscape ? 'min(340px, 52%)' : 'min(340px, 94%)';
             panel.style.transform = 'translate(-50%, -50%)';
             return;
         }
@@ -1021,14 +1003,14 @@
             panel.style.top = '60px';
             panel.style.right = '10px';
             panel.style.left = 'auto';
-            panel.style.width = 'min(260px, 46%)';
+            panel.style.width = 'min(340px, 52%)';
             panel.style.transform = 'none';
         } else {
             // 縦画面: スイカより下あたりに被せる
             panel.style.top = '38%';
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = 'min(270px, 82%)';
+            panel.style.width = 'min(340px, 94%)';
             panel.style.transform = 'translateX(-50%)';
         }
     }
@@ -1037,6 +1019,8 @@
         hitPanelCentered = false;
         hitInputKind = kind;
         hitInputValue = '';
+        hitInputFresh = false;
+        editHitIdx = 0; // 先頭（今作成した記録）を編集
         const panel = document.getElementById('hit-panel');
         const label = document.getElementById('hit-kind-label');
         label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 当選回転数';
@@ -1048,11 +1032,11 @@
                     ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
                     <button class="hit-key del" onclick="hitKey('del')">⌫</button>
                     <button class="hit-key" onclick="hitKey('0')">0</button>
-                    <button class="hit-key ok" onclick="hitKey('ok')">記録</button>
+                    <button class="hit-key ok" onclick="hitEditSave()">OK</button>
                 </div>
                 <div class="hit-side">
                     <div class="hit-display" id="hit-display">0<span class="unit">G</span></div>
-                    <div class="hit-hint">未入力でも<br>記録されます<br>(後で修正可)</div>
+                    <div class="hit-hint">記録は既に<br>作成済み<br>閉じても残ります</div>
                 </div>
             </div>
         `;
@@ -1062,29 +1046,36 @@
 
     function hitKey(k) {
         if (k === 'del') {
+            hitInputFresh = false;
             hitInputValue = hitInputValue.slice(0, -1);
-        } else if (k === 'ok') {
-            const g = parseInt(hitInputValue, 10);
-            const d = getData();
-            if (!Array.isArray(d.hits)) d.hits = [];
-            // 未入力の場合も記録は残す（G数は null = 空欄。後から履歴で入力可能）
-            d.hits.unshift({ g: (!isNaN(g) && g >= 0) ? g : null, k: hitInputKind });
-            syncGameCountFromHits();
-            save(true);
-            renderMain();
-            setTimeout(calc, 0);
-            closeHitPanel();
-            return;
         } else {
+            if (hitInputFresh) { hitInputValue = ''; hitInputFresh = false; } // 上書き入力
             if (hitInputValue.length >= 5) return;
             hitInputValue += k;
         }
         const disp = document.getElementById('hit-display');
         if (disp) disp.innerHTML = (hitInputValue === '' ? '0' : hitInputValue) + '<span class="unit">G</span>';
+        // 入力中の値を即座に記録へ反映（✕や外側タップで閉じても残る）
+        commitHitInput();
+    }
+
+    // 現在の入力値を対象の記録へ書き込む
+    function commitHitInput() {
+        const d = getData();
+        if (editHitIdx < 0 || !Array.isArray(d.hits) || !d.hits[editHitIdx]) return;
+        const g = parseInt(hitInputValue, 10);
+        d.hits[editHitIdx].g = (!isNaN(g) && g >= 0) ? g : null;
+        syncGameCountFromHits();
+        save(true);
     }
 
     function closeHitPanel() {
+        commitHitInput();      // 入力途中でも確定
+        editHitIdx = -1;
         document.getElementById('hit-panel').classList.remove('active');
+        renderMain();
+        setTimeout(calc, 0);
+        if (document.getElementById('hit-modal').classList.contains('active')) renderHitModal();
     }
 
     // ============================================================
@@ -1799,6 +1790,12 @@
                 // BIG/REG の増減時の記録連動
                 if (el.dataset.id === 'b' || el.dataset.id === 'r') {
                     if (step > 0) {
+                        // 押した時点で記録を作成（G数は未入力）
+                        const dd = getData();
+                        if (!Array.isArray(dd.hits)) dd.hits = [];
+                        dd.hits.unshift({ g: null, k: el.dataset.id });
+                        save(true);
+                        // 作成した記録（先頭）のG数を入力するモードで開く
                         openHitInput(el.dataset.id);
                     } else if (step < 0) {
                         // 一番上（最新）の記録を削除
@@ -2419,6 +2416,14 @@
         const p = document.getElementById('hit-panel');
         if (p && p.classList.contains('active')) positionHitPanel();
     });
+
+    // テンキー外をタップしたら自動で閉じる（入力値は保持される）
+    document.addEventListener('pointerdown', (e) => {
+        const p = document.getElementById('hit-panel');
+        if (!p || !p.classList.contains('active')) return;
+        if (p.contains(e.target)) return; // パネル内は無視
+        closeHitPanel();
+    }, true);
 
     function saveGasConfig() {
         const url = document.getElementById('gas-url').value.trim();
