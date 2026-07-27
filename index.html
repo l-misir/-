@@ -116,7 +116,7 @@
             padding: 0 16px; /* 左右の余白を調整 */
             background: #000; 
             border-bottom: 1px solid #333; 
-            height: 48px; 
+            height: 40px; 
             box-sizing: border-box; 
         }
         /* モーダル内のみスクロール許可 */
@@ -196,6 +196,10 @@
         .hit-key.ok:active { background:#0c7; }
         .hit-key.del { background:#833; font-size:14px; }
         .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
+        .hit-keys-wrap { display:flex; gap:8px; align-items:flex-start; }
+        .hit-keys-wrap .hit-keys { flex:0 0 auto; width:132px; }
+        .hit-side { flex:1; min-width:0; }
+        .hit-side .hit-display { margin-bottom:4px; }
 
         /* --- マイナス時: 直近記録の削除確認 --- */
         .hit-del-item {
@@ -212,24 +216,29 @@
             z-index:1200; background:#111; flex-direction:column;
         }
         #bulk-panel.active { display:flex; }
-        #bulk-panel .modal-body { flex:1; overflow-y:auto; padding:8px 12px 20px; }
-        .bulk-wrap { display:flex; gap:12px; align-items:flex-start; }
+        #bulk-panel .modal-body { flex:1; overflow:hidden; padding:8px 12px; display:flex; flex-direction:column; }
+        .bulk-wrap { display:flex; gap:10px; align-items:flex-start; flex:1; min-height:0; }
         .bulk-col-l { flex:1; min-width:0; }
-        .bulk-col-r { width:190px; flex-shrink:0; }
-        .bulk-target-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:4px; margin-bottom:8px; }
+        .bulk-col-r { width:180px; flex-shrink:0; }
+        /* 項目ボタン: 実戦履歴のフィルタと同じ高さ・4列 */
+        .bulk-target-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:3px; margin-bottom:8px; }
         .bulk-target {
             background:#222; border:1px solid #333; border-radius:5px;
-            padding:6px 3px; text-align:center; font-size:10px; color:#aaa; cursor:pointer;
+            padding:7px 2px; text-align:center; font-size:10px; color:#aaa; cursor:pointer;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
         }
         .bulk-target.active { background:#0066cc; color:#fff; border-color:#0088ff; }
-        .bulk-target .cur { display:block; font-size:13px; font-weight:bold; color:#fff; margin-top:1px; }
+        .bulk-target .cur { display:block; font-size:12px; font-weight:bold; color:#fff; }
         .bulk-target.active .cur { color:#fff; }
-        #bulk-keys { }
-        /* 縦画面では1カラムに戻す */
+        /* まとめて加算のテンキー（1画面に収まるサイズ） */
+        #bulk-keys .hit-keys { grid-template-columns: repeat(3, 1fr); gap:4px; }
+        #bulk-keys .hit-key { font-size:17px; padding:9px 0; }
+        #bulk-keys .hit-key.ok { font-size:13px; }
+        /* 縦画面: 項目を上、テンキーを下 */
         @media (max-aspect-ratio: 1/1) {
             .bulk-wrap { flex-direction: column; gap:0; }
-            .bulk-col-r { width:100%; max-width:280px; margin:0 auto; }
-            .bulk-target-grid { grid-template-columns: repeat(3, 1fr); }
+            .bulk-col-l { width:100%; flex:0 0 auto; }
+            .bulk-col-r { width:100%; max-width:250px; margin:0 auto; flex:0 0 auto; }
         }
 
         /* --- 大当たり分析モーダル --- */
@@ -439,7 +448,11 @@
         <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title" id="title-predict" onclick="openHitModal()" style="cursor:pointer; -webkit-user-select:none; user-select:none;">＜推測設定＞ 📊</p>
+        <p class="section-title" id="title-predict"
+           onpointerdown="startPredictPress()" onpointerup="endPredictPress()"
+           onpointerleave="cancelPredictPress()" onpointercancel="cancelPredictPress()"
+           oncontextmenu="event.preventDefault();"
+           style="cursor:pointer; -webkit-user-select:none; user-select:none;">＜推測設定＞</p>
         <div id="predict-bars" style="background:#222; padding:5px 10px; border-radius:5px;"></div>
         <p class="section-title" id="title-expect">＜実践値＞</p>
         <div class="expect-box" id="expect-info"></div>
@@ -861,7 +874,8 @@
     function syncGameCountFromHits() {
         const d = getData();
         if (!Array.isArray(d.hits)) d.hits = [];
-        const total = d.hits.reduce((a, h) => a + (Number(h.g) || 0), 0);
+        // g が null（未入力）の記録は 0 として扱う
+        const total = d.hits.reduce((a, h) => a + (h.g == null ? 0 : (Number(h.g) || 0)), 0);
         d.cur.g = (Number(d.start.g) || 0) + total;
     }
 
@@ -871,13 +885,13 @@
         const d = getData();
         const hits = Array.isArray(d.hits) ? d.hits : [];
         const played = Math.max(0, (Number(d.cur.g) || 0) - (Number(d.start.g) || 0));
-        const recorded = hits.reduce((a, h) => a + (Number(h.g) || 0), 0);
+        const recorded = hits.reduce((a, h) => a + (h.g == null ? 0 : (Number(h.g) || 0)), 0);
         let hamari = Math.max(0, played - recorded); // 記録後に回した分
         if (kind === 'all') return hamari;
         // 種別指定: 最新から遡り、対象種別に当たるまでの区間を加算
         for (const h of hits) {
             if (h.k === kind) break;
-            hamari += Number(h.g) || 0;
+            hamari += (h.g == null ? 0 : (Number(h.g) || 0));
         }
         return hamari;
     }
@@ -887,20 +901,89 @@
     function buildFilteredHits(kind) {
         const d = getData();
         const hits = Array.isArray(d.hits) ? d.hits : [];
-        if (kind === 'all') return hits.map(h => ({ g: Number(h.g) || 0, k: h.k }));
-
+        // idx は元配列（d.hits）の位置。編集時に使う
+        if (kind === 'all') {
+            return hits.map((h, i) => ({ g: h.g, k: h.k, idx: i, blank: (h.g == null) }));
+        }
         // 古い順に走査して、対象種別に当たるまでの区間を積算
-        const asc = [...hits].reverse();
+        const asc = hits.map((h, i) => ({ ...h, _i: i })).reverse();
         const out = [];
         let acc = 0;
+        let hasBlank = false;
         asc.forEach(h => {
-            acc += Number(h.g) || 0;
+            if (h.g == null) hasBlank = true; else acc += (Number(h.g) || 0);
             if (h.k === kind) {
-                out.push({ g: acc, k: kind });
+                out.push({ g: acc, k: kind, idx: h._i, blank: hasBlank });
                 acc = 0;
+                hasBlank = false;
             }
         });
         return out.reverse(); // 新しい順に戻す
+    }
+
+    // ============================================================
+    // 推測設定タイトルの長押し → 大当たり分析
+    // ============================================================
+    let predictPressTimer = null;
+    let predictLongPressed = false;
+
+    function startPredictPress() {
+        predictLongPressed = false;
+        predictPressTimer = setTimeout(() => {
+            predictLongPressed = true;
+            openHitModal();
+        }, 550);
+    }
+    function endPredictPress() { clearTimeout(predictPressTimer); predictLongPressed = false; }
+    function cancelPredictPress() { clearTimeout(predictPressTimer); predictLongPressed = false; }
+
+    // ============================================================
+    // 当選履歴のG数を編集
+    // ============================================================
+    let editHitIdx = -1;
+
+    function editHitG(idx) {
+        const d = getData();
+        if (!Array.isArray(d.hits) || !d.hits[idx]) return;
+        editHitIdx = idx;
+        hitInputValue = (d.hits[idx].g == null) ? '' : String(d.hits[idx].g);
+        const kind = d.hits[idx].k;
+
+        const panel = document.getElementById('hit-panel');
+        const label = document.getElementById('hit-kind-label');
+        label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 回転数を修正';
+        label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
+
+        document.getElementById('hit-panel-body').innerHTML = `
+            <div class="hit-keys-wrap">
+                <div class="hit-keys">
+                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
+                    <button class="hit-key del" onclick="hitKey('del')">⌫</button>
+                    <button class="hit-key" onclick="hitKey('0')">0</button>
+                    <button class="hit-key ok" onclick="hitEditSave()">保存</button>
+                </div>
+                <div class="hit-side">
+                    <div class="hit-display" id="hit-display">${hitInputValue === '' ? '0' : hitInputValue}<span class="unit">G</span></div>
+                    <div class="hit-hint">この当選の<br>回転数を修正</div>
+                </div>
+            </div>`;
+        panel.classList.add('active');
+        positionHitPanel();
+    }
+
+    function hitEditSave() {
+        const d = getData();
+        if (editHitIdx >= 0 && Array.isArray(d.hits) && d.hits[editHitIdx]) {
+            const g = parseInt(hitInputValue, 10);
+            d.hits[editHitIdx].g = (!isNaN(g) && g >= 0) ? g : null;
+            syncGameCountFromHits();
+            save(true);
+            renderMain();
+            setTimeout(calc, 0);
+        }
+        editHitIdx = -1;
+        closeHitPanel();
+        renderHitModal();
     }
 
     // ============================================================
@@ -917,14 +1000,14 @@
             panel.style.top = '60px';
             panel.style.right = '10px';
             panel.style.left = 'auto';
-            panel.style.width = 'min(210px, 40%)';
+            panel.style.width = 'min(260px, 46%)';
             panel.style.transform = 'none';
         } else {
             // 縦画面: スイカより下あたりに被せる
             panel.style.top = '38%';
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = 'min(230px, 72%)';
+            panel.style.width = 'min(270px, 82%)';
             panel.style.transform = 'translateX(-50%)';
         }
     }
@@ -938,14 +1021,18 @@
         label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
 
         document.getElementById('hit-panel-body').innerHTML = `
-            <div class="hit-display" id="hit-display">0<span class="unit">G</span></div>
-            <div class="hit-keys">
-                ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
-                <button class="hit-key del" onclick="hitKey('del')">⌫</button>
-                <button class="hit-key" onclick="hitKey('0')">0</button>
-                <button class="hit-key ok" onclick="hitKey('ok')">記録</button>
+            <div class="hit-keys-wrap">
+                <div class="hit-keys">
+                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
+                    <button class="hit-key del" onclick="hitKey('del')">⌫</button>
+                    <button class="hit-key" onclick="hitKey('0')">0</button>
+                    <button class="hit-key ok" onclick="hitKey('ok')">記録</button>
+                </div>
+                <div class="hit-side">
+                    <div class="hit-display" id="hit-display">0<span class="unit">G</span></div>
+                    <div class="hit-hint">未入力でも<br>記録されます<br>(後で修正可)</div>
+                </div>
             </div>
-            <div class="hit-hint">未入力で「記録」を押すと記録せず閉じます</div>
         `;
         panel.classList.add('active');
         positionHitPanel();
@@ -956,15 +1043,14 @@
             hitInputValue = hitInputValue.slice(0, -1);
         } else if (k === 'ok') {
             const g = parseInt(hitInputValue, 10);
-            if (!isNaN(g) && g >= 0) {
-                const d = getData();
-                if (!Array.isArray(d.hits)) d.hits = [];
-                d.hits.unshift({ g: g, k: hitInputKind });
-                syncGameCountFromHits();
-                save(true);
-                renderMain();
-                setTimeout(calc, 0);
-            }
+            const d = getData();
+            if (!Array.isArray(d.hits)) d.hits = [];
+            // 未入力の場合も記録は残す（G数は null = 空欄。後から履歴で入力可能）
+            d.hits.unshift({ g: (!isNaN(g) && g >= 0) ? g : null, k: hitInputKind });
+            syncGameCountFromHits();
+            save(true);
+            renderMain();
+            setTimeout(calc, 0);
             closeHitPanel();
             return;
         } else {
@@ -975,73 +1061,7 @@
         if (disp) disp.innerHTML = (hitInputValue === '' ? '0' : hitInputValue) + '<span class="unit">G</span>';
     }
 
-    // ============================================================
-    // マイナス操作: 直近記録の削除（2回タップ）
-    // ============================================================
-    let hitDelArmed = false;
-    let hitDelTimer = null;
-
-    function openHitDelete(kind) {
-        const d = getData();
-        const hits = Array.isArray(d.hits) ? d.hits : [];
-        // 直近の同種記録を探す
-        const idx = hits.findIndex(h => h.k === kind);
-        const panel = document.getElementById('hit-panel');
-        const label = document.getElementById('hit-kind-label');
-        label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 記録の取り消し';
-        label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
-
-        if (idx === -1) {
-            document.getElementById('hit-panel-body').innerHTML =
-                `<div class="hm-empty" style="padding:20px 0;">取り消せる記録がありません</div>`;
-            panel.classList.add('active');
-            positionHitPanel();
-            clearTimeout(hitDelTimer);
-            hitDelTimer = setTimeout(closeHitPanel, 2500);
-            return;
-        }
-
-        hitDelArmed = false;
-        document.getElementById('hit-panel-body').innerHTML = `
-            <div class="hit-del-item" id="hit-del-item" onclick="confirmHitDelete(${idx})">
-                <div class="hit-del-g">${hits[idx].g}<span style="font-size:15px;color:#888;">G</span></div>
-                <div class="hit-del-label">タップして削除（もう1回で確定）</div>
-            </div>
-            <div class="hit-hint">この記録を削除します<br>削除しない場合は ✕ で閉じてください</div>
-        `;
-        panel.classList.add('active');
-        positionHitPanel();
-        // 猶予を長めに（10秒）
-        clearTimeout(hitDelTimer);
-        hitDelTimer = setTimeout(closeHitPanel, 10000);
-    }
-
-    function confirmHitDelete(idx) {
-        const item = document.getElementById('hit-del-item');
-        if (!hitDelArmed) {
-            hitDelArmed = true;
-            if (item) {
-                item.classList.add('armed');
-                item.querySelector('.hit-del-label').textContent = 'もう1回タップで削除';
-            }
-            clearTimeout(hitDelTimer);
-            hitDelTimer = setTimeout(closeHitPanel, 10000);
-            return;
-        }
-        const d = getData();
-        if (Array.isArray(d.hits) && d.hits[idx]) {
-            d.hits.splice(idx, 1);
-            syncGameCountFromHits();
-            save(true);
-            renderMain();
-            setTimeout(calc, 0);
-        }
-        closeHitPanel();
-    }
-
     function closeHitPanel() {
-        clearTimeout(hitDelTimer);
-        hitDelArmed = false;
         document.getElementById('hit-panel').classList.remove('active');
     }
 
@@ -1056,15 +1076,15 @@
         const isNew = data.machine === 'newking';
         const L = pm.labels || {};
         const list = [
-            { id:'g', label:'ゲーム数' },
+            { id:'g', label:'G数' },
             { id:'b', label:'BIG' },
             { id:'r', label:'REG' },
             { id:'bell', label:'ベル' },
-            { id:'suika', label: isNew ? 'スイカ(前半)' : 'スイカ' }
+            { id:'suika', label: isNew ? 'スイカ前' : 'スイカ' }
         ];
-        if (isNew) list.push({ id:'suikaR', label:'スイカ(REG)' });
-        list.push({ id:'retro_d', label:'レトロ達成' });
-        list.push({ id:'retro', label:'レトロ発生' });
+        if (isNew) list.push({ id:'suikaR', label:'スイカR' });
+        list.push({ id:'retro_d', label:'レトロ達' });
+        list.push({ id:'retro', label:'レトロ発' });
         return list;
     }
 
@@ -1185,30 +1205,42 @@
             return html + '<div class="hm-empty">記録がありません<br><span style="font-size:11px;">BIG/REGを加算すると入力できます</span></div>';
         }
 
-        const sum = list.reduce((a, h) => a + h.g, 0);
-        const avg = Math.round(sum / list.length);
-        const max = Math.max(...list.map(h => h.g));
-        const min = Math.min(...list.map(h => h.g));
-        html += `
-            <div class="hm-stat">
-                <div class="hm-stat-box"><div class="hm-stat-v">${list.length}</div><div class="hm-stat-l">回数</div></div>
-                <div class="hm-stat-box"><div class="hm-stat-v">1/${avg}</div><div class="hm-stat-l">平均</div></div>
-                <div class="hm-stat-box"><div class="hm-stat-v">${max}</div><div class="hm-stat-l">最大</div></div>
-                <div class="hm-stat-box"><div class="hm-stat-v">${min}</div><div class="hm-stat-l">最小</div></div>
-            </div>
-            <div class="hm-list">`;
+        // 統計は G が入力済みのものだけで計算
+        const valid = list.filter(h => h.g != null && !h.blank);
+        if (valid.length > 0) {
+            const sum = valid.reduce((a, h) => a + h.g, 0);
+            const avg = Math.round(sum / valid.length);
+            const max = Math.max(...valid.map(h => h.g));
+            const min = Math.min(...valid.map(h => h.g));
+            html += `
+                <div class="hm-stat">
+                    <div class="hm-stat-box"><div class="hm-stat-v">${list.length}</div><div class="hm-stat-l">回数</div></div>
+                    <div class="hm-stat-box"><div class="hm-stat-v">1/${avg}</div><div class="hm-stat-l">平均</div></div>
+                    <div class="hm-stat-box"><div class="hm-stat-v">${max}</div><div class="hm-stat-l">最大</div></div>
+                    <div class="hm-stat-box"><div class="hm-stat-v">${min}</div><div class="hm-stat-l">最小</div></div>
+                </div>`;
+        }
+        html += `<div style="font-size:10px;color:#666;margin-bottom:6px;">G数をタップすると修正できます</div><div class="hm-list">`;
 
         const n = list.length;
         list.forEach((h, i) => {
             const kc = h.k === 'b' ? 'big' : 'reg';
             const kl = h.k === 'b' ? 'BIG' : 'REG';
+            const isBlank = (h.g == null) || h.blank;
+            const gTxt = (h.g == null)
+                ? `<span style="color:#f80;">未入力</span>`
+                : `${h.g}<span style="font-size:11px;color:#888;">G</span>${h.blank ? '<span style="color:#f80;font-size:10px;">*</span>' : ''}`;
             html += `<div class="hm-row">
                 <div class="hm-no">${n - i}</div>
-                <div class="hm-g">${h.g}<span style="font-size:11px;color:#888;">G</span></div>
+                <div class="hm-g hm-edit" onclick="editHitG(${h.idx})" style="cursor:pointer;">${gTxt}</div>
                 <div class="hm-kind ${kc}">${kl}</div>
             </div>`;
         });
-        return html + '</div>';
+        html += '</div>';
+        if (list.some(h => h.blank || h.g == null)) {
+            html += `<div style="font-size:10px;color:#f80;margin-top:8px;">※ 未入力の記録が含まれています（* は未入力を含む区間）</div>`;
+        }
+        return html;
     }
 
     function renderHitProb() {
@@ -1742,10 +1774,21 @@
                 save(true);
                 setTimeout(calc, 0);
 
-                // BIG/REG の増減時は大当たり回転数の専用UIを表示
+                // BIG/REG の増減時の記録連動
                 if (el.dataset.id === 'b' || el.dataset.id === 'r') {
-                    if (step > 0) openHitInput(el.dataset.id);
-                    else if (step < 0) openHitDelete(el.dataset.id);
+                    if (step > 0) {
+                        openHitInput(el.dataset.id);
+                    } else if (step < 0) {
+                        // 一番上（最新）の記録を削除
+                        const dd = getData();
+                        if (Array.isArray(dd.hits) && dd.hits.length > 0) {
+                            dd.hits.shift();
+                            syncGameCountFromHits();
+                            save(true);
+                            renderMain();
+                            setTimeout(calc, 0);
+                        }
+                    }
                 }
             };
 
@@ -1908,10 +1951,10 @@
         
         const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
         if(document.getElementById(prefix+'title-predict')) {
-            // メイン推測画面のみ 📊 を残す（タップで大当たり分析を開く導線）
+            // メイン推測画面のみ長押しヒントを付ける（長押しで大当たり分析）
             const tp = document.getElementById(prefix+'title-predict');
             tp.innerHTML = prefix ? `＜推測設定 ${modeStr}＞`
-                                  : `＜推測設定 ${modeStr}＞ <span style="color:#4a9eff;">📊</span>`;
+                                  : `＜推測設定 ${modeStr}＞ <span style="color:#4a9eff;font-size:10px;">長押しで分析📊</span>`;
             document.getElementById(prefix+'title-expect').innerText = `＜実践値 ${modeStr}＞`;
             document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
         }
