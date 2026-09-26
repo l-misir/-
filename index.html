@@ -900,9 +900,10 @@
         if (idx === -1) return false;
 
         // 現在のハマりは削除直前の cur.g から取り直す
-        // （記録後にタップで足したG数や、再読込で hitTailG が 0 に戻った分を失わないため）
+        // （記録後にタップで足したG数や、再読込で hitTailG が 0 に戻った分を失わないため）。
+        // G数を記録の合計より小さく手入力した状態ではマイナスになるが、丸めずに保つ（丸めると G数が増える）
         const played = Math.max(0, (Number(d.cur.g) || 0) - (Number(d.start.g) || 0));
-        hitTailG = Math.max(0, played - hitsTotal());
+        hitTailG = played - hitsTotal();
 
         const removed = d.hits[idx];
         const removedG = (removed.g == null) ? 0 : (Number(removed.g) || 0);
@@ -954,14 +955,16 @@
         const hits = Array.isArray(d.hits) ? d.hits : [];
         const played = Math.max(0, (Number(d.cur.g) || 0) - (Number(d.start.g) || 0));
         const recorded = hits.reduce((a, h) => a + (h.g == null ? 0 : (Number(h.g) || 0)), 0);
-        let hamari = Math.max(0, played - recorded); // 記録後に回した分
-        if (kind === 'all') return hamari;
-        // 種別指定: 最新から遡り、対象種別に当たるまでの区間を加算
-        for (const h of hits) {
-            if (h.k === kind) break;
-            hamari += (h.g == null ? 0 : (Number(h.g) || 0));
+        // 記録後に回した分。手入力で記録の合計より小さくするとマイナスになるので、丸めるのは最後の表示だけ
+        let hamari = played - recorded;
+        if (kind !== 'all') {
+            // 種別指定: 最新から遡り、対象種別に当たるまでの区間を加算
+            for (const h of hits) {
+                if (h.k === kind) break;
+                hamari += (h.g == null ? 0 : (Number(h.g) || 0));
+            }
         }
-        return hamari;
+        return Math.max(0, hamari);
     }
 
     // 種別フィルタ後のリストを生成（異種区間を合算）
@@ -997,9 +1000,9 @@
     function editHitG(idx) {
         const d = getData();
         if (!Array.isArray(d.hits) || !d.hits[idx]) return;
-        // 過去記録の編集中は、現在のハマりG数を固定して維持する
+        // 過去記録の編集中は、現在のハマりG数を固定して維持する（マイナスでも丸めない。removeLatestHit と同じ）
         const played = Math.max(0, (Number(d.cur.g) || 0) - (Number(d.start.g) || 0));
-        hitTailG = Math.max(0, played - hitsTotal());
+        hitTailG = played - hitsTotal();
         hitPanelCentered = true;
         editHitIdx = idx;
         hitInputValue = (d.hits[idx].g == null) ? '' : String(d.hits[idx].g);
@@ -1105,6 +1108,7 @@
         hitInputFresh = false;
         editHitIdx = 0; // 先頭（今作成した記録）を編集
         commitHitInput();
+        refreshMainValues(); // 画面のG数も合わせる（セルは作り直さない）
         const panel = document.getElementById('hit-panel');
         const label = document.getElementById('hit-kind-label');
         label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 当選回転数';
