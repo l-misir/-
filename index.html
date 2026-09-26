@@ -227,7 +227,8 @@
         /* 常に上下配置（項目が上、テンキーが下）。テンキーは残りの幅・高さいっぱいに広げる */
         .bulk-wrap { display:flex; flex-direction:column; flex:1; min-height:0; }
         .bulk-col-l { flex:0 0 auto; }
-        .bulk-col-r { flex:1 1 auto; min-height:0; width:100%; max-width:560px; margin:0 auto; display:flex; flex-direction:column; }
+        /* 縦画面は幅290px・キー高さ330pxまで（大きすぎたので二回りほど小さく）。横画面は下の @media で広げる */
+        .bulk-col-r { flex:1 1 auto; min-height:0; width:100%; max-width:290px; margin:0 auto; display:flex; flex-direction:column; }
         /* 項目ボタン: 実戦履歴のフィルタボタンと完全に同じ高さ（1行・padding 7px 2px） */
         .bulk-target-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:3px; margin-bottom:8px; }
         .bulk-target {
@@ -241,14 +242,20 @@
         .bulk-target.active .cur { color:#fff; }
         #bulk-panel .hit-display { font-size:24px; }
         #bulk-keys { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-        #bulk-keys .hit-keys { flex:1 1 auto; min-height:0; max-height:440px; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr); gap:5px; }
+        #bulk-keys .hit-keys { flex:1 1 auto; min-height:0; max-height:330px; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr); gap:5px; }
         #bulk-keys .hit-key { font-size:24px; padding:0; }
         #bulk-keys .hit-key.ok { font-size:18px; }
         #bulk-keys .hit-key.del { font-size:20px; }
         /* 横画面（低い画面）: 表示部を詰めて、テンキーに高さを回す */
         @media (min-aspect-ratio: 1/1) {
             #bulk-panel .modal-body { padding:5px 12px max(5px, env(safe-area-inset-bottom)); }
-            #bulk-keys .hit-keys { gap:4px; }
+            /* 横画面: 項目は横1行、入力した数値はテンキーの右（キー左・表示右）にしてテンキーを縦に大きく */
+            .bulk-target-grid { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:1fr; margin-bottom:4px; }
+            .bulk-col-r { max-width:640px; display:grid; grid-template-columns:1fr 150px; grid-template-rows:auto 1fr; column-gap:10px; }
+            .bulk-col-r > .section-title { grid-column:2; grid-row:1; }
+            #bulk-panel #bulk-display { grid-column:2; grid-row:2; align-self:start; font-size:26px; min-height:40px; padding:4px 10px; }
+            #bulk-keys { grid-column:1; grid-row:1 / span 2; }
+            #bulk-keys .hit-keys { gap:4px; max-height:none; }
             #bulk-keys .hit-key { font-size:20px; }
             #bulk-keys .hit-key.ok { font-size:15px; }
             #bulk-panel .hit-display { font-size:18px; padding:2px 10px; min-height:26px; margin-bottom:4px; }
@@ -312,7 +319,7 @@
         /* 棒は高設定期待度の帯ごとに色分けした積み上げ */
         .hist-summary .bar-fill { height:100%; border-radius:3px; transition: width 0.3s; display:flex; overflow:hidden; }
         .hist-summary .bar-seg { height:100%; }
-        .hist-summary .bar-val { width:auto; min-width:86px; white-space:nowrap; text-align:right; margin-left:6px; color:#fff; flex-shrink:0; font-variant-numeric:tabular-nums; }
+        .hist-summary .bar-val { width:auto; min-width:86px; white-space:nowrap; text-align:left; margin-left:6px; color:#fff; flex-shrink:0; font-variant-numeric:tabular-nums; }
         .hist-item { background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:10px 12px; margin-bottom:8px; cursor:pointer; transition:background 0.15s; }
         .hist-item:active { background:#2a2a2a; }
         .hist-item-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
@@ -323,7 +330,7 @@
         .hist-item-stats span { margin-right:8px; }
         .hist-item-result { text-align:right; }
         .hist-item-setting { font-size:15px; font-weight:bold; }
-        .hist-item-prob { font-size:11px; color:#aaa; }
+        .hist-item-exp { margin-left:10px; color:#ddd; }
         .hist-item-diff { font-size:11px; margin-top:1px; }
         .hist-empty { text-align:center; color:#666; padding:40px 0; font-size:14px; }
         .hist-loading { text-align:center; color:#888; padding:40px 0; }
@@ -901,15 +908,18 @@
         const removedG = (removed.g == null) ? 0 : (Number(removed.g) || 0);
 
         if (idx === 0) {
-            // 最新の当たりを削除 → その区間は「現在ハマり中」へ戻す
-            hitTailG += removedG;
-        } else if (removedG > 0) {
+            // 最新の当たりを削除 → 押す前のハマり(pre)＋押した後に回した分(hitTailG)に戻す。
+            // pre が無い旧データは、その区間を「現在ハマり中」へ戻す
+            hitTailG += (typeof removed.pre === 'number') ? removed.pre : removedG;
+        } else {
             // 1つ新しい当たり（idx-1）の区間へ繰り入れて時系列を保つ。
             // 繰り入れ先が未入力(null)なら、その情報を消さないため null のまま残す
             const newer = d.hits[idx - 1];
-            if (newer.g != null) {
+            if (removedG > 0 && newer.g != null) {
                 newer.g = (Number(newer.g) || 0) + removedG;
             }
+            // newer の「押す前のハマり」は消した当たりから数えていたので、消した区間の分だけ伸ばす
+            if (typeof newer.pre === 'number') newer.pre += removedG;
         }
         d.hits.splice(idx, 1);
         syncGameCountFromHits();
@@ -929,11 +939,12 @@
         return d.hits.reduce((a, h) => a + (h.g == null ? 0 : (Number(h.g) || 0)), 0);
     }
 
-    // cur.g = 打ち始め + 記録合計 + ハマり分
+    // cur.g = 打ち始め + 記録合計 + ハマり分（打ち始め未満にはしない）
     function syncGameCountFromHits() {
         const d = getData();
         if (!Array.isArray(d.hits)) d.hits = [];
-        d.cur.g = (Number(d.start.g) || 0) + hitsTotal() + hitTailG;
+        const startG = Number(d.start.g) || 0;
+        d.cur.g = Math.max(startG, startG + hitsTotal() + hitTailG);
     }
 
     // 現在のハマりG数（種別ごと）
@@ -1084,13 +1095,16 @@
     }
 
     function openHitInput(kind) {
-        // 新規当選: それまでのハマり分が新記録のG数になるため、当選後のハマりは0
+        // 新規当選: それまでのハマり分が新記録のG数になるため、当選後のハマりは0。
+        // 開いた時点で cur.g も記録に合わせて保存する（押す前のハマりは記録の pre に残してある）。
+        // 合わせないまま再読込すると、削除時に押す前のハマりを二重に足してしまう
         hitTailG = 0;
         hitPanelCentered = false;
         hitInputKind = kind;
         hitInputValue = '';
         hitInputFresh = false;
         editHitIdx = 0; // 先頭（今作成した記録）を編集
+        commitHitInput();
         const panel = document.getElementById('hit-panel');
         const label = document.getElementById('hit-kind-label');
         label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 当選回転数';
@@ -1500,30 +1514,32 @@
 
     // 信頼度ランク
     // rank=0: 旧データ(信頼度不明)
-    // rank=1: 最低 (<10%)
-    // rank=2: 低   (10-25%)
-    // rank=3: 中   (25-50%)
-    // rank=4: 高   (50-80%)
-    // rank=5: 最高 (80%以上、ただし最高設定確定示唆なし)
+    // rank=1: 最低 (<5%)
+    // rank=2: 低   (5-20%)
+    // rank=3: 中   (20-40%)
+    // rank=4: 高   (40-75%)
+    // rank=5: 最高 (75%以上、ただし最高設定確定示唆なし)
     // rank=6: 虹   (最高設定の確定示唆あり = REG筐体ランプ紫or虹)
+    // 境界は 2026-09 にユーザー指定で 10/25/50/80 → 5/20/40/75 に変更
     function reliabilityRank(rel, maxConfirmed) {
         if (maxConfirmed === true) return 6; // 虹は確定示唆ありの時のみ
         if (rel === null || rel === undefined || isNaN(rel)) return 0;
-        if (rel >= 0.80) return 5;
-        if (rel >= 0.50) return 4;
-        if (rel >= 0.25) return 3;
-        if (rel >= 0.10) return 2;
+        if (rel >= 0.75) return 5;
+        if (rel >= 0.40) return 4;
+        if (rel >= 0.20) return 3;
+        if (rel >= 0.05) return 2;
         return 1;
     }
 
     // 高設定期待度の帯。％は小数を切り捨てて判定し、「100」は本当に100%の日だけ
     // color は凡例（フィルタボタン）と設定ツモ率の棒の色分けに使う
+    // 区切りは 2026-09 にユーザー指定で 5/30/60/90 → 10/30/50/80 に変更
     const EXP_BANDS = [
-        { label: '0～5',   min: 0,   color: '#666' },
-        { label: '6～30',  min: 6,   color: '#4a9eff' },
-        { label: '31～60', min: 31,  color: '#ffa500' },
-        { label: '61～90', min: 61,  color: '#6f6' },
-        { label: '91～99', min: 91,  color: '#f66' },
+        { label: '0～10',  min: 0,   color: '#666' },
+        { label: '11～30', min: 11,  color: '#4a9eff' },
+        { label: '31～50', min: 31,  color: '#ffa500' },
+        { label: '51～80', min: 51,  color: '#6f6' },
+        { label: '81～99', min: 81,  color: '#f66' },
         { label: '100',    min: 100, color: 'linear-gradient(90deg, #ff5555, #ffa500, #ffff44, #44ff44, #44aaff, #cc66ff)' }
     ];
     // highProb: 高設定期待度(0〜1)、lowProb: 高設定以外の確率の合計 → EXP_BANDS の添字
@@ -1705,9 +1721,23 @@
         const last = SYNC_T_RE.test(data.lastBellSyncT || '') ? data.lastBellSyncT : '';
         if (t && last && t <= last) { clearQuery(); return false; } // 古い送信
 
-        getData().cur.bell = n;
+        // 上書き前に確認（値が同じなら聞かない）。キャンセルなら上書きせず URL だけ消す
+        const d = getData();
+        const before = Number(d.cur.bell) || 0;
+        if (n !== before && !confirm(`${ALL_PARAMS[data.machine].name}\nベルを ${before} → ${n} に上書きしますか？`)) {
+            clearQuery();
+            return false;
+        }
+
+        const prevT = data.lastBellSyncT;
+        d.cur.bell = n;
         if (t) data.lastBellSyncT = t; else delete data.lastBellSyncT;
-        if (!save(true)) return false; // 保存できなければ URL を残す（再読込で送り直せる）
+        if (!save(true)) {
+            // 保存できなければ上書きを取り消し（表示・内部・保存値を揃える）、URL を残す（再読込で送り直せる）
+            d.cur.bell = before;
+            if (prevT === undefined) delete data.lastBellSyncT; else data.lastBellSyncT = prevT;
+            return false;
+        }
         clearQuery();
         return true;
     }
@@ -1729,10 +1759,13 @@
         data = loadData();
         dummyMode = data.dummyDefault === true;
         tabReady = true;
-        let bellApplied = false;
-        try { bellApplied = applyShortcutParams(); } catch (e) { console.error(e); }
         init();
-        if (bellApplied) flashBellCell();
+        // ショートカットからの送信は、画面を表示してから確認ダイアログを出して適用する
+        setTimeout(() => {
+            let bellApplied = false;
+            try { bellApplied = applyShortcutParams(); } catch (e) { console.error(e); }
+            if (bellApplied) { renderMain(); flashBellCell(); }
+        }, 50);
     }
     function getData() { return data[data.machine]; }
 
@@ -2084,7 +2117,10 @@
                         // 押した時点で記録を作成（G数は未入力）
                         const dd = getData();
                         if (!Array.isArray(dd.hits)) dd.hits = [];
-                        dd.hits.unshift({ g: null, k: el.dataset.id });
+                        // pre = 押す前のハマり。この当選を消したときにここへ戻す（removeLatestHit）。
+                        // G数を記録の合計より小さく手入力していた場合はマイナスになる（消した時に手入力の値へ戻すため）
+                        const played = Math.max(0, (Number(dd.cur.g) || 0) - (Number(dd.start.g) || 0));
+                        dd.hits.unshift({ g: null, k: el.dataset.id, pre: played - hitsTotal() });
                         save(true);
                         // 作成した記録（先頭）のG数を入力するモードで開く
                         openHitInput(el.dataset.id);
@@ -2941,7 +2977,8 @@
             const rank = reliabilityRank(r.reliability, r.maxConfirmed);
             const rankLabel = RANK_LABELS[rank];
             const rankClass = RANK_CSSCLASS[rank];
-            const relText = `信頼度 <span class="${rankClass}">${rankLabel}</span>`;
+            const relText = `信頼度 <span class="${rankClass}">${rankLabel}</span>`
+                + (r.highSettingProb ? `<span class="hist-item-exp">高設定期待度 ${expBandChip(r.expBand)}${r.highSettingProb}</span>` : '');
             listHtml += `<div class="hist-item" onclick="restoreHistory(${idx})">
                 <div class="hist-item-header">
                     <div class="hist-item-date">${r.date || '---'}</div>
@@ -2956,7 +2993,6 @@
                     </div>
                     <div class="hist-item-result">
                         <div class="hist-item-setting" style="color:${settingColor}">${r.predictedSetting || '-'}</div>
-                        <div class="hist-item-prob">${expBandChip(r.expBand)}${r.highSettingProb || ''}</div>
                         <div class="hist-item-diff" style="color:${diffColor}">${diffSign}${diffVal}枚</div>
                     </div>
                 </div>
