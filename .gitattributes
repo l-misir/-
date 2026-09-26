@@ -1,0 +1,7 @@
+* text=auto eol=lf
+# index.html は元から CRLF。バイト列をそのまま保存し、改行変換で全行差分になるのを防ぐ
+index.html -text
+*.csv -text
+*.png binary
+*.jpg binary
+*.jpeg binary

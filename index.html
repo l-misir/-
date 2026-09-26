@@ -1,0 +1,2954 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ハナハナカウンター</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        :root {
+            --bg-color: #1a1a1a; --cell-bg: #444444; --grid-line: #111111;
+            --text-white: #ffffff; --lamp-blue: #33aaff; --lamp-yellow: #ffdd44;
+            --lamp-green: #44ff44; --lamp-red: #ff4444; --lamp-purple: #d044ff; --lamp-white: #dddddd;
+            --active-btn: #007aff;
+        }
+        
+        /* メイン部分のスクロール完全無効化とダブルタップ拡大無効化 */
+        html, body {
+            background: var(--bg-color); color: var(--text-white);
+            font-family: -apple-system, sans-serif; margin: 0; padding: 0; height: 100%;
+            user-select: none; -webkit-user-select: none; 
+            touch-action: none; overflow: hidden;
+            /* 横画面時の文字化け（拡大）防止 */
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        .container { 
+            padding: 5px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+            width: 100%; height: calc(100dvh - 40px);
+            box-sizing: border-box; overflow: hidden; touch-action: none;
+        }
+
+        .rainbow {
+            background: linear-gradient(to right, #ff3333, #ffff33, #33ff33, #33ffff, #3333ff, #ff33ff, #ff3333);
+            background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; font-weight: bold; animation: rainbow_move 3s linear infinite;
+        }
+        @keyframes rainbow_move { to { background-position: 200% center; } }
+        
+        .rainbow-char {
+            background: linear-gradient(to right, #ff3333, #ffff33, #33ff33, #33ffff, #3333ff, #ff33ff);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; font-weight: bold;
+            display: inline-block;
+        }
+        
+        .rainbow-icon {
+            height: 1.1em;
+            vertical-align: -0.2em; 
+            display: inline-block;
+        }
+        
+        /* ヘッダー */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 16px; background: #000; position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid #333; height: 40px; box-sizing: border-box;
+        }
+        /* アイコンの大きさを元に戻しつつ、パディングで当たり判定をタブの高さ(48px)限界まで拡大 */
+        .header-icon { 
+            font-size: 20px; cursor: pointer; color: white; 
+            padding: 10px 20px; margin: -10px -20px;
+            display: inline-flex; align-items: center; justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* ヘッダータイトルの共通設定 */
+        .header-title, .modal-title { 
+            font-size: 14px; 
+            font-weight: bold; 
+            border-bottom: 2px solid white;
+            line-height: 1.2;
+        }
+        
+        /* レイアウト */
+        .main-layout { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+        .col-left, .col-right { display: flex; flex-direction: column; width: 100%; }
+        
+        @media (orientation: landscape) {
+            .main-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+        }
+
+        .section-title { text-align: center; margin: 6px 0 2px; font-size: 11px; font-weight: bold; }
+        .grid { display: grid; gap: 1px; background: var(--grid-line); border: 1px solid var(--grid-line); margin-bottom: 5px; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        .cell { background: var(--cell-bg); padding: 2px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; }
+        /* 縦画面時の文字と数値の隙間を詰める（-3pxの部分を-2や-4にして好みに微調整できます） */
+        .label { font-size: 9px; color: white; margin-bottom: -3px; pointer-events: none; }
+        .value { font-size: 16px; font-weight: bold; line-height: 1.2; pointer-events: none; }
+        .touch-active { background: #55aaff !important; }
+        .minus-mode { background: #900 !important; }
+        .selected-lamp { box-shadow: inset 0 0 0 2px #fff; background: #666; }
+        .active-mode { background: var(--active-btn) !important; color: white; }
+        
+        /* 入力フォーム関連のスタイル */
+        .val-input { width: 100%; background: transparent; color: white; border: none; text-align: center; font-size: 16px; font-weight: bold; outline: none; }
+        /* メイン画面の数値入力枠のみブラウザ自動余白を無効化 */
+        .cell input.val-input { padding: 0; margin: 0; height: 100%; line-height: 1.2; border-radius: 0; -webkit-appearance: none; box-sizing: border-box; }
+        
+        .label-large { font-size: 16px !important; font-weight: bold; color: white; margin-bottom: 0; pointer-events: none; }
+
+        /* モーダル */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; }
+        .modal.active { display: flex; }
+
+        /* モーダル用タイトルの微調整 */
+        .modal-title { color: white; border-bottom: 2px solid white; }
+
+        .modal-header { 
+            flex: 0 0 auto; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0 16px; /* 左右の余白を調整 */
+            background: #000; 
+            border-bottom: 1px solid #333; 
+            height: 40px; 
+            box-sizing: border-box; 
+        }
+        /* モーダル内のみスクロール許可 */
+        .modal-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 15px max(40px, env(safe-area-inset-bottom)); touch-action: pan-y; }
+
+        .expect-box { background: #222; padding: 5px 10px; border: 1px solid #444; margin-bottom: 10px; }
+        .expect-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
+        .expect-val { font-weight: bold; } 
+
+        /* 詳細データのレイアウト固定化 (ダブルタップ時の項目ズレを完全に防止) */
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; table-layout: fixed; }
+        .detail-table th { width: 55%; background: #222; text-align: left; padding: 6px 4px; border-bottom: 1px solid #444; font-weight: normal; word-wrap: break-word; }
+        .detail-table td { width: 45%; padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; word-wrap: break-word; }
+
+        @media (orientation: landscape) {
+            .label { margin-bottom: 1px; }
+            
+            .modal-body { padding: 10px 15px max(40px, env(safe-area-inset-bottom)); }
+            /* font-sizeを固定し、text-size-adjustと合わせて拡大を防止 */
+            .modal-body .section-title { 
+                margin: 6px 0 2px; 
+                font-size: 11px; 
+                line-height: 1;
+            }
+            .bar-row { margin: 6px 0; font-size: 13px; }
+            .bar-bg { height: 10px; }
+            .expect-box { padding: 5px 10px; margin-bottom: 10px; }
+            .expect-row { font-size: 13px; margin-bottom: 2px; }
+        }
+
+        /* グラフのスタイル分け（総合推測は元サイズ、個別推測のみ広げる） */
+        .bar-row { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: white; }
+        .bar-label { width: 40px; text-align: left; line-height: 1.2; flex-shrink: 0; }
+        .sub-graph-row .bar-label { width: 100px; }
+        .bar-bg { flex: 1; height: 10px; background: #333; margin: 0 8px; border-radius: 2px; overflow: hidden; }
+        .bar-fill { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
+        .bar-val { width: 55px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+        .sub-graph-row { display: none; background: #111; }
+        .sub-graph-row.open { display: table-row; }
+        .white-txt { color: #fff !important; font-weight: normal; }
+        .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
+        
+        select { color: white; }
+
+        #img-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:300; flex-direction:column; align-items:center; justify-content:center; }
+        #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
+        #img-controls { display: flex; gap: 20px; }
+
+        /* --- テンキー入力パネル（大当たり回転数） --- */
+        #hit-panel {
+            display: none; position: fixed; z-index: 1400;
+            background: #1c1c1e; border: 2px solid #0a5; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7); padding: 8px;
+            box-sizing: border-box;
+        }
+        #hit-panel.active { display: block; }
+        .hit-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+        .hit-kind { font-size:11px; font-weight:bold; }
+        .hit-kind.big { color:#ff6; }
+        .hit-kind.reg { color:#6cf; }
+        .hit-close { font-size:15px; color:#888; padding:1px 6px; cursor:pointer; }
+        .hit-display {
+            background:#000; color:#fff; font-size:22px; font-weight:bold;
+            text-align:right; padding:5px 10px; border-radius:6px; margin-bottom:6px;
+            font-family: monospace; letter-spacing:1px; min-height:32px; box-sizing:border-box;
+        }
+        .hit-display .unit { font-size:12px; color:#888; margin-left:3px; }
+        .hit-keys { display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
+        .hit-key {
+            background:#333; color:#fff; border:none; border-radius:6px;
+            font-size:16px; font-weight:bold; padding:8px 0; cursor:pointer;
+            -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+        }
+        .hit-key:active { background:#555; }
+        .hit-key.ok { background:#0a5; font-size:13px; }
+        .hit-key.ok:active { background:#0c7; }
+        .hit-key.del { background:#833; font-size:14px; }
+        .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
+        .hit-keys-wrap { display:flex; gap:10px; align-items:flex-start; }
+        .hit-keys-wrap .hit-keys { flex:0 0 auto; width:186px; }
+        .hit-side { flex:1; min-width:0; }
+        .hit-side .hit-display { margin-bottom:6px; font-size:26px; min-height:38px; }
+        /* パネル内のキーを大きく */
+        #hit-panel .hit-key { font-size:21px; padding:12px 0; }
+        #hit-panel .hit-key.ok { font-size:16px; }
+        #hit-panel .hit-key.del { font-size:17px; }
+        #hit-panel .hit-hint { font-size:10px; }
+
+        /* --- マイナス時: 直近記録の削除確認 --- */
+        .hit-del-item {
+            background:#2a1515; border:1px solid #833; border-radius:6px;
+            padding:8px; margin-bottom:5px; text-align:center; cursor:pointer;
+        }
+        .hit-del-item.armed { background:#833; border-color:#f66; }
+        .hit-del-g { font-size:20px; font-weight:bold; color:#fff; }
+        .hit-del-label { font-size:10px; color:#f99; margin-top:1px; }
+
+        /* --- 一括加算パネル（機種名長押し） --- */
+        #bulk-panel {
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            z-index:1200; background:#111; flex-direction:column;
+        }
+        #bulk-panel.active { display:flex; }
+        #bulk-panel .modal-body { flex:1; overflow:hidden; padding:8px 12px; display:flex; flex-direction:column; }
+        .bulk-wrap { display:flex; gap:10px; align-items:flex-start; flex:1; min-height:0; }
+        .bulk-col-l { flex:1; min-width:0; }
+        .bulk-col-r { width:180px; flex-shrink:0; }
+        /* 項目ボタン: 実戦履歴のフィルタボタンと完全に同じ高さ（1行・padding 7px 2px） */
+        .bulk-target-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:3px; margin-bottom:8px; }
+        .bulk-target {
+            background:#222; border:1px solid #333; border-radius:5px;
+            padding:7px 2px; text-align:center; font-size:11px; color:#aaa; cursor:pointer;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            user-select:none;
+        }
+        .bulk-target.active { background:#0066cc; color:#fff; border-color:#0088ff; }
+        .bulk-target .cur { color:#fff; font-weight:bold; margin-left:3px; }
+        .bulk-target.active .cur { color:#fff; }
+        /* まとめて加算のテンキー（常に上下配置・1画面に収める） */
+        .bulk-wrap { flex-direction: column !important; gap:0 !important; }
+        .bulk-col-l { width:100% !important; flex:0 0 auto !important; }
+        .bulk-col-r { width:100% !important; max-width:250px; margin:0 auto; flex:0 0 auto !important; }
+        #bulk-keys .hit-keys { grid-template-columns: repeat(3, 1fr); gap:4px; }
+        #bulk-keys .hit-key { font-size:17px; padding:9px 0; }
+        #bulk-keys .hit-key.ok { font-size:13px; }
+        /* 横画面（低い画面）ではさらに詰めて1画面に収める */
+        @media (min-aspect-ratio: 1/1) {
+            #bulk-panel .modal-body { padding:5px 12px; }
+            .bulk-col-r { max-width:210px; }
+            #bulk-keys .hit-key { font-size:14px; padding:5px 0; }
+            #bulk-keys .hit-key.ok { font-size:11px; }
+            #bulk-panel .hit-display { font-size:17px; padding:3px 8px; min-height:24px; margin-bottom:4px; }
+            #bulk-panel .section-title { margin:4px 0 3px !important; font-size:11px; }
+            #bulk-panel .hit-hint { display:none; }
+            .bulk-target { padding:5px 2px; font-size:10px; }
+        }
+
+        /* --- 大当たり分析モーダル --- */
+        #hit-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:#111; flex-direction:column; }
+        #hit-modal.active { display:flex; }
+        #hit-modal .modal-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 15px 40px; }
+        .hm-tabs { display:flex; gap:4px; margin-bottom:12px; }
+        .hm-tab { flex:1; padding:9px 0; background:#222; color:#aaa; border:1px solid #333; border-radius:6px; text-align:center; font-size:13px; cursor:pointer; }
+        .hm-tab.active { background:#0066cc; color:#fff; border-color:#0088ff; }
+        .hm-sub { display:flex; gap:4px; margin-bottom:10px; }
+        .hm-sub-btn { flex:1; padding:6px 0; background:#222; color:#999; border:1px solid #333; border-radius:5px; text-align:center; font-size:11px; cursor:pointer; }
+        .hm-sub-btn.active { background:#444; color:#fff; border-color:#666; }
+        .hm-now { background:#1a2a1a; border:1px solid #2a4a2a; border-radius:8px; padding:10px 12px; margin-bottom:12px; text-align:center; }
+        .hm-now-g { font-size:26px; font-weight:bold; color:#6f6; }
+        .hm-now-l { font-size:11px; color:#8a8; }
+        .hm-list { }
+        .hm-row { display:flex; align-items:center; padding:8px 10px; border-bottom:1px solid #282828; }
+        .hm-row:nth-child(odd) { background:#181818; }
+        .hm-no { width:32px; font-size:10px; color:#666; flex-shrink:0; }
+        .hm-g { flex:1; font-size:18px; font-weight:bold; text-align:right; padding-right:10px; }
+        .hm-kind { width:42px; font-size:11px; font-weight:bold; text-align:center; flex-shrink:0; border-radius:4px; padding:2px 0; }
+        .hm-kind.big { background:#553; color:#ff6; }
+        .hm-kind.reg { background:#345; color:#6cf; }
+        .hm-empty { text-align:center; color:#666; padding:40px 0; font-size:13px; }
+        .hm-stat { display:flex; gap:8px; margin-bottom:12px; }
+        .hm-stat-box { flex:1; background:#222; border-radius:6px; padding:8px; text-align:center; }
+        .hm-stat-v { font-size:16px; font-weight:bold; color:#fff; }
+        .hm-stat-l { font-size:10px; color:#888; margin-top:2px; }
+        .prob-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .prob-table th { background:#252525; color:#aaa; padding:6px 4px; font-size:10px; font-weight:normal; border-bottom:1px solid #333; }
+        .prob-table td { padding:7px 4px; border-bottom:1px solid #222; text-align:center; }
+        .prob-table tr:nth-child(even) td { background:#181818; }
+        .prob-g { font-weight:bold; color:#fff; font-size:13px; }
+        .prob-th { color:#aaa; }
+        .prob-ac { font-weight:bold; }
+        .prob-ac.over { color:#6f6; }
+        .prob-ac.under { color:#f88; }
+        .prob-note { font-size:9px; color:#666; }
+        .set-tabs { display:flex; gap:3px; margin-bottom:10px; flex-wrap:nowrap; overflow-x:auto; }
+        .set-tab { flex:1 1 0; min-width:34px; padding:6px 2px; background:#222; color:#999; border:1px solid #333; border-radius:5px; text-align:center; font-size:12px; cursor:pointer; white-space:nowrap; }
+        .set-tab.active { background:#0066cc; color:#fff; border-color:#0088ff; }
+
+
+        /* --- 履歴モーダル --- */
+        #history-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:#111; flex-direction:column; }
+        #history-modal.active { display:flex; }
+        #history-modal .modal-header { flex-shrink:0; }
+        #history-modal .modal-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 15px 40px; }
+        .hist-summary { background:#222; border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+        .hist-summary .bar-row { display:flex; align-items:center; margin:3px 0; font-size:12px; }
+        .hist-summary .bar-label { width:42px; text-align:right; margin-right:6px; color:#ccc; flex-shrink:0; }
+        .hist-summary .bar-track { flex:1; height:18px; background:#333; border-radius:3px; overflow:hidden; position:relative; }
+        .hist-summary .bar-fill { height:100%; border-radius:3px; transition: width 0.3s; }
+        .hist-summary .bar-val { width:72px; text-align:right; margin-left:6px; color:#fff; flex-shrink:0; }
+        .hist-item { background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:10px 12px; margin-bottom:8px; cursor:pointer; transition:background 0.15s; }
+        .hist-item:active { background:#2a2a2a; }
+        .hist-item-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .hist-item-date { font-size:12px; color:#aaa; }
+        .hist-item-machine { font-size:11px; color:#888; }
+        .hist-item-body { display:flex; justify-content:space-between; align-items:center; }
+        .hist-item-stats { font-size:13px; color:#ddd; }
+        .hist-item-stats span { margin-right:8px; }
+        .hist-item-result { text-align:right; }
+        .hist-item-setting { font-size:15px; font-weight:bold; }
+        .hist-item-prob { font-size:11px; color:#aaa; }
+        .hist-item-diff { font-size:11px; margin-top:1px; }
+        .hist-empty { text-align:center; color:#666; padding:40px 0; font-size:14px; }
+        .hist-loading { text-align:center; color:#888; padding:40px 0; }
+        .hist-error { text-align:center; color:#f44; padding:20px 0; font-size:13px; }
+        .hist-count { font-size:11px; color:#888; text-align:right; margin-bottom:4px; }
+
+        /* 信頼度フィルタ */
+        .hist-filter { display:flex; gap:3px; margin-bottom:8px; flex-wrap:nowrap; overflow-x:auto; }
+        .hist-filter-btn { flex:1 1 0; min-width:36px; padding:7px 2px; background:#222; color:#aaa; border:1px solid #333; border-radius:5px; font-size:11px; cursor:pointer; text-align:center; user-select:none; white-space:nowrap; }
+        .hist-filter-btn.active { background:#0066cc; color:#fff; border-color:#0088ff; }
+        .hist-item.excluded { display:none; }
+        .hist-fill-btn { display:block; width:100%; padding:10px; margin-top:12px; margin-bottom:20px; background:#7a4400; color:#fff; border:1px solid #aa6600; border-radius:6px; font-size:13px; cursor:pointer; }
+        .hist-fill-btn:disabled { opacity:0.5; cursor:wait; }
+        .hist-fill-notice { background:#332200; color:#fb6; padding:8px 10px; border-radius:6px; margin-bottom:10px; font-size:12px; }
+        .hist-item-reliability { font-size:10px; margin-top:2px; font-weight:bold; }
+        .hist-filter-label { font-size:10px; color:#888; margin:8px 0 4px; }
+
+        /* 信頼度ランク色 */
+        .rank-low0 { color:#666; }     /* 最低 */
+        .rank-low1 { color:#4a9eff; }  /* 低 */
+        .rank-mid  { color:#ffa500; }  /* 中 */
+        .rank-high { color:#6f6; }     /* 高 */
+        .rank-top  { color:#f66; }     /* 最高 */
+        .rank-rainbow {
+            background: linear-gradient(90deg, #ff5555 0%, #ffa500 20%, #ffff44 40%, #44ff44 60%, #44aaff 80%, #cc66ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: bold;
+        }
+        .rank-unknown { color:#444; }  /* 旧データ */
+
+        /* 信頼度フィルタボタン: ランク色を背景に薄く反映 */
+        .hist-filter-btn[data-rel="rainbow"] { border-color:#a55; }
+        .hist-filter-btn[data-rel="rainbow"].active {
+            background: linear-gradient(90deg, #ff5555, #ffa500, #ffff44, #44ff44, #44aaff, #cc66ff);
+            color:#000; border-color:#fff; font-weight:bold;
+        }
+
+        /* --- GAS設定 --- */
+        .gas-input { width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:5px; box-sizing:border-box; font-size:13px; margin-top:4px; }
+        .gas-input::placeholder { color:#666; }
+        .gas-note { font-size:10px; color:#888; margin-top:2px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-icon" onclick="openModal('predict-modal')">🔍</div>
+    <div class="header-title" id="disp-machine"
+         onpointerdown="startMachinePress()" onpointerup="endMachinePress()"
+         onpointerleave="cancelMachinePress()" onpointercancel="cancelMachinePress()"
+         oncontextmenu="event.preventDefault();"
+         style="cursor:pointer; -webkit-user-select:none; user-select:none;">---</div>
+    <div class="header-icon" onclick="openModal('setting-modal')">⚙️</div>
+</div>
+
+<div class="container">
+    <div id="main-ui"></div>
+</div>
+
+<div id="setting-modal" class="modal">
+    <div class="modal-header">
+        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="modal-title">設定</div>
+        <div class="header-icon" onclick="closeModal('setting-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="section-title">＜機種選択＞</p>
+        <div class="grid">
+            <select class="val-input" style="background:#333; padding:5px;" id="machine-select" onchange="updateMachine()">
+                <option value="houou">ハナハナホウオウ～天翔～</option>
+                <option value="king">キングハナハナ</option>
+                <option value="dragon">ドラゴンハナハナ～閃光～</option>
+                <option value="star">スターハナハナ</option>
+                <option value="newking">ニューキングハナハナⅤ</option>
+            </select>
+        </div>
+        <p class="section-title">＜表示・出力データ＞</p>
+        <div class="grid grid-2">
+            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label-large">個人</div></div>
+            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label-large">全て</div></div>
+        </div>
+        <p class="section-title">＜入力モード＞</p>
+        <div class="grid grid-2">
+            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label-large">タップ</div></div>
+            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label-large">入力</div></div>
+        </div>
+        <p class="section-title">＜打ち始めデータ＞</p>
+        <div class="grid grid-3">
+            <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()" onfocus="this.select()"></div>
+            <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()" onfocus="this.select()"></div>
+            <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()" onfocus="this.select()"></div>
+        </div>
+        <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
+        <div class="grid grid-5" id="morning-lamp-selector"></div>
+        
+        <p class="section-title" style="margin-top:15px; color:white;">＜設定推測：要素調整＞</p>
+        <div class="grid grid-3" id="weight-settings"></div>
+
+        <p class="section-title" style="margin-top:15px; color:white;">＜スプレッドシート連携＞</p>
+        <input type="text" class="gas-input" id="gas-url" placeholder="GAS WebアプリのURLを貼り付け" onchange="saveGasConfig()" value="">
+        <input type="text" class="gas-input" id="gas-token" placeholder="トークン（初期値: hanahana2026）" onchange="saveGasConfig()" value="" style="margin-top:6px;">
+        <p class="gas-note">※ GASコードのTOKENと同じ文字列を入力</p>
+
+        <button onclick="exportData()" class="export-btn">データ保存・画像出力</button>
+        <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px; font-weight:bold;">リセット</button>
+    </div>
+</div>
+
+<div id="predict-modal" class="modal">
+    <div class="modal-header">
+        <div class="header-icon" onclick="openHistory()" style="font-size:18px;">📋</div>
+        <div class="modal-title" onclick="openHitModal()"
+             style="cursor:pointer; -webkit-user-select:none; user-select:none;">設定推測 📊</div>
+        <div class="header-icon" onclick="closeModal('predict-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="section-title" id="title-predict">＜推測設定＞</p>
+        <div id="predict-bars" style="background:#222; padding:5px 10px; border-radius:5px;"></div>
+        <p class="section-title" id="title-expect">＜実践値＞</p>
+        <div class="expect-box" id="expect-info"></div>
+        <p class="section-title" id="title-detail">＜詳細データ＞</p>
+        <table class="detail-table" id="detail-rows"></table>
+    </div>
+</div>
+
+<div id="history-modal">
+    <div class="modal-header">
+        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="modal-title">実戦履歴</div>
+        <div class="header-icon" onclick="closeHistory()">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="section-title" id="hist-summary-title">＜設定ツモ率＞</p>
+        <div class="hist-filter-label">集計対象の信頼度</div>
+        <div class="hist-filter" id="rel-filter">
+            <div class="hist-filter-btn active" data-rel="1" onclick="setRelFilter(1)">最低↑</div>
+            <div class="hist-filter-btn" data-rel="2" onclick="setRelFilter(2)">低↑</div>
+            <div class="hist-filter-btn" data-rel="3" onclick="setRelFilter(3)">中↑</div>
+            <div class="hist-filter-btn" data-rel="4" onclick="setRelFilter(4)">高↑</div>
+            <div class="hist-filter-btn" data-rel="5" onclick="setRelFilter(5)">最高↑</div>
+            <div class="hist-filter-btn" data-rel="rainbow" onclick="setRelFilter(6)">虹</div>
+        </div>
+        <div class="hist-filter-label">推定設定</div>
+        <div class="hist-filter" id="setting-filter"></div>
+        <div class="hist-summary" id="hist-summary"></div>
+        <p class="section-title">＜履歴一覧＞</p>
+        <div class="hist-fill-notice" id="hist-fill-notice" style="display:none;"></div>
+        <div class="hist-count" id="hist-count"></div>
+        <div id="hist-list"></div>
+    </div>
+</div>
+
+<!-- 大当たり回転数 入力パネル -->
+<div id="hit-panel">
+    <div class="hit-head">
+        <div class="hit-kind" id="hit-kind-label">BIG</div>
+        <div class="hit-close" onclick="closeHitPanel()">✕</div>
+    </div>
+    <div id="hit-panel-body"></div>
+</div>
+
+<!-- 一括加算パネル（機種名長押し） -->
+<div id="bulk-panel">
+    <div class="modal-header">
+        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="modal-title">まとめて加算</div>
+        <div class="header-icon" onclick="closeBulkPanel()">✕</div>
+    </div>
+    <div class="modal-body">
+        <div class="bulk-wrap">
+            <div class="bulk-col-l">
+                <p class="section-title" style="margin-top:0;">＜加算する項目＞</p>
+                <div class="bulk-target-grid" id="bulk-targets"></div>
+            </div>
+            <div class="bulk-col-r">
+                <p class="section-title" style="margin-top:0;">＜加算する数＞</p>
+                <div class="hit-display" id="bulk-display">0</div>
+                <div id="bulk-keys"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 大当たり分析モーダル -->
+<div id="hit-modal">
+    <div class="modal-header">
+        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="modal-title">大当たり分析</div>
+        <div class="header-icon" onclick="closeHitModal()">✕</div>
+    </div>
+    <div class="modal-body">
+        <div class="hm-tabs">
+            <div class="hm-tab active" data-tab="rec" onclick="setHitTab('rec')">当選履歴</div>
+            <div class="hm-tab" data-tab="prob" onclick="setHitTab('prob')">確率表</div>
+        </div>
+        <div id="hm-content"></div>
+    </div>
+</div>
+
+<div id="img-modal">
+    <div style="color:white; margin-bottom:10px; font-weight:bold;">画像を生成しました</div>
+    <img id="img-preview" src="">
+    <div id="img-controls">
+        <button onclick="downloadImage()" style="padding:10px 20px; background:#007aff; color:white; border:none; border-radius:5px; font-weight:bold;">画像を保存・共有</button>
+        <button onclick="document.getElementById('img-modal').style.display='none'" style="padding:10px 20px; background:#555; color:white; border:none; border-radius:5px;">閉じる</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
+
+    const SINGLE_DEFAULT = {
+        start: { g:0, b:0, r:0 },
+        cur: { g:0, b:0, r:0, bell:0, suika:0, suikaR:0, retro_d:0, retro:0 },
+        lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
+        morning: -1,
+        hits: []   // 大当たり回転数の記録 [{g:回転数, k:'b'|'r'}] 先頭が最新
+    };
+
+    const DEFAULTS = {
+        machine: 'houou', mode: 'tap', viewMode: 'personal',
+        weights: {
+            houou: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
+            king: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
+            dragon: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
+            star: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
+            newking: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, suiR: 15, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 }
+        },
+        houou: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
+        king: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
+        dragon: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
+        star: JSON.parse(JSON.stringify(SINGLE_DEFAULT)),
+        newking: JSON.parse(JSON.stringify(SINGLE_DEFAULT))
+    };
+
+    const RAINBOW_IMG = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAABGdBTUEAALGPC/xhBQAACjdpQ0NQc1JHQiBJRUM2MTk2Ni0yLjEAAEiJnZZ3VFPZFofPvTe9UJIQipTQa2hSAkgNvUiRLioxCRBKwJAAIjZEVHBEUZGmCDIo4ICjQ5GxIoqFAVGx6wQZRNRxcBQblklkrRnfvHnvzZvfH/d+a5+9z91n733WugCQ/IMFwkxYCYAMoVgU4efFiI2LZ2AHAQzwAANsAOBws7NCFvhGApkCfNiMbJkT+Be9ug4g+fsq0z+MwQD/n5S5WSIxAFCYjOfy+NlcGRfJOD1XnCW3T8mYtjRNzjBKziJZgjJWk3PyLFt89pllDznzMoQ8GctzzuJl8OTcJ+ONORK+jJFgGRfnCPi5Mr4mY4N0SYZAxm/ksRl8TjYAKJLcLuZzU2RsLWOSKDKCLeN5AOBIyV/w0i9YzM8Tyw/FzsxaLhIkp4gZJlxTho2TE4vhz89N54vFzDAON40j4jHYmRlZHOFyAGbP/FkUeW0ZsiI72Dg5ODBtLW2+KNR/Xfybkvd2ll6Ef+4ZRB/4w/ZXfpkNALCmZbXZ+odtaRUAXesBULv9h81gLwCKsr51Dn1xHrp8XlLE4ixnK6vc3FxLAZ9rKS/o7/qfDn9DX3zPUr7d7+VhePOTOJJ0MUNeN25meqZExMjO4nD5DOafh/gfB/51HhYR/CS+iC+URUTLpkwgTJa1W8gTiAWZQoZA+J+a+A/D/qTZuZaJ2vgR0JZYAqUhGkB+HgAoKhEgCXtkK9DvfQvGRwP5zYvRmZid+8+C/n1XuEz+yBYkf45jR0QyuBJRzuya/FoCNCAARUAD6kAb6AMTwAS2wBG4AA/gAwJBKIgEcWAx4IIUkAFEIBcUgLWgGJSCrWAnqAZ1oBE0gzZwGHSBY+A0OAcugctgBNwBUjAOnoAp8ArMQBCEhcgQFVKHdCBDyByyhViQG+QDBUMRUByUCCVDQkgCFUDroFKoHKqG6qFm6FvoKHQaugANQ7egUWgS+hV6ByMwCabBWrARbAWzYE84CI6EF8HJ8DI4Hy6Ct8CVcAN8EO6ET8OX4BFYCj+BpxGAEBE6ooswERbCRkKReCQJESGrkBKkAmlA2pAepB+5ikiRp8hbFAZFRTFQTJQLyh8VheKilqFWoTajqlEHUJ2oPtRV1ChqCvURTUZros3RzugAdCw6GZ2LLkZXoJvQHeiz6BH0OPoVBoOhY4wxjhh/TBwmFbMCsxmzG9OOOYUZxoxhprFYrDrWHOuKDcVysGJsMbYKexB7EnsFO459gyPidHC2OF9cPE6IK8RV4FpwJ3BXcBO4GbwS3hDvjA/F8/DL8WX4RnwPfgg/jp8hKBOMCa6ESEIqYS2hktBGOEu4S3hBJBL1iE7EcKKAuIZYSTxEPE8cJb4lUUhmJDYpgSQhbSHtJ50i3SK9IJPJRmQPcjxZTN5CbiafId8nv1GgKlgqBCjwFFYr1Ch0KlxReKaIVzRU9FRcrJivWKF4RHFI8akSXslIia3EUVqlVKN0VOmG0rQyVdlGOVQ5Q3mzcovyBeVHFCzFiOJD4VGKKPsoZyhjVISqT2VTudR11EbqWeo4DUMzpgXQUmmltG9og7QpFYqKnUq0Sp5KjcpxFSkdoRvRA+jp9DL6Yfp1+jtVLVVPVb7qJtU21Suqr9XmqHmo8dVK1NrVRtTeqTPUfdTT1Lepd6nf00BpmGmEa+Rq7NE4q/F0Dm2OyxzunJI5h+fc1oQ1zTQjNFdo7tMc0JzW0tby08rSqtI6o/VUm67toZ2qvUP7hPakDlXHTUegs0PnpM5jhgrDk5HOqGT0MaZ0NXX9dSW69bqDujN6xnpReoV67Xr39An6LP0k/R36vfpTBjoGIQYFBq0Gtw3xhizDFMNdhv2Gr42MjWKMNhh1GT0yVjMOMM43bjW+a0I2cTdZZtJgcs0UY8oyTTPdbXrZDDazN0sxqzEbMofNHcwF5rvNhy3QFk4WQosGixtMEtOTmcNsZY5a0i2DLQstuyyfWRlYxVtts+q3+mhtb51u3Wh9x4ZiE2hTaNNj86utmS3Xtsb22lzyXN+5q+d2z31uZ27Ht9tjd9Oeah9iv8G+1/6Dg6ODyKHNYdLRwDHRsdbxBovGCmNtZp13Qjt5Oa12Oub01tnBWex82PkXF6ZLmkuLy6N5xvP48xrnjbnquXJc612lbgy3RLe9blJ3XXeOe4P7Aw99D55Hk8eEp6lnqudBz2de1l4irw6v12xn9kr2KW/E28+7xHvQh+IT5VPtc99XzzfZt9V3ys/eb4XfKX+0f5D/Nv8bAVoB3IDmgKlAx8CVgX1BpKAFQdVBD4LNgkXBPSFwSGDI9pC78w3nC+d3hYLQgNDtoffCjMOWhX0fjgkPC68JfxhhE1EQ0b+AumDJgpYFryK9Issi70SZREmieqMVoxOim6Nfx3jHlMdIY61iV8ZeitOIE8R1x2Pjo+Ob4qcX+izcuXA8wT6hOOH6IuNFeYsuLNZYnL74+BLFJZwlRxLRiTGJLYnvOaGcBs700oCltUunuGzuLu4TngdvB2+S78ov508kuSaVJz1Kdk3enjyZ4p5SkfJUwBZUC56n+qfWpb5OC03bn/YpPSa9PQOXkZhxVEgRpgn7MrUz8zKHs8yzirOky5yX7Vw2JQoSNWVD2Yuyu8U02c/UgMREsl4ymuOWU5PzJjc690iecp4wb2C52fJNyyfyffO/XoFawV3RW6BbsLZgdKXnyvpV0Kqlq3pX668uWj2+xm/NgbWEtWlrfyi0LiwvfLkuZl1PkVbRmqKx9X7rW4sVikXFNza4bKjbiNoo2Di4ae6mqk0fS3glF0utSytK32/mbr74lc1XlV992pK0ZbDMoWzPVsxW4dbr29y3HShXLs8vH9sesr1zB2NHyY6XO5fsvFBhV1G3i7BLsktaGVzZXWVQtbXqfXVK9UiNV017rWbtptrXu3m7r+zx2NNWp1VXWvdur2DvzXq/+s4Go4aKfZh9OfseNkY39n/N+rq5SaOptOnDfuF+6YGIA33Njs3NLZotZa1wq6R18mDCwcvfeH/T3cZsq2+nt5ceAockhx5/m/jt9cNBh3uPsI60fWf4XW0HtaOkE+pc3jnVldIl7Y7rHj4aeLS3x6Wn43vL7/cf0z1Wc1zleNkJwomiE59O5p+cPpV16unp5NNjvUt675yJPXOtL7xv8GzQ2fPnfM+d6ffsP3ne9fyxC84Xjl5kXey65HCpc8B+oOMH+x86Bh0GO4cch7ovO13uGZ43fOKK+5XTV72vnrsWcO3SyPyR4etR12/eSLghvcm7+ehW+q3nt3Nuz9xZcxd9t+Se0r2K+5r3G340/bFd6iA9Puo9OvBgwYM7Y9yxJz9l//R+vOgh+WHFhM5E8yPbR8cmfScvP174ePxJ1pOZp8U/K/9c+8zk2Xe/ePwyMBU7Nf5c9PzTr5tfqL/Y/9LuZe902PT9VxmvZl6XvFF/c+At623/u5h3EzO577HvKz+Yfuj5GPTx7qeMT59+A/eE8/vH0Tt4AAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAJcEhZcwAACxIAAAsSAdLdfvwAAAAbdEVYdFNvZnR3YXJlAENlbHN5cyBTdHVkaW8gVG9vbMGn4XwAACAASURBVHic7Z173KbVvP8/a6aaTppR00EHTQcVRVEUSm2KEEKR3WAotLfo8AuzGcIOIcy2QxhbIUJRDIpiUIhKISqlSWedqTSZ5vv743nW89xzzXPf12kdvmutz/v16rVac83c93Wt9f1+Puu7ruu+byMiIIQQQkjaGBo6IYQQkj40dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGXhLmjuMB815AABiMtVMxeLzp3+t73ACQqwAsBLAY8pibR14LIYSQlaChl4Q5S1Y116n6gyY8zNyHmXXb1x/5vtcCcjjk1T8ddkmEEELGoKGXhHnu+GQPM91Rf141277/fqrXG/o+twHYA/KrG0AIIWRKaOglYUzKk70cwJoQeST2iRBCiEZo6CWRtqEDwJ4QuSj2SRBCiEZo6CWRvqEfBJGzYp8EIYRohIZeEjR0QgjJFhp6SdDQCSEkW2joJUFDJ4SQbKGhlwQNnRBCsoWGXhI0dEIIyRYaeknQ0AkhJFto6CVBQyeEkGyhoZdE+oZ+IETOiX0ShBCiERp6SaRv6JtA5PbYJ0EIIRqhoZdE2oZ+PkT2i30ShBCiFRp6SaRt6LMhclfskyCEEK3Q0EsiXUPfASJXxz4JQgjRDA29JNI0dJo5IYQ0gIZeEmkZ+lIAe/AhOEIIaQYNvSTSMfSFAI6DyCOxT4QQQlKBhl4SqRi6iIl9CoQQkho09JKgoRNCSLbQ0EuChk4IIdlCQy8JGjohhGQLDb0kaOiEEJItNPSSoKETQki20NBLgoZOCCHZQkMvCRo6IYRkCw29JGjohBCSLTT0kqChE0JIttDQS4KGTggh2UJDLwkaOiGEZAsNvSRo6IQQki009JKgoRNCSLbQ0EuChk4IIdlCQy8JGjohhGQLDb0kaOiEEJItNPSSoKETQki20NBLgoZOCCHZQkMvCRo6IYRkCw29JGjohBCSLTT0kqChl40xXwNwSOzTIEQpF0Jkr9gn0QcaeknQ0MsmlfknJBaJaw8NvSRSEfTEk0otqcw/IbFIXHto6CWRiqAnnlRqSWX+CYlF4tpDQy+JVAQ98aRSSyrzT0gsEtceGnpJpCLoiSeVWlKZf0Jikbj20NBLIhVBTzyp1JLK/BMSi8S1h4ZeEqkIeuJJpZZU5p+QWCSuPTT0kkhF0BNPKrWkMv+ExCJx7aGhl0Qqgp54UqkllfknJBaJaw8NvSRSEfTEk0otqcw/IbFIXHto6CWRiqAnnlRqSWX+CYlF4tpDQy+JVAQ98aRSSyrzT0gsEtceGnpJpCLoiSeVWlKZ/7YYABKgX23rjrPt31p89y0r0tYeGnpJTDOiIknr2kfSTiq1TE/Q0GOZNdvupuvLlKvUHe/C8rS1h4ZeEqslIuiJJ5VaVjeiTqR9iHIphFrsVPs5tw+nrT009JJYY8DQNSfrsrSTSi0zElnQAavGZ91xmpX/yttVXzMPpa09NPSSWHNc0DWIxag28aRSy1pKDJ2VZHomnJIp9+HBtLWHhl4S6ygR9DoeSDup1LJOw2coLBT99nCx4n5REjI+/5G29tDQS+JRPQ09lDglnlRqWS+RBd0waI76KvecMADuTVt7aOglMSuioLcR28STSi2PTtzQR0Ez92fqJWDH6e60tYeGXhIbtHjKOeZK/q60k0otszvMv5bKMGWqi4m64yUtPixa4uOOtLWHhl4SGyVSof0t7aRSy0bj99AtOZnmMLpW7tV+yq1Fi2mGpO1835a29tDQS+IxDis0iw9RuDXtpFLLponMvxZcLQaq/RRbS+7zf3Pa2kNDL4nNe1ToIcXsxrSTSi1btJj/EszKkpspNYHzO3X/hrS1h4ZeElsm8jn0xJNKLVtFuIdeYqUXcvGrrbWkOn9/SVt7aOglsU2DCk2DGF2bdlKpZdtEvss/d9MYRc5mn8L8XZO29tDQS2L7HhWaJURSXp12Uqllh4H5t2gU1WHkXOlaUp6fOlKYvz+mrT009JJ4Qk2FZoktIlemnVRq2SmR7yEY7GtqLdryxQWcnzF+l7b20NBLYmcP91AtLkXtirSTSi27DBh6SqaTornkZPoljL/tX5a29tDQS2LXCBVaFzG4JO2kUstuAzs0Fg2im7MppmyGJY7/r9PWHhp6Sewe2NCbJlO1f3HaSaWWpyt4yj0n0+ga3xpaS47j36e9KG3toaGXxDMTuYd+YdpJpZa9CvscukWjKXF8/dJ1fH+atvbQ0Etin4aCHltclqSdVGp5toMK3aJZ1GPHb+rjV0fO43t+2tpDQy+J/Rx+Dt1n+8O0k0otzx2yQ2NJwXQ0xGfKpp3T+PkYzx+krT009JJ4wRSfQ9aETervp51Uajkg4j10i2bTa2p21T7Hb4wcxu87aWsPDb0kXuLhHqqP9uy0k0otLx2ff00mYNFsBppN1KJxvJqOnwbseZ6VtvbQ0EvioCGGrk0Mzkw7qdTyikhfLKMtvlIxaUuK4xcSl+PztbS1h4ZeEq9S8HvYTZLv9LSTSi2HOvoud4sG09NsdhoXDRyf0Xwpbe2hoZfEax1XaL7E4bS0k0otr2vwXe4h0WQuFo5P2eOzKG3toaGXxBscGrrPyuhzaSeVWt6k6B66BrOyaBiPKprHJwY+9Waw/Uza2pOHof+n2QCCOTCYM6RdN4mgtcRMZkvM8QmVvOmI3L0Alk78Z7AUMtA/We5r9CpvyfRz6CnER6n5Y0klPhbS0ONztPkugANUBJGGZLLEGI/Sr7+K/+tfiI/JMY3O5dhEnqHIOT5Kv/46Yi/OPkpDj8/bG1QelphBrSGZNSV1zPGw5HD9JzYUof8akSeWmKKuMR9CwuuPf/0n0NDjsyCRb0CzxEgaXn88sfB9/e9rKELHm3sAzAJqzjO1629CzvPfBF5/s+t/Dw09Pv+t8BuwfKLBnDUkqUXj9Yccj3c1FKEPmp0h2AcG+4y3s7K4/pj5YOH1p3r9D8FgCQRLYLAE75CLA521F/Iw9A97/MIMDeZp0WCiMc1Tw/VX0RAfx6VdVajkYx01RVN+HMu4KI08DP0TU1TolpiiHzO5LemunPNfFLgaj6Mo3M753yEf8QtJ3/h4C+OiNPIw9E95qNA1mI9FgwlpNGdL6eNxBIXbOZ/1/DW5IeLljYyL0sjD0D/f4h66RePKu9rP3RSHkcL4aIqfwyjczvm/jl+Ta9EQL69jXJRGHoZ+asvks2hIOk3mpXF8qmgYL4uW8Xk1hds5p2fwoO2hjIvSyMPQv8pfkZpAq+kAOhYrmncqmsZTtX8Ihds5X3f0QzYx4+sVjIvSyMPQv+n5V6RYmeoVraakNF5tx+9lFG7nfLtlkdB1MeazPZBxURp5GPo5PbbHLJpNSYM4cPz0jt+LKNzOWZzIDxmNag9gXJRGHob+/YBb7prNoa1JaDDdnMYzBgbA8yjczjlvXFNSjsfnMi5KIw9D/5GHB1gsGkR7GJrN0JKCKVo0j+eo8d2Xwu2cHyv4HHoddfH6bMZFaeRh6D/x/BETjUmt2Ww4vmHH91kUbuf8fGDXL9X43ZNxURp5GPqFjrfcU6rUuppoTJqOb7WvobVoGt9nULid88semqIlnp/OuCiNPAz94iHbY5pMzJKymWk2taakON514/9UCrdzLhm4jWdJLf53Y1yURh6GfumI7TFNpGzmltREbZCUx3/UfDyFwu2c3yb8ZVWWXRgXpZGHoV8xkHyWFMXaolkkupLifKQyP0+kcDvnD4G/rMqHfu3IuCiNPAz9yp7Jl4PZpFQ5tKWr2FX7GltLn/l5PIXbOX8aLxIs2hd1U7ED46I08jD0q0cYespi31dENIhKHTmbdaj5eRyF2znXdriHro1tGRelkYehX9fhc+iW1JN2FDmaY0nzWZ2fYce3pnA75/oAW+6+83MrxkVp5GHoSx3/kAJNpp6SFgva5/exFG7n3Jj459ABYAvGRWnkYeg3jdgeC739qYGuZlvtp9hatJmuTzajcDvnlki/4NiFYfm7KeOiNPIw9FsHkq9kMyvZ1JrSdf7rjsdsN6ZwO+d2xd/l3rTdiHFRGnkY+t8CraaryV13vITFg+tFRM6LCl/xsSGF2zl3RqjQXcfHbMZFaeRh6Hdl8jl0raZbJUfT7Ro/df0Q7aMp3M65J9Dvodf1+7SzGBelkYeh35vQ/a4uaBCHVFtLzjsFMynczrmv4YO2Fo3xtR7jojTyMPR/dPwu95REuytVc687zsVCeouGdSncznnAw08yh46/dRgXpZGHoT+QaIXuykyrfbaTaDFdn6xN4XbOg5E/Cmvp01+LcVEaeRj6PyMln6UE09AGF0OT7QwKt3OWRS4SXMTzGoyL0sjD0B8OuD1m8W3ypDu+zL7a19JSuN3zr0R3/QZZnXFRGnkY+vIMki8UpZldiq2l6fHpFG7nPNJRUzTl1zTGRWnkYegrEniAxeK7si+50i91cULhdo8k9Dn0oX3GRWnkYehghT6IqzUB21Vbi+9+Gwwo3K4RGNEQb31axkV5ZGHoKwaSz0ITi2dOxN2iqtqfql2Nwu2c5RkUCYyL8sjC0P81vrekwSRppu6omlrd8VIXbatTuJ3zcI8iQUu7BuOiOLIw9GXKt8csNOtV8Vm55tJahvXXonA758GEigRLtb8246I4sjD0B3tuj5VsKpaSFxupz/86FG7n3D+gKdrnf1i7LuOiOLIw9H8EqtAtJZpfaiYXcn5jM5PC7Zx7M7iHPotxURxZGPo9DbbHLFrF+tEBku/uyudYNJjoVG2IsbDcHVG4XS2K1qdwO+euKeIitUXtBoyL4sjC0O9sWaFbtJg5AGwYIPnuUP6sgW03CihEf3Ns6F1Fv9pv025M4XbO7eNxoc2k2+jbJoyL4sjC0G9NpPIctXh4TIDku9WRefmuTEKMheWW8TGJuZhrS3W8N6VwO+fmEbmSSqW+GeOiOLIw9JuGVJ4WzZW5ZYsAyXej4wrd4np8HxtQiP5aU4lV+5pay5YUbucsneI2nkWjflQRAFsxLoojC0O/PtJ9UJcr9a0DJN9fBkTKolGcQoyF5S+ebkNYQozvNhRu51zrQFNiV/LbMi6KIwtDvyaDB5u2C5B814ybl0WDeU81XjsEFKKrOnze2KJh/ICw41UKf0po58ZS7T+BcVEcWRj6lT2+BMISW6x3DJB8f/DwZRkWl+O3U0Ah+kPkBwUtfcbviRRu5/yuR5GgZRHwJMZFcWRh6JcHqNB9J+kuAZLvtwF3MvqM11MCCtFlU9yGiEGfeNqVwu2cSzLYudmNcVEcWRj6bxoaVVOTqfZDtE8LkHy/rhknLeMTYiwsF7dY5GiKl8F2dwq3c37pYfEbOn6ezrgojiwM/aLERRkA9gyQfBc2GCcN47NXQCH6uaNFTuh4wUD/WRRu5/y0o6FriBfLPoyL4sjC0H/S4OntkHRJ6mcHSL4fB9py7ytqIcbCckEGldhzKNzO+ZHHXAkVH/sxLoojC0M/r0PyxVw5T9V/XoDkO7fBD07Euv7B/vMDCtEPKk8za7j+tryAwu2cxQ4eILXEKjYOYFwURxaG/t2AouwrOV8cIPnOcfiUu8WHOL0koBCd0/Apd0tIcW5ayR1I4XbOtyJ8g6Dryv1ljIviyMLQz1Raebbh4ADJ982OH9GyhDKzVwQUoq+3+EYwH7gQ8UMo3M75WiJfkzwqX/+dcVEcWRj66YF+YMNn8s0NkHxfifCDE5Y2ZvnqgEL05Z6fQ7fEWAxYXkPhds5plS9h8okv05/HuCiOLAz9/wZE2aK1Eh/GYQGS7ws15mWJXZkeHlCIPu/p4aeQi6Y3Uridc4qHL2EKnW9HMC6KIwtD/7THB1hcMkrk3xwg+T7l+UtUXJlYiLGwnNzhV7W0iftbKNzO+WRl8WsJufPSN/6OYlwURxaG/glPvyLmg2FJemyA5Pu4h21EH6Z3XEAhOqli6DF3errG39so3M75sKfF76idqcG+i3Y+46I4sjD0D3X8chBNldY7AyTfBxrsZFh8ViZ1ovaugEJ0gsdf1fIZX4O8m8LtnPf3/EnmPrgy/eMZF8WRhaEf7/jpbR/UJeX7AyTfux3eL/ZpYicEFKIFHj/yaPEdXx+gcDvnv3rmSsydHsuJjIviyMLQ3xHgc+gWX+L8kQDJ97bA36jXVdQ+GlCIjvPwq1qh4+1jFG7nHKvoAVJL23j7BOOiOLIw9KMS+ujRsKT8ZIDke2vAe+jVfpv25IBCdKSC73K3dI2/T1G4nfMfLR60tWjY6RtsT2FcFEcWhv6mRCrPUe3nAiTfG4eYVwjTaiOGnw8oRG/w/HvoFp/xuIjC7ZzDKovfGHpS7bdt/49xURxZGPq8DD6HflqA5Httx23E0JXHlwIK0asD/R66z/j8CoXbOYe2vBWjUX++yrgojiwM/VWJVJ6jOCNA8r3S45dlWFyY49cDCtErE3ig0jIsfr9B4XbOQYq+y71reybjojiyMPSXTfFd7jHMuk/yfztA8r3U0fayxZfYnR1QiF7SYZFjCSn2lqlE/zsUbue8KNJPMrssQhYzLoojC0N/odIHWCxNkvL7AZLvBQMLnxhmZKkbjxBjYXl+oN+IH8R1JfYDCrdznhfh99Bdt+cxLoojC0Pfb4rkc7nSDVHJnx8g+faN/Kt0TcfngoBC9JwIP73renH5Ywq3c/YZLxIsKcbHEsZFcWRh6Hsn/FOHtv1ZgOR7lqMHfap9122IsbDspfRz6G3an1O4nfPMADs3vuPnIsZFcWRh6E/v8AMb1X6MlfZg/1cBkm8PpTsZ1fbigEK0u4LPofdtf03hds5TA/8KX7Xvor2EcVEcWRj6rg6f3rZU+765NEDyPcXDU+4Wl+N3WUAheornz6GHGK/fUrids0sLQ9e66LuccVEcWRj6kzz+wEa176v9XYDke2KEB32q/SbtHwIK0U6BPodeR5/xu5LC7ZwnRFz8uorHPzIuiiMLQ398hCeVAbcmdlWA5Nsh0kdxmmLHI8RYWHZw/Dn0GON5NYXbOdv1uD1V7cdqr2FcFEcWhr5tgF8Rq/Zdt9cGSL5tIi18Bmkyvn8JKERbO/wceqzFUcjxKoWtOuaKJpNfyrgojiwMfUuP34AWSuxvCJB8WzYUqdiiFGIsLI9VsMip0nb8/0rhds4Wyj7i2VZfDIAbGRfFkYWhb5aQKA9rbw6QfJu13F62hK48bwkoRJtG/By6K/G+lcLtnE0aFAmW2PkyjNsYF8WRhaFvPOIb0LQkVx23B0i+jSLuZFiazM/fAgrRRh4+h17Xd92GHK9S2DDwpx985NOdjIviyMLQN4hYoXcV9Wr/rgDJt4HnB8BcLabuDihE62fwOfR7KNzOmaXoNl7X/LyXcVEcWRj6zCFf01jta27vC5B8MxXemgBWna8QY2GZGbkSs/Tp/53C7Zz1AsWFxcdi+R+Mi+LIwtAfNZ58lq6VYUzuD5B86yrfRrTtAwGFaB2li5wqo3YKQo5XKaydSFxYpoqPfzIuiiMLQ1/L4QMsLlbGXQiRfGs52l6u9l23IYVorYaLHIvG+HmIwu2cNR0vfi0h42cZ46I4sjD0NcaNqi7YNVfuDwdIvjUGRMoSyqTbtP8KKESrT7EYtGgw6yaEHK9SWM3jPXSL7/5yxkVxZGHoq3n6FbG6vsv2kQDJNz3Agz6WPv0QY2GZrnBrtRpvdcdDjlcpTK+5jdd2MRdjsbeCcVEcWRj6tCHbY5YUKi8JkHxGoXlNRYixsKQyJqMIOV6lwLggKZKFoTP5mpHKONHQ20Hhdg/jgqQIDd0rzTfiwhj6NNFxl3x0G97QY1ynpenx4X0Kt3vGciU2bTfyV+4LVjAuCiMTQ58mo+866kfwSABDnx5wsruLUYixmHzX1ZJY5IxqBcvTDn6FjMVF2jAuyiMTQ19d/Nw1r7sr71KU/xXA0O04xTehUZVpiLGwjI1J2oQcr1IYiwsN+dBnp4txURqZGPoaMtjzY+7VvuvkeziAoa+RhEgJlgU09BnJJ0DI8SoFgzUTWPzW5dFDjIvCyMTQ1xy4iMlKr1m/St1xP4RIvpXHyc87rLz4qTs+dT+kEI2NSXzx7bcYpHC7xmAthcLYrvgQ/JNxURiZGPrayV+E4MEAhj44TnF2IppVFg8ENPR1HFZiFtf90YQcr1IwWFe05kfzPLqfcVEYmRi6Tb7uohibEMk3Nk5TH3FRWdf3m1ac4YRobExiiq+le1/wj3QCPREMHtVh8VvXD71zw7gojUwMfb0RF+EqGev6fZPv7wEMfT1P5mVx0xfcF9DQZyaeAAaCeyncjjGY1aBI6LvT4rfoYFyURyaGPqvjRYSqTKv9qbbH7glg6I8W92bufhEQUojGxiRV7GLQf+yUhsH643Hh29T9IbibcVEYmRj6+pJq0k2ewV0BDH2DEduIq/7tWNuKgjsDGvpsj4sci19TCDlepWCwoaLFb9c8uoNxURiZGPqGgS/CvRkK/hbA0DdSIFKW4cdDjIVlbExSY+X4CTlepTAWF20W/fGLgiqC23WdEPFOJoa+SfIXIbgtgKFvIhoqh/rK4taAhv6YgdjRJ8pNCDlepWCw6YjFr0X3TqDgFsZFYWRi6JuK/b9Y28T9TezmAIa+mWgTnakIMRaWsTGZ7KUYPyHHqxQMNu8gjLriR3AT46IwMjH0LSR0srhPvhsDGPpjxwcovmmPQvDXgIZuxyTd+BHcoHcyE8VgjqSwmBsdF0sZF4WRiaHP8XwR1WSuO94++QXXBzD0rcS9eFj69geP+B8Ly9iY+H+XbvFRd9wuBsONVykYbO0wLrpW7tV+2yLhL4yLwsjE0LeRwV5qK+mx5LsugKFvm8RkC64NaOiP87DICV2J/ZnC7RiD7RKKC8vKfcE1jIvCyMTQt3N0EXFW0mOifHUAQ9++hUhZulfaXQkxFpaxMZnsxZr/fovBcONVCgY7iJb57R4XVzEuCiMTQ3+8+EkKi39TE/wxgKE/ocVkxzMzwZUBDX1HCTG/Pgk5XqVgsNNAcOue/6kxEPw+tZMmPcnE0J+YgSj7T76xcRr7Pw0VxPDKIpwQGTxJYQK0W0wJfqc3sBPFYGePcRFmcSy4gnFRGJkY+i6eKvRwlb3gtwEM/ckeJtt9JS+4LKChP0X8zW8YQo5XKRjsmqgwTuab4FLGRWFkYui7NRBli1ZRviSAoT9VfG2Tu63Q/Y+FZWxMtNBtcST4DYXbMQZPaxAX7hezbvPo14yLwsjE0Hd3VKFbwpu+4FcBDH0PGexpEp+VK/RfBjT0pytJgO7mIPgFhdsxBs9oGRf6zF1wEeOiMDIx9GfWXET85KpPvgsDGPqeSid75fkIMRaT77yno8Vg30VidwQ/p3A7xmAvcb1o98ewnZufpXIBxBGZGPreU1SeKbWAYEkAQ9/Hw2R3rUyq/cHFzU8CGvq/DZxM/J2aLoQcr1IweHYgYfRXbAguYFwURiaG/pxIF+EuGQXnBzD0fSUF0woxFpaxMdGwqGta2a+K4EcUbscYPHc8kfXlR1MEP9R5YsQbmRj685SKcvPtV8F5AQx9f4eT7bOy+EFAQ39+g0WORibHO+R4lYLBC2pypf9OlO9W8D3GRWFkYugHSOzk6WLig33B4gCGfkDHyQ4rXiHGYvJMXzSkEotJu/EWfFfLiWeDwYtlsKdXX4brjeA7jIvCyMTQD1R0Ed3MTnB2AEM/sOFOhiVO5Sr4dkBDf5nEFF0X4yv4FoXbMQYvV6Ip3RfTgjMZF4WRiaEf5Okiwm2jCb4ZwNAPlq6mEQa7uPE/FpPveHDDRY6uRc8ggm9ondBkMXhlB00Ju5NVv9P1dcZFYWRi6IdIbFGtp27b9GsBDP1VLc1r8uxCjq/gqwEN/dCAFbrF7fgKTtcW7MljMDewMLpfDAi+zLgojEwM/TUScyXsQuQFXwpg6K/pONlhK40QYzF55q9VkAD9xldwGoXbMQbzOu7c6NnpEXyRcVEYmRj662Wwp9/MLZN9wRcCGPphHSY7rJmPVRaLAhr64RlUYp+ncDvG4I0Od24s7k17FILPMS4KIxNDf9PARYRNmtE0F2/BZwMY+hEtRMoSfvwEpwQ09CM8VWIW/+Mp+AyF2zEG/9lAGN0vztzudH2acVEYmRj6kR4uImyyCk4OYOhviTjZzcdP8MmAhv7WgUWOJf6iZlVGLQbDjVcpGBztsEKPswgULGRcFEYmhn7MFKIc9gz6mr/g4wEM/dgkdjJCjMXkOx/bskKfPMv4Jj+G4GM6TiQjDI7ztHMTztQFH2VcFEYmhv52GeyFT8L+SSn4cABDf8eASE3+acxtwakXNycGNPT5LRNA3/gJPkThdozBOyMJo7v4EnyAcVEYmRj6u8T+X2xx7VrZCU4IYOjvlr47CSHGJ8RYWMbGpPnf1hhfgv+mcDvG4PgIwug2vgTvY1wURiaG/r4AF9HU/Kr9psl3fABDf3/EyW4+PoJ3BzT0/5Y2Oyk+z6RrfAkWULgdY/AB6WOmXRb1rhG8i3FRGJkY+gd7XkT8SlXwXwEM/UOOJtvveIUYi8kzPVHRYrDreM2ncDvG4MPSz6RjLApXRvB2xkVhZGLoH22YfHqTUnBcAEM/qec4hRk/wf8LaOgf91CJhR0/wbEUbscYfCKJxe/oIuFoxkVhZGLoC8X+nz4RbirKRwUw9E9K7J2IJuMVYiwsY2My/Giz8ar2w7aCt1K4HWNw8vjExq+0hzM6/gRHvdqGVwAAIABJREFUaj1x4olMDP1TQypPi55KfBiC/wxg6J9OYidD8B8BDf2UiBW6pd94Co6gcDvG4LOehdH/YlDwRsZFYWRi6J8PKMoW16L8hgCG/vnKTsbkkXimtur4Cg4PaOiLOiSArko95HiVgsEXehYJMbFx8XotJ0QCkYmhf7Fn5RnHxAcRzAtg6Kd6Hic34yl4bUBDP61lAugy87Hxeg2F2zEGXx5RJFg0mzogeLWekyFByMTQv6LkIrqLu+DQAIZ+uqQgSiHGwjI2JjEXgf0R/DuF2zEGX/OgKU0Xg9V+152bVzEuCiMTQz9DtJvUqqycvIJXBjD0r/c0r8mz9TneglcENPRviP2/2JV21/EWHKwtuJPH4MyBYNCoH1VWjV/By7WfNHFMJoZ+Vs+LCLtynrpCf1kAQ/+W0smuLm78j8XkO38r0CLHH4KXUrgdY3C2w1yJoy+CAxkXhZGJoZ9TI8qWFCr3KuEXF+G2mzn+bhaDB2gfxOQw+J6kHv+CFzIuCiMTQ/9+h+SzpGAqw9BnLhz/8OMpeH6qA6gWg3N77tzEN33B8xgXhZGJof/Qw0Xor8zciYZGmo5/ta+ptfidD8G+2iczOQwuGAgujflSnw+CZ2s7aeKZTAz9x5EvIgfzyWERYMlpPurnR7BPKhOTDAZLOlbolvj5I9ibcVEYmRj6z1pcRA7ibglbCYYhh/kJK/qCPbVPanIYXCRp5s8kgmemc7LECZkY+i9GbI+lnZQrU1bl2ayvmTDzJXh6KgOSDAa/El/zFaoV7MG4KIxMDP1iydcUhpGjuVs4f23mU7Bb6oOhDoNLWgqjvnwU7Mq4KIxMDP3SnhcRP/nim2TKlD1/gifnMpFqMPitaJnfrgh2YVwURiaGfoXii8jZbPpW1jksKuLPr+CJqQ+iOgx+L/b/Ys9v97jYiXFRGJkY+h8iXUTTZK/2c2gtOZt2GvMr2DHVAVaLwR8llfkfHhdPYFwURiaG/ifxkxSWnE1rGGmLWUnzL9g+t+CLjsE1A8Gte/6HIdhO30kRr2Ri6H+W+CKuM6m70dXMq/0cW4ueeBBsm0vgqcHg2iFFgkVvPEy+4zaMi8LIxND/ktBF0Cwn0S+K4WkfD4I5uQ9KcAyWKtWU5vHBuCiPTAz9BgcVuoWmM5wSFx/6K3fBY3MNuGgY/HVIhZ5O/Ai2YFwURiaGfqO4TYocTZlmnOuiTrBZbsEaHYNbHBQJcRd9gk0ZF4WRiaHfKuWak0W36cSl62Km2q+2dcfDtILHlDKRwTC4zaEw+oq/urjYhHFRGJkY+u0jLiJOMqXVWrgoaE/8+BJsWPokOMfgjkSEcXh8MS7KIxNDv1Pim2IsEy3ZVF2ZabWfViuYXWoAeMPgLgfCWI2vuuNu41OwAeOiMDIx9Ls7XATNQO+ipUrJi5ZhDFZij+bgOMbg3oHkTnPRLZjFuCiMTAz9PmlmrnXHS2gtvvsl46syq/ZtJTaTA++YMU1JO74F66V1wqQ3mRj6P8YvgqbTn7BmxLb/okuwLoPaMQb3D0mCdOJfsA7jojAyMfQHRJvINu9X4aJjOL4WG9W27riulsLtHoMHkxdGwdqMi8LIxND/mf5FeIdmqL+1tOsL1qRwO8bgoZaa4qpyb9sfVaHPYFwURiaGvixAhR66cmclH4744tuvQqdwu2ZMU/rkZ3wEa+g+QeKcTAz9YcnTtEl/fO1MtO3728kQrMYgcozBcumfv3Hzm3FRHpkY+vL0L6IT+rb52IbfGaJwu8fgkQQ0ZfRiVTCdcVEYmRj6I5XtsSqshPXBxYirVmAY3I4xSF8YGRflkYmhQ0oR75CVX7PjvvqJEXp4Bvo1q1nSASMQFek42E6cXLPjYhgXpZGHoctAOLct3FZ5sZrjRC91a4JYptt2zdSypXC7xwhkpJmG6q9yYjXHB5BpjIvSyMPQV1SSr/R2YmAaHvfVr8LFkhdkOoXbNWa5wgq9ZSurMS5KIw9DH0y+iT/03F/lJGqOk3DEqsSr/UAthds9Zjkk9fyX1RkXpZGHof8r0wp94gID94l/qouAuuMj+rIGhds1ZpmDCn3ixQL3x5EZjIvSyMPQlxVqR5lXnkW3lgZ9Crd7zEMONCVy/smajIvSyMPQ/xnR0B1WWiP71bbuOFt9lZQnZG0Kt2vMg+MzpyE+O7ayDuOiNPIw9Afg/x466Y6vSqXaL3TRQ+F2j7lfUfZ3zAdZl3FRGnkY+j8UJV8saJL6W4vjvqxH4XaNuW+8SLAkGP8yk3FRGnkY+n0D8sbK3B9VUas77mtRUWJrmapCp3A7x9w7hQokFt8yi3FRGnkY+j0Dyecr6ar9kltL0+Nd+2RVpohH2YDC7RpzF/rfxosM46I88jD0O9Fse6xtv8R2YlA990vGbXwuldnYytOZFou5I/1olQ1p6KWRh6HfgdFfAlGimXBnQu/ip0q/+JwnG+O0zv+aTIm5Dfq/KW7iZKfuyyY09NLIw9Bvi2TXDk0zRPKZWxWJ1MRJrXqcQkRiY24Zj9KEd55kU+ZRaeRh6DdrTakGWBPbLICh34wkvlFPNqcQkbiYG+H+o7CBkS2YR6WRh6H/VVHl2dXEHhvA0P+axsInxFgQMgpzw0CuuNqJC9zKlsyj0sjD0JcOVJ4WBSbdKvnmBDD064dsIypDtqIQkbiY6+DmQduYRcI2zKPSyMPQr9NsTwOMEIEQyWeuVbyTMXGSFCISH/PnRDRlkIq+yOOYR6WRh6FfM2J7rIrSlbVsF8DQr0G7TwPU9T0h21OISFzMVeORnmBlPlGhP555VBp5GPqfIq+mHSS9PCGAof8xQIU+8Wbd+yHGgpBRmCt7aEpXPaj2+xYJOzKPSiMPQ/8Dknh6e2Ty7RTA0H+fxjaiPJFCROJirlC8+G2I7Mw8Ko08DP2KyvZYgq3sEsDQL1dm6EMqkxBjQcgozG97FgkTL9Sy7xB5CvOoNPIw9Es9GlWg7TPZNYChX9pRpCZeoGe/IbJbHkJkLsFmjed/N9wc7UTJKpjfJFQkTJz0yn15Wh55RJqTh6FfjPQ/YrJ7AEO/WFmFPoQQY+ELczE2gOA4GMxvKcY7yO64OvgJkykxv+pZoUeszC3y9HTziHQjD0P/hQKj6rmIkGcEMPRfpLGNKM9MT4jMhdgdBqdCsEMPE9hEnonbY5w/WRnzc+j7iOfEyTXry17p5RHpRx6G/jOFydcyGeVZAQz9Z54XPo52RkKMhQvMTzEDBodDcPLkH6LPYuZeAJvL3nig/9mRPpglCoqEKi3zS/ZJI4+IO/Iw9J842h6LtJIGAHl2AEP/sQORcmTao1p5jm4hMhdgewALAezv4eUvBLCPPAePeHht0hBzfiRDd5hPsp/uPCLuycPQfxQ4+XyY2HMDGPoPG+xkTPzlmr5HQoxFW8wPMR2Cg2BwRoBF4cnyPLwl3NWRKua8jkXCxAvU9AMg++vLI+KXPAz9Bx1SJUCl2aaV5wcw9O8r3EacAnmBHiEy38PGMFgAwZEhdmoGOEJeiM+6uxLSBrN4YEYimHEtDfRKXqQnj0gY8jD076pLtzFaLBpCJJ/5ToMK3Y0Z9UJeHF+IzHewNwRnwmB2xNs3+8pLcEGI6yUrY86pqdAn/mLLfkDkwPh5RMKSh6F/u+P2WKh24kSH9+VlAQz9Wx53Mhy28vI4QmTOwkwARwI4Icb7T4lgWzkI18U+jdIwZ47nirKdvFZ5dDANvTTyMPRvtKg8FZo5AMgrAhj6NzrWCoFFLMRYDGK+jh0BnAJgz5Dv2xjBunIIn3wPiTljIFcSMvGV8ugQGnpp5GHoX421qdWCGhGQfw9g6F+t2cmY+Ist+46RQwOMxVcwAwaHQHCqBvGtGe8lcij+ze0IkFGYLyvTlA47BfIaGnpp5GHoX3KUfBG31+S1AUzstIGdDI3YxY3HsTCnYUsIThw38+A7MT1YIPPwASevRGoxX+wwaxH1Y8oK/XU09NLIw9C/MJ58GsyqY1LLYQEM/Qs1FXrkytwih7sfC7MIzwOwGILVFFfideO7v7wB53W4fNIS87lASuJxESBvoqGXRh6G/tlK8kVeGXeq0I8IYOinBN7J6FpZOBoL8xlsAIPjIJivZbHSiNHjO0f+AzeEPqXSMJ9uuPjVs9hbBXkzDb008jD0kz1uj4Vpb5IjsUXra2iJ+d+AltWnsnirI0P/XxwGwaLe4hnD7IfH570AZstb+U1yPjELEf9B24mTadkfR46moZdGHob+iSmSb+Jgy34cLpRjsJfvNzEfdyhSEy8K5+Mnxzoy9I/hMBgsmnxh6NmpmTjJlv0xFsn/wxuajQLpgjkpgCp4jkc5joZeGnkY+kciWrKbSv8r8na82vepmo9A1C1mphgvme/I0D9cU6FH2AZ1yCEyH1+P9u6ZYz40PrMaFoETJ9WuL++koZdGHob+gRGV58RfqunHRHCCLMC7fb+NOaFDhT7xj2v6DpEFjgz9BBwGYFESlXg35si7eT/dB+b9LWbHzaLefYX+Hhp6aeRh6O+NuD1W7XdrD5f34guerwDm+DR2MuT9jgz9+JYV+sQ/rPQ1MPV4jd1Pfz/vp7vGLOiw+PW1+OuInEBDL408DP1dA+GvSYybm9i+8kH/39lt3olVP4eu0Mzkg44M/b/G76EnKMYtWCgfwjFB37EAzPwpZlFpJT4s/uTDNPTSyMPQ347vAjig0V/WmZTbykf8f1+3eZsHq/EwnnKSI0N/23iFPvEHiG2+9XQbz33lJP6Ii0vMsR4r9Ik3adlviXychl4aeRj6MdgABnMgmAOM/7dyf914ZwebzDcBWApgKQRLYcb/f7wvC/1vm5qjG4jUxF+u6XtEFjoy9KMCVujxK/dZ8j+4z+s7FIR5a4/ZUlI0yCdp6KWRhaGTZpgj0e7LMib+IXyb0UrIpxwZ+pvHH4oDdJm5n/E9Xz6N/Xq/CgEAmP/wHPEBTF9OoaGXBg29IMybWopUU9Gp9vtWFp91ZOhvxEtgcLa6bXWL+/GdK5/H6T5PuRTMG1oufhUuBmURDb00aOgFYV7vwdo8mLx80Z0Qmdfh2wAOHOsg6s5DJ9qP7+ZyKm4Od4J5YuaNR0ak7XIX5i+n0dBLg4ZeEOY1CYgUAPmyQ0N/NWZi7OtS/RFo56Jhe7l8GU/2cJVFYeYGqtAn3rCm3wE5nYZeGjT0gjCviliPtthelq+5FSLzKrwQgsUatkEDMU/OwGlRzyBxzCsdz2CERZ98g4ZeGjT0gjAHe7aZFqa9Ur/SyjfdC5E5GF+EYJ6GyskbK4/v5nImt967Yl7uYJYj79zIWTT00qChF4R5aRrbiHK2B0M/EOsAuL/+zeFkURK1HeNyOYdb710xL0b8z6H3RL5DQy8NGnpBmBeNy4UG0xkhdrLYjxCZA7A3gCU+Xnsl9CwCDpLv4Swfl5g75oWBFr++FgMGkO/R0EuDhl4Q5vmORWrihVv2a5Bz/QmR2R9fBDBv1TeFFhN2PT+z5Dx+4UxbzHM9Vuie88ciP6ShlwYNvSDMfhVZaGpi1b7nVn7k0dD3bbj1rgE383OmnI+DPZ9pdpjnNLBQpfkzkUcX0NBLg4ZeEObf0thGlCV+hcjsgxcCWOzzPSbQIfp7yBJc7PjKssbsPR6Zyky6TSs/o6GXBg29IMxeXTbuwiM/9y9EZi98G4ID1W6rdtxmHcFqciF/ZrUpZs+Gi9+Jf1DTj4BcREMvDRp6QZhn1IjUxF9s2XeM/DKAoe+BmTADXziTUOXVcf6Ok1/hY60HqlDM7gj/e+iOF4dyMQ29NGjoBWGeFrlmaLh9Kb8OI0TmqXg5DM5UVYn7XSxtIr/B7d5ePSPMUyuL34kDLfsRkUto6KVBQy8Is+u4SE38AVSKlVwWTojMk/FLGOwx+ebIuVI/Xy7jL7I1weyisEJvOf9yOQ29NGjoBWF2Hkh3zZXFFQENfWdsBsFN0UW4q1m33ynYQ37HB+TqME9CEg+QjurL72jopUFDLwiz00DKD6tE6/oBWrkyrBCZnXAYZPx304F6sUyc0OObIuYJIxa/iSB/5DyXBg29IMzjW8pSV9Ov69e08qfwQmQejzsgmO2jUlJoBnPlKv5u+ijMDjUV+sRfbHi8ad8hcjUNvTRo6AVhtou0jThxAs368ucIhv44bA/gqtDvG2qRNEW7plyLZS4vJSfMtkqWYT3iQ66loZcGDb0gzDZDRCqeqUxdoV8XR4jM1vgoDI5zUmnprMwHea/8Be+LfRJaMVs3XPxO/IOGx4f1VzmBmuMNkOtp6KVBQy8IM6fDPfRqW3fcxT30GyIZ+paYAeChDMy6KbPkBn7P+1SYx6L9U+4T/9hxvyPyVxp6adDQC8JsMSBSE39Y04+A3BhPiMwWeB6Ac8dOBGoXPY7aU+UmvK7LOOWO2dxDFrjaCav2h+103URDLw0aekGYzZDG59BviStEZlP8HMCeUx5UdnvCQbu53Iqb60elLMxjYi9rh9Ai3uRWGnpp0NALwmyiRKRqRElui2zoG2MzGNykwGxDbOueL7fzy2aqmI0HRivRRZvcTkMvDRp6QZiN0O4p94l/2LK/yhvXHK8gd8QXIrMh3gXghM4vEHh7tWe7rdyB6zpfa4aY2UoWvz2QO+PnEQkLDb0gzAaov4e+yj+qOe4BuSu+EJkNMB2C5QmZcp/2Qrkbe7UYnuwx62dg6HfHzyMSFhp6QZhHt6zQI7Vyrw4hMo/GcyA4f/IP0G4xlBbbyr2s0i1mJtL9LnebR/fpyCMSDhp6QZiZ4/ajvHLUJERmPfwewE7Ob0vo2xm5UP7OKt1i1hsYfSV50TqP/q4nj0gYaOgFYR4VuUKfOJHRfblfjxCZdbENgGtjn0dvqou4qY9vK/ezSgcAs47CCn3i5Jr15QE9eUTCQEMvCLP2uEhZhlXq1X7oykKZEJm18RkYHNFKbH1V8n4r9wvlQVbpwHiuNM2Pun61rTvuKo8e1JVHxD809IIwa0Wu0Bu28pAuITJrYiaAez2bqRY2l4f4uXQzQ2GF3jaPlunKI+IfGnpBmBlp2JFGITIz8GYAJwNQIdYe2zNlGQ52NGzJYtZII1dGIQ/ryyPiFxp6QZjV0xAp+Zc+ITKrYzqA5RN/UN0+reJqu7baD7N9O0v+VfZ3vJvVGlToE3+54XFX/VVOdurjsnxkhJIMoaEXhFmtkva+TKeuX2NKWoXITMdLYHC2kkq6XztxUVMeXyiP4BgXY5YqZnoai99RyCM684j4g4ZeEGZaGiIlK/QKkTGY+sHC/No1Rcr9vfSJee5TOUdGRG8eET/Q0AvCGM3yM4lmITIGewNYEvs8AnCkCD4V+yRikUqujEJzHhE/0NALIhWR0i5EqYxjX7TPg0+MgejYKOneljx/pUJDL4hpAyJl6dr32T6iXIimGextgCUaRLtLa2lwfN8Vggv6jVaaTM9g0aY9j4h7aOgFsZqBxDaTJq1mIZpuMNMAhwhwiicTDdqvUjl+/3LBo0b89WxZTaGht118L1ecR8QPNPSCWD2iSNU9PzR4/F+KhGgNg+kC7GmA9wqwT+zFToR2zsOCG9yMZjqsodDQ2/KwojwiYaChF8SMRCr02EI0w2BLAQ43wAL7Z54rYc2csUzwqtgnEZoZA4betjIe1g/dLqOhFwcNvSDWHHEPXVP7z8BCtKbBDAPsL8BCA8xxfT2W2P0erPZPwSNuXioN1mpYobfZeerTr7Z1xw2AB2noxUFDL4i1Byp0i2/T6GIqIYRobYMdAcwHMNf3e/nClVk06B/yoODrvU84Idb2/JS7xWf/ARp6cdDQC2Ld8apD+/bw/R6EaF2DDQAcAvt97JHxZb5dKrkmrY850cyjBir00Kbsin8UNmeEhl4U6yVyD92FED3KYLoB9gFwAoA9Yuw0ZMacvxf0cNx6GXwO/e809OKgoRfEzHGRsmitNO7tKESzDLYEcATGttKTJNQ2eof21HsEr+t6Xanx6BGLX4uWSnwY99DQi4OGXhDrJ1KhNxWi9Q3WEeAAM7aNPhtIT3RT4u6CDGL9xCp0y2D/roLmi4xBQy+I2Yl8tvbOEUI022BXjFXgB7l8T0WVsOZ2nzsFPx0xjNmwYSK5Moo7aOjFQUMviI0SEam/DQjRRgYbY+xJ9JO6vp4vc647nmG79HbBVquOcH5srChXusbr7TT04qChF8Qm6Wwj7m+AEwXYZdR2uOt+iXQwizVvKeBnVTd1eHvKEjo+b6GhFwcNvSA2U3QP3RJb9FKmarZ1x7vuRFTaeTcLTut98srZvOFHPDXH50009OKgoRfEFg6+zrKk1pKyqPvgrwUYxZYKFr+Wrv0bCpgnsjI09IKY40CkLKWbWh+6Lqaq/YjtutcLHug+AvrZStE99LbYebqehl4cNPSC2FrJPXQLFwXtUbIYOOI6wWedXZRCtk3Y0C3X0tCLg4ZeEI9TLlKuzKraL6G1hFoUXZO5WWynZPHbp819jsiq0NALYgdFv4dOs/a3cxFoJ2PdP2W87f4EBffQ+8bPH2noxUFDL4gdpxApSyRTUAEXF50WGUdcmfG2+04Z/B76H2joxUFDL4gnKdxyT1UslZhqVMW+ImPD2EVRhW5p27884/khU0NDL4gnR/g9dM24WkxU+zm0lpr+mpdl+iUzTxm4h25Jbf4vo6EXBw29IHZzWKGnLnYxK6ccGB+HA38jOCf2ufjgaQ0qdIvW+f81Db04aOgFsXtDQy+5UrWkIto+aDHft/1K8JhgJxaQPWp+ajgFfklDLw4aekE8w/HvoadIzouRGIuSCzM1jb0U3UPvOr8/z3RuyHBo6BnzLIOdBTjcAEfaP0vZlEvaKUhoe3eHnwquDvuW/tnb8efQLSHnbwkNvTho6JnwbIMdBZhrgPk0HfeUsJiwtOwvukDwhlVHLG32VVyhN52/82noxUFDT5D9DLYR4CADnBj7XJrQ1QyrfY2tpYRFzRAW/1Dwotgn4Zrntrw9pZHzaOjFQUNXzvMNNhPgQAOcIMCsPqaSIimbfQmmb4DF38vQ0F/o4SOeofkeDb04aOiKOMBgAwAHAFgAYNu+r5dTJezKJFMikflb/N0MDf3FDT4Ron1+vkNDLw4aeiQONJgJYF8AxwHYo+2/1y4mNO2VyXh+Fn8rQ0N/+XiFbtEw3m3bs2joxUFDD8BBBusIsKcBjgawP5CmKVlyNKccFg2WwPOz+JsZGvorPH5Ncqj5+QYNvTho6I45xGAGgN0w9lGxQ0K/fw5ma+nb10iG87P4qxka+r+PG7rG+bHU9U+noRcHDb0Hcw2mC7CLAQ4X4AgfJqWJpmZU7WtoLRx/5+3iL2do6K9xeA89VvslGnpx0NBbMM9gRwBzAcx3/dpKxboY0+T4d2bx/2Vo6Id1+By6RUv8f4GGXhw09CEcbrANgIPg4LPeXc2i2k/JJDSZdkrjneD4n/Q5wdvCvFU43tjza5I18FkaenHQ0AEcYbCZAQ4U4EQDrJtopeSEFM3PksL4VklhfEe0Zxjg6E8Jbnc0HGp4c+UeegrxXe2fTEMvjuIM/UiDDQxwgADvNcCcEk3botk8LDmOb11fQ2sZ0r8QwLz/EVzXakAS4ijH3+UeI74X0tCLI2tDP2bys94LDLBLKmKakmlZUjKrHBYNkcZ3qQEOPElwhefLi87bhnwOvdrXHL8fpaEXRzaG/jaDdQywpwDHGWBf3yIfkxTNk+Ob9PguB7DPiYKLur9EWswfUqFbUojfD9HQiyNJQ3+nwQwD7CHA0Wbs3ncOoumEFM3IwvFVOZ77/7fgvPq/lhfvGfGUu0VjfA7yfhp6cag39PcYTDfALhj7opZ52pJmEI3inpJpNjXLal9Da6kZv3MBLDhecOn7PH4T2TBajudBxwvOCnh6qnh/h/nRFp/voaEXhzpDP8FgZwEON2MGDkCX6QxDWzKnXFkAaZl5zXieAuCkd1YeIPugwTsQ8OdvWyyWDgdw6jsFj4Q6N418qKWha1yMzqehF0dUQz/RYHsAcw2wQFsy5GSSKY1nJuM7X4BFbxfcNezffGTs0xZ3Khrf+QZY+DbBsu4jkQ8fdfSUuyVG/B5HQy+OaIb+MYNXAjij7+ukaFYWDUlfR4rjG0lU5wE48xjBA03/wSemqAKbjne1X8D4eiGn8dU43imMr+P4XvpWwVb1I+OHaIb+PwZHGWBhauKVYlJZchzfiON9LcZuC53/lo7b0ycbvEMGtt01jLui8a2laTxX+xpai+L4roXjPzX/GXFnJJqhf9rgKAALo7w50gq+lJPeksl4nwtgwRGCS3sMxQSnGGwA4E4Xr1UlZbEtKd6rfU2tJYXxrhJzfN9QoqF/roehp5gcOYiUpbDxPwXASYd7+la0RQ6fpq72NbYWxj/Hvyvax//1JRr6Fw2OEmBhaUGpPRg5/oCMPSC26LUjHmpzxWnj2+4c/9F9Ta2F86GztcSaj1eXaOhfGriHnuOk+iDF5EpIBOcBOHNui4faXPCVQE+7WxSPfy05mk/K81El5fmxuJiPV5Vo6F+LfA+9SsrBWIJoeJifawU40gDnvzLyZ67PqPmpzhQoKT9SmJ+S9Sv2/BxcoqF/Y0iFbtE+aW1IObksmczPuQAWHOTooTZXnNVh2z3T+ZkS5o9uUp4fH/7z0hIN/dvKKvRh5BCslhxFpcH8nCLASQcq/qnPc8afdi90forJpxTgfPXnRSUa+nc830MPFQSayTE5G87PfACLDgjwUJsrFmfyJTNaRdYHnB/d81OHr/l7QYmG/gODjQW4jUHrh5zFZsj8zANw5v6BH2pzxbkGh2Jsx2o2UDtfXzHA3Mzmr3E/BQrMv8b9FOgzf/uVaOgA8MMIvzjVhByTr28SKkzKiW9q26/AHxL5Uc2DdAnM31C6imm1r7G1ZJB/Q8l5/prM77NLNfQLDO4xwCzbrwvaFIK6hGC2RBClcwEs+DdlD7XFYMnHAulhAAAHy0lEQVSI3+sONb8pwvxs3k8RDfP5rFIN/acGrwVwaqj3c5XM1X4KrSXBpD4FwEnPUvxQWwx+Vvk1MEuC89uYnPMz4/xtTC7zu2ephn6hwUwD3MugLnuxMcX8zTfAomck9FBbaH7psUKnKbmnhPwtef4H52+PUg0dAH6l9D56G0o0375JOkXSzgNw5u6JPtQWmosd/V63ovlPlpzzm/NfT3W+n1qyoV9i8GcBttUQnAzq9vRYzFyL8W9q27XAh9r6cqmShXDJi1nmfz0lzH+1fXLJhn6ZwcsBnDnVMYpFdqJxLoAFT+ZDbb25fNzQE5t/p1AP3OtFTsSKj51LNvTfGawjwP0akqJpPweqwVx3vEcynCLASU/iQ21O+b3nCt3VYrraz6m1UD/qj5cUHzuWbOgAcOX4Az4WDZNCEejFfACLduRDbd64MoMfdGlKyeZQpx9d9aVKTvHTNV6q/a7t40s39D8Z/MQA+zAp9DMiGeYBOHMHPtQWhKuV3EOvI7a4amwt1J/2pBBPjyvd0K8x2BvAEt/v4yoYqv0SWstA/yoARwtw/nZ8qC04f1bylHuP+GnULwnqUx7xtU3phn6dwXQAy32+B5PFSdIsBrBga8EVIFG5PsHPoackytqgfsWLr7bxN6d0QwfGBCrlSc6YkwEsnMOH2lSxtHIPPWdoXvH1rWD9ax1vj6WhAzcafE2AQzQkAZNq7KG2LfhQm1puclihWxTFXzJwsaEn/rTE52Y0dOAmg50NcHnqQZQwcwGcvRkfakuCW/g59N64MuNqn+0kfeMzxfh9DA19jFsHntxlsrlPqkp7FYCjAZy/CR9qS47bM7yH3jJ+VznetE/qcaWvdcdzbDeioY/xtwJEqq2Ide1XGT++GMCCjfhQW/L8TelT7pbQ8U0m6WrG1T7NuVv8z6ahj3GnwScwVjUWSzV56o436J8swMLZfKgtK+5K5HPobaEZxW8tnoqK7Fmfhj7G3QbbC3AVg6o38wEsWp8PtWXLPR3voRcS/51wtZho22cbbpERwh9m0dAnuTdS5ZFBMs8V4OxZfKitCO5TVqGHyo+64yW3ltimWDrr0dAn+bsyoVLMxENt6/GhtuL4e0GfQ/dNrMV73XG28Sr3PpX8ujT0Se43OB7Ae2OfR1MCi8FiAyxYhw+1Fc8DXPgCiGfGbPM25T6sTUOf5AGDLQ2wNHaQtQ1Cj0F6sgEWrs2H2sgADyp9yj2V1hLbVEh37Hw2Pe6qX22rx9eioa/MPzMRK0zRl0ofU/fnG2DRmnyojQxhWUE/OazF9LkoIJZR5j+Dhr4yy8a3E6ujou9MxzBY2cDrZtOa+oqV/3gugLNn8KE20oBlNb+H3tYUaBrhiFVZVvt1lSbbbu0aNPSVecTgKAMsnEqUqshAG0KUzJC2LTLw86Or8aE20pLlCX8JkyV2n+hDy2Knrj+qnU5DX5kVBhsDuK3Lv5Uh/9+HvuY9wGIAC6bxoTbSk+WV21IWbSZK0kGrmaa2k0BDn4IVDp/ijSxCJwNYOI0PtRGHyJB76NU+23xai7Z+ldIXdYaGviorDO4AMDv2eXRkPoBF0/hQG/GEZPLgaO7txHyxX06fhr4qKwwOBfCV2OfRgrkAzp7Gh9pICPg59IyYajlQ9/e6vM6o5Yfm8+nyfj7Pp+a4PIqGXmWFwToA7o99HiOY+Ka2aXyojYTGXD+euD5ErMvruHo/V+Ie83y6nHf1z0f9va7/runrxXz9Lu/r4nwdvr48l4Y+FS7vozuCD7URHZhPy3BRcSG6LsQup9cf9XquTG6q1236/sNer837+Pj3rv9eqH/fdB6meD35Kg19KlYY/B7ATpFPgw+1EX2YrSWMWDZ9vb7i3fTfNz3vUOfTdXxJtki8n1nQbugvxFhVHBo+1EZ0Y4zexCWkXJZCZKtYb67d0GcAeCjQ2/GhNkIIIcmi2tABr/fR+VAbIYSQbEjB0H8EYF/HL7vnNMFFjl+TEEIIiUYKhv5MABc6ftk1pwmWOX5NQgghJBopGPp0AMtdvua0iN/kQwghhPhAvaEDzu+jXztN8DiHr0cIIYREJxVD/wyAIxy93P7TBOc5ei1CCCFEBakY+vYYeyrdBavxqXZCCCG5kYShA8AKg+cAOL/ny8ydJjjdxfkQQgghmkjG0AFghcE2AJYA2LzDP184TXCM2zMihBBCdJCUoVtWGOwMYB6APRr89csBnDpNcLHXkyKEEEIikqShE0IIIWRlaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMoCGTgghhGQADZ0QQgjJABo6IYQQkgE0dEIIISQDaOiEEEJIBtDQCSGEkAygoRNCCCEZQEMnhBBCMuD/A+hmK5sgDvUCAAAAAElFTkSuQmCC" class="rainbow-icon" alt="虹">';
+    
+    const COMMON_LAMP_B = [
+        [1/32.77, 1/35.42, 1/40.96, 1/84.02, 1/6553.60],
+        [1/29.13, 1/31.21, 1/38.55, 1/78.96, 1/3276.80],
+        [1/26.21, 1/27.89, 1/35.42, 1/63.63, 1/1638.40],
+        [1/23.83, 1/25.21, 1/34.49, 1/55.54, 1/655.36],
+        [1/21.85, 1/23.41, 1/30.48, 1/44.28, 1/327.68],
+        [1/20.16, 1/21.85, 1/29.13, 1/37.88, 1/131.07]
+    ];
+    const COMMON_SIDE_R = [
+        [0.3599, 0.2399, 0.2399, 0.1600, 0.0002],
+        [0.2319, 0.3478, 0.1679, 0.2519, 0.0005],
+        [0.3357, 0.2238, 0.2637, 0.1758, 0.0010],
+        [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
+        [0.3108, 0.2072, 0.2868, 0.1912, 0.0040],
+        [0.2480, 0.2480, 0.2480, 0.2480, 0.0080]
+    ];
+    const COMMON_LAMP_B_STR = [
+        ['(1/32.77)', '(1/29.13)', '(1/26.21)', '(1/23.83)', '(1/21.85)', '(1/20.16)'],
+        ['(1/35.42)', '(1/31.21)', '(1/27.89)', '(1/25.21)', '(1/23.41)', '(1/21.85)'],
+        ['(1/40.96)', '(1/38.55)', '(1/35.42)', '(1/34.49)', '(1/30.48)', '(1/29.13)'],
+        ['(1/84.02)', '(1/78.96)', '(1/63.63)', '(1/55.54)', '(1/44.28)', '(1/37.88)'],
+        ['(1/6553.60)', '(1/3276.80)', '(1/1638.40)', '(1/655.36)', '(1/327.68)', '(1/131.07)']
+    ];
+    const COMMON_SIDE_R_STR = [
+        ['(35.99%)', '(23.19%)', '(33.57%)', '(21.56%)', '(31.08%)', '(24.80%)'],
+        ['(23.99%)', '(34.78%)', '(22.38%)', '(32.34%)', '(20.72%)', '(24.80%)'],
+        ['(23.99%)', '(16.79%)', '(26.37%)', '(18.37%)', '(28.68%)', '(24.80%)'],
+        ['(16.00%)', '(25.19%)', '(17.58%)', '(27.55%)', '(19.12%)', '(24.80%)'],
+        ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.40%)', '(0.80%)']
+    ];
+    
+    const ALL_PARAMS = {
+        houou: {
+            name: "ハナハナホウオウ～天翔～",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
+            settings: ['1','2','3','4','5','6'],
+            payout: [97, 99, 101, 103, 106, 109],
+            b: [297, 284, 273, 262, 249, 236],
+            r: [496, 458, 425, 397, 366, 337],
+            gassan: [186, 175, 166, 157, 148, 139],
+            bell: [7.500, 7.450, 7.400, 7.350, 7.299, 7.220],
+            suika: [42.01, 38.55, 36.21, 31.51, 29.39, 27.54],
+            blamp: [10.50, 9.50, 8.43, 7.68, 6.81, 6.11],
+            retro: [16.15, 13.49, 12.47, 10.70, 9.50, 7.73],
+            lampB: COMMON_LAMP_B,
+            sideR: COMMON_SIDE_R,
+            b_str: ['(1/297)', '(1/284)', '(1/273)', '(1/262)', '(1/249)', '(1/236)'],
+            r_str: ['(1/496)', '(1/458)', '(1/425)', '(1/397)', '(1/366)', '(1/337)'],
+            gas_str: ['(1/186)', '(1/175)', '(1/166)', '(1/157)', '(1/148)', '(1/139)'],
+            bell_str: ['(1/7.500)', '(1/7.450)', '(1/7.400)', '(1/7.350)', '(1/7.299)', '(1/7.220)'],
+            suika_str: ['(1/42.01)', '(1/38.55)', '(1/36.21)', '(1/31.51)', '(1/29.39)', '(1/27.54)'],
+            blamp_str: ['(1/10.50)', '(1/9.50)', '(1/8.43)', '(1/7.68)', '(1/6.81)', '(1/6.11)'],
+            retro_str: ['(1/16.15)', '(1/13.49)', '(1/12.47)', '(1/10.70)', '(1/9.50)', '(1/7.73)'],
+            lampB_str: COMMON_LAMP_B_STR,
+            sideR_str: COMMON_SIDE_R_STR,
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels: ['青', '黄', '緑', '赤', RAINBOW_IMG],
+            bigG: 24, regG: 12, suikaDenom: 24,
+            mornRate: 0.75,
+            highSetRateIdx: [3, 4, 5],
+            calcDiffReal: (calcB, calcR, usedBell, calcG) => {
+                return (calcB * 239.6) + (calcR * 119.6) + (usedBell * 10) - (calcG * 2.476);
+            }
+        },
+        king: {
+            name: "キングハナハナ",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
+            settings: ['1','2','3','4','5','6'],
+            payout: [97, 99, 101, 104, 107, 110],
+            b: [292, 280, 268, 257, 244, 232],
+            r: [489, 452, 420, 390, 360, 332],
+            gassan: [183, 172, 163, 154, 145, 136],
+            bell: [7.254, 7.250, 7.249, 7.048, 6.975, 6.940],
+            suika: [42.01, 38.55, 36.21, 31.51, 29.39, 27.54],
+            blamp: [10.50, 9.50, 8.43, 7.68, 6.81, 6.11],
+            retro: [16.15, 13.49, 12.47, 10.71, 9.50, 7.77],
+            lampB: COMMON_LAMP_B,
+            sideR: COMMON_SIDE_R,
+            b_str: ['(1/292)', '(1/280)', '(1/268)', '(1/257)', '(1/244)', '(1/232)'],
+            r_str: ['(1/489)', '(1/452)', '(1/420)', '(1/390)', '(1/360)', '(1/332)'],
+            gas_str: ['(1/183)', '(1/172)', '(1/163)', '(1/154)', '(1/145)', '(1/136)'],
+            bell_str: ['(1/7.254)', '(1/7.250)', '(1/7.249)', '(1/7.048)', '(1/6.975)', '(1/6.940)'],
+            suika_str: ['(1/42.01)', '(1/38.55)', '(1/36.21)', '(1/31.51)', '(1/29.39)', '(1/27.54)'],
+            blamp_str: ['(1/10.50)', '(1/9.50)', '(1/8.43)', '(1/7.68)', '(1/6.81)', '(1/6.11)'],
+            retro_str: ['(1/16.15)', '(1/13.49)', '(1/12.47)', '(1/10.71)', '(1/9.50)', '(1/7.77)'],
+            lampB_str: COMMON_LAMP_B_STR,
+            sideR_str: COMMON_SIDE_R_STR,
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels: ['青', '黄', '緑', '赤', RAINBOW_IMG],
+            bigG: 20, regG: 10, suikaDenom: 20,
+            mornRate: 0.55,
+            highSetRateIdx: [3, 4, 5],
+            calcDiffReal: (calcB, calcR, usedBell, calcG) => {
+                return (calcB * 259.6) + (calcR * 119.6) + (usedBell * 9) - (calcG * 2.4845);
+            }
+        },
+        dragon: {
+            name: "ドラゴンハナハナ～閃光～",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
+            settings: ['1','2','3','4','5','6'],
+            payout: [97, 99, 101, 104, 107, 110],
+            b: [256, 246, 235, 224, 212, 199],
+            r: [642, 585, 537, 489, 442, 399],
+            gassan: [183, 173, 163, 153, 143, 133],
+            bell: [7.131, 7.093, 7.090, 7.016, 6.973, 6.970],
+            suika: [42.01, 38.55, 36.21, 31.51, 29.39, 27.54],
+            blamp: [10.50, 9.50, 8.43, 7.68, 6.81, 6.11],
+            retro: [16.15, 13.49, 12.47, 10.70, 9.50, 7.73],
+            lampB: COMMON_LAMP_B,
+            sideR: COMMON_SIDE_R,
+            b_str: ['(1/256)', '(1/246)', '(1/235)', '(1/224)', '(1/212)', '(1/199)'],
+            r_str: ['(1/642)', '(1/585)', '(1/537)', '(1/489)', '(1/442)', '(1/399)'],
+            gas_str: ['(1/183)', '(1/173)', '(1/163)', '(1/153)', '(1/143)', '(1/133)'],
+            bell_str: ['(1/7.131)', '(1/7.093)', '(1/7.090)', '(1/7.016)', '(1/6.973)', '(1/6.970)'],
+            suika_str: ['(1/42.01)', '(1/38.55)', '(1/36.21)', '(1/31.51)', '(1/29.39)', '(1/27.54)'],
+            blamp_str: ['(1/10.50)', '(1/9.50)', '(1/8.43)', '(1/7.68)', '(1/6.81)', '(1/6.11)'],
+            retro_str: ['(1/16.15)', '(1/13.49)', '(1/12.47)', '(1/10.70)', '(1/9.50)', '(1/7.73)'],
+            lampB_str: COMMON_LAMP_B_STR,
+            sideR_str: COMMON_SIDE_R_STR,
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels: ['青', '黄', '緑', '赤', RAINBOW_IMG],
+            bigG: 21, regG: 8, suikaDenom: 21,
+            mornRate: 0.75,
+            highSetRateIdx: [3, 4, 5],
+            calcDiffReal: (calcB, calcR, usedBell, calcG) => {
+                return (calcB * 251.65) + (calcR * 95.65) + (usedBell * 9) - (calcG * 2.486);
+            }
+        },
+        star: {
+            name: "スターハナハナ",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG：スイカ', sl: 'REG：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
+            settings: ['1','2','3','4','5','6'],
+            payout: [97, 99, 101, 104, 107, 110],
+            b: [270, 262, 252, 240, 229, 218],
+            r: [387, 354, 322, 293, 267, 242],
+            gassan: [159, 150, 141, 132, 123, 114],
+            bell: [6.358, 6.303, 6.300, 6.260, 6.204, 6.200],
+            suika: [42.01, 38.55, 36.21, 31.51, 29.39, 27.54],
+            blamp: [10.50, 9.50, 8.43, 7.68, 6.81, 6.11],
+            retro: [16.15, 13.49, 12.47, 10.70, 9.50, 7.73],
+            lampB: COMMON_LAMP_B,
+            sideR: COMMON_SIDE_R,
+            b_str: ['(1/270)', '(1/262)', '(1/252)', '(1/240)', '(1/229)', '(1/218)'],
+            r_str: ['(1/387)', '(1/354)', '(1/322)', '(1/293)', '(1/267)', '(1/242)'],
+            gas_str: ['(1/159)', '(1/150)', '(1/141)', '(1/132)', '(1/123)', '(1/114)'],
+            bell_str: ['(1/6.358)', '(1/6.303)', '(1/6.300)', '(1/6.260)', '(1/6.204)', '(1/6.200)'],
+            suika_str: ['(1/42.01)', '(1/38.55)', '(1/36.21)', '(1/31.51)', '(1/29.39)', '(1/27.54)'],
+            blamp_str: ['(1/10.50)', '(1/9.50)', '(1/8.43)', '(1/7.68)', '(1/6.81)', '(1/6.11)'],
+            retro_str: ['(1/16.15)', '(1/13.49)', '(1/12.47)', '(1/10.70)', '(1/9.50)', '(1/7.73)'],
+            lampB_str: COMMON_LAMP_B_STR,
+            sideR_str: COMMON_SIDE_R_STR,
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels: ['青', '黄', '緑', '赤', RAINBOW_IMG],
+            bigG: 20, regG: 8, suikaDenom: 20,
+            mornRate: 0.75,
+            highSetRateIdx: [3, 4, 5],
+            calcDiffReal: (calcB, calcR, usedBell, calcG) => {
+                return (calcB * 239.65) + (calcR * 95.65) + (usedBell * 8) - (calcG * 2.511);
+            }
+        },
+        newking: {
+            name: "ニューキングハナハナⅤ",
+            w_labels: { b: 'BIG', r: 'REG', gas: '合算', bell: '通常時：ベル', sui: 'BIG(前半)：スイカ', suiR: 'REG：スイカ', sl: 'BIG(後半)：サイドランプ', morn: '朝一筐体ランプ', bl: 'BIG：筐体ランプ', rl: 'REG：筐体ランプ', ret: 'レトロサウンド' },
+            settings: ['1','2','3','4','V'],
+            payout: [97, 99, 101, 104, 108],
+            b: [299.2, 291.2, 281.3, 268.6, 253.0],
+            r: [496.5, 471.5, 442.8, 409.6, 372.4],
+            gassan: [186.7, 180.0, 172.0, 162.2, 150.0],
+            bell: [7.596, 7.473, 7.446, 7.354, 7.245],
+            suika: [36.00, 32.00, 28.00, 24.00, 20.00],
+            suikaR: [70, 65, 60, 55, 50],
+            blamp: [10.50, 9.50, 8.43, 7.68, 6.11],
+            retro: [16.15, 13.49, 12.47, 10.71, 7.77],
+            lampB: [
+               [1/32.77, 1/35.42, 1/40.96, 1/84.02, 1/6553.60],
+               [1/29.13, 1/31.21, 1/38.55, 1/78.96, 1/3276.80],
+               [1/26.21, 1/27.89, 1/35.42, 1/63.63, 1/1638.40],
+               [1/23.83, 1/25.21, 1/34.49, 1/55.54, 1/655.36],
+               [1/20.16, 1/21.85, 1/29.13, 1/37.88, 1/131.07]
+            ],
+            sideR: [
+               [0.3599, 0.2399, 0.2399, 0.1600, 0.0002],
+               [0.2319, 0.3478, 0.1679, 0.2519, 0.0005],
+               [0.3357, 0.2238, 0.2637, 0.1758, 0.0010],
+               [0.2156, 0.3234, 0.1837, 0.2755, 0.0020],
+               [0.2650, 0.1950, 0.2850, 0.2510, 0.0040]
+            ],
+            b_str: ['(1/299.2)', '(1/291.2)', '(1/281.3)', '(1/268.6)', '(1/253.0)'],
+            r_str: ['(1/496.5)', '(1/471.5)', '(1/442.8)', '(1/409.6)', '(1/372.4)'],
+            gas_str: ['(1/186.7)', '(1/180.0)', '(1/172.0)', '(1/162.2)', '(1/150.0)'],
+            bell_str: ['(1/7.596)', '(1/7.473)', '(1/7.446)', '(1/7.354)', '(1/7.245)'],
+            suika_str: ['(1/36.00)', '(1/32.00)', '(1/28.00)', '(1/24.00)', '(1/20.00)'],
+            suikaR_str: ['(1/70)', '(1/65)', '(1/60)', '(1/55)', '(1/50)'],
+            blamp_str: ['(1/10.50)', '(1/9.50)', '(1/8.43)', '(1/7.68)', '(1/6.11)'],
+            retro_str: ['(1/16.15)', '(1/13.49)', '(1/12.47)', '(1/10.71)', '(1/7.77)'],
+            lampB_str: [
+                ['(1/32.77)', '(1/29.13)', '(1/26.21)', '(1/23.83)', '(1/20.16)'],
+                ['(1/35.42)', '(1/31.21)', '(1/27.89)', '(1/25.21)', '(1/21.85)'],
+                ['(1/40.96)', '(1/38.55)', '(1/35.42)', '(1/34.49)', '(1/29.13)'],
+                ['(1/84.02)', '(1/78.96)', '(1/63.63)', '(1/55.54)', '(1/37.88)'],
+                ['(1/6553.60)', '(1/3276.80)', '(1/1638.40)', '(1/655.36)', '(1/131.07)']
+            ],
+            sideR_str: [
+                ['(35.99%)', '(23.19%)', '(33.57%)', '(21.56%)', '(26.50%)'],
+                ['(23.99%)', '(34.78%)', '(22.38%)', '(32.34%)', '(19.50%)'],
+                ['(23.99%)', '(16.79%)', '(26.37%)', '(18.37%)', '(28.50%)'],
+                ['(16.00%)', '(25.19%)', '(17.58%)', '(27.55%)', '(25.10%)'],
+                ['(0.02%)', '(0.05%)', '(0.10%)', '(0.20%)', '(0.40%)']
+            ],
+            colors: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple', '--lamp-white'],
+            labels: ['青', '黄', '緑', '紫', RAINBOW_IMG],
+            colors_side: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-red', '--lamp-white'],
+            labels_side: ['青', '黄', '緑', '赤', RAINBOW_IMG],
+            colors_regT: ['--lamp-blue', '--lamp-yellow', '--lamp-green', '--lamp-purple'],
+            labels_regT: ['青', '黄', '緑', '紫'],
+            
+            bigG: 26, regG: 10, suikaDenom: 14,
+            mornRate: 0.60,
+            highSetRateIdx: [3, 4],
+            calcDiffReal: (calcB, calcR, usedBell, calcG) => {
+                return (calcB * 311.5) + (calcR * 129.5) + (usedBell * 8) - (calcG * 2.445);
+            }
+        }
+    };
+
+    let data = loadData();
+    let lastCalcResult = null; // 最新の推測結果を保持(シート保存用)
+
+    // --- ダミー表示モード（機種名タップでON/OFF） ---
+    let dummyMode = false;
+    let dummySeed = 0;
+
+    function toggleDummy() {
+        dummyMode = !dummyMode;
+        dummySeed = Math.floor(Math.random() * 1000000); // タップごとに変化
+        renderMain();
+    }
+
+    // ダミー数値生成
+    // kind: 'none' = 変化なし（ゲーム数, BIG, REG）
+    //       'two'  = 前後に2桁ずつ追加（ベル, スイカ系, レトロ系）
+    //       'one'  = 前後に1桁ずつ追加（ランプ等その他）
+    function dummyNum(val, idx, kind) {
+        if (!dummyMode || kind === 'none') return val;
+        const v = Math.max(0, val);
+        const s = String(v);
+        function rng(offset) {
+            let h = dummySeed + idx * 2654435761 + offset * 40503;
+            h = ((h >>> 16) ^ h) * 45679;
+            h = ((h >>> 16) ^ h) * 45679;
+            return Math.abs(h % 100000);
+        }
+        if (kind === 'two') {
+            const pre = (rng(1) % 90) + 10;   // 10-99（0始まり回避）
+            const post = String(rng(2) % 100).padStart(2, '0'); // 00-99
+            return `${pre}${s}${post}`;
+        }
+        const pre = (rng(1) % 9) + 1;         // 1-9
+        const post = rng(2) % 10;             // 0-9
+        return `${pre}${s}${post}`;
+    }
+
+    // カウンター種別 → ダミー化ルール
+    function dummyKind(id) {
+        if (id === 'g' || id === 'b' || id === 'r') return 'none';
+        if (id === 'bell' || id === 'suika' || id === 'suikaR' || id === 'retro_d' || id === 'retro') return 'two';
+        return 'one';
+    }
+
+    // ============================================================
+    // 機種名の長押し判定（タップ=ダミー / 長押し=一括加算）
+    // ============================================================
+    let machinePressTimer = null;
+    let machineLongPressed = false;
+
+    function startMachinePress() {
+        machineLongPressed = false;
+        machinePressTimer = setTimeout(() => {
+            machineLongPressed = true;
+            openBulkPanel();
+        }, 550);
+    }
+    function endMachinePress() {
+        clearTimeout(machinePressTimer);
+        if (!machineLongPressed) toggleDummy();
+        machineLongPressed = false;
+    }
+    function cancelMachinePress() {
+        clearTimeout(machinePressTimer);
+        machineLongPressed = false;
+    }
+
+    // ============================================================
+    // 大当たり回転数の記録
+    // hits: [{g: 回転数, k: 'b'|'r'}] 先頭が最新
+    // ============================================================
+
+    // 指定種別の「最新」の記録を削除する。
+    // 削除した区間のG数は1つ古い記録へ繰り入れ、当選間隔の整合を保つ。
+    function removeLatestHit(kind) {
+        const d = getData();
+        if (!Array.isArray(d.hits) || d.hits.length === 0) return false;
+        const idx = d.hits.findIndex(h => h.k === kind);
+        if (idx === -1) return false;
+
+        const removed = d.hits[idx];
+        const removedG = (removed.g == null) ? 0 : (Number(removed.g) || 0);
+
+        if (idx === 0) {
+            // 最新の当たりを削除 → その区間は「現在ハマり中」へ戻す
+            hitTailG += removedG;
+        } else if (removedG > 0) {
+            // 1つ新しい当たり（idx-1）の区間へ繰り入れて時系列を保つ。
+            // 繰り入れ先が未入力(null)なら、その情報を消さないため null のまま残す
+            const newer = d.hits[idx - 1];
+            if (newer.g != null) {
+                newer.g = (Number(newer.g) || 0) + removedG;
+            }
+        }
+        d.hits.splice(idx, 1);
+        syncGameCountFromHits();
+        save(true);
+        renderMain();
+        setTimeout(calc, 0);
+        return true;
+    }
+
+    // 編集セッション中に保持する「最新の当たり以降のハマりG数」
+    // 新規当選(openHitInput)では 0、過去編集(editHitG)では開始時の値を固定
+    let hitTailG = 0;
+
+    function hitsTotal() {
+        const d = getData();
+        if (!Array.isArray(d.hits)) d.hits = [];
+        return d.hits.reduce((a, h) => a + (h.g == null ? 0 : (Number(h.g) || 0)), 0);
+    }
+
+    // cur.g = 打ち始め + 記録合計 + ハマり分
+    function syncGameCountFromHits() {
+        const d = getData();
+        if (!Array.isArray(d.hits)) d.hits = [];
+        d.cur.g = (Number(d.start.g) || 0) + hitsTotal() + hitTailG;
+    }
+
+    // 現在のハマりG数（種別ごと）
+    // kind: 'all' | 'b' | 'r'
+    function currentHamari(kind) {
+        const d = getData();
+        const hits = Array.isArray(d.hits) ? d.hits : [];
+        const played = Math.max(0, (Number(d.cur.g) || 0) - (Number(d.start.g) || 0));
+        const recorded = hits.reduce((a, h) => a + (h.g == null ? 0 : (Number(h.g) || 0)), 0);
+        let hamari = Math.max(0, played - recorded); // 記録後に回した分
+        if (kind === 'all') return hamari;
+        // 種別指定: 最新から遡り、対象種別に当たるまでの区間を加算
+        for (const h of hits) {
+            if (h.k === kind) break;
+            hamari += (h.g == null ? 0 : (Number(h.g) || 0));
+        }
+        return hamari;
+    }
+
+    // 種別フィルタ後のリストを生成（異種区間を合算）
+    // 戻り値: [{g, k}] 先頭が最新
+    function buildFilteredHits(kind) {
+        const d = getData();
+        const hits = Array.isArray(d.hits) ? d.hits : [];
+        // idx は元配列（d.hits）の位置。編集時に使う
+        if (kind === 'all') {
+            return hits.map((h, i) => ({ g: h.g, k: h.k, idx: i, blank: (h.g == null) }));
+        }
+        // 古い順に走査して、対象種別に当たるまでの区間を積算
+        const asc = hits.map((h, i) => ({ ...h, _i: i })).reverse();
+        const out = [];
+        let acc = 0;
+        let hasBlank = false;
+        asc.forEach(h => {
+            if (h.g == null) hasBlank = true; else acc += (Number(h.g) || 0);
+            if (h.k === kind) {
+                out.push({ g: acc, k: kind, idx: h._i, blank: hasBlank });
+                acc = 0;
+                hasBlank = false;
+            }
+        });
+        return out.reverse(); // 新しい順に戻す
+    }
+
+    // ============================================================
+    // 当選履歴のG数を編集
+    // ============================================================
+    let editHitIdx = -1;
+
+    function editHitG(idx) {
+        const d = getData();
+        if (!Array.isArray(d.hits) || !d.hits[idx]) return;
+        // 過去記録の編集中は、現在のハマりG数を固定して維持する
+        const played = Math.max(0, (Number(d.cur.g) || 0) - (Number(d.start.g) || 0));
+        hitTailG = Math.max(0, played - hitsTotal());
+        hitPanelCentered = true;
+        editHitIdx = idx;
+        hitInputValue = (d.hits[idx].g == null) ? '' : String(d.hits[idx].g);
+        hitInputFresh = (hitInputValue !== ''); // 既存値がある場合は最初の入力で上書き
+        const kind = d.hits[idx].k;
+
+        const panel = document.getElementById('hit-panel');
+        const label = document.getElementById('hit-kind-label');
+        label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 回転数を修正';
+        label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
+
+        document.getElementById('hit-panel-body').innerHTML = `
+            <div class="hit-keys-wrap">
+                <div class="hit-keys">
+                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
+                    <button class="hit-key del" onclick="hitKey('del')">⌫</button>
+                    <button class="hit-key" onclick="hitKey('0')">0</button>
+                    <button class="hit-key ok" onclick="hitEditSave()">保存</button>
+                </div>
+                <div class="hit-side">
+                    <div class="hit-display" id="hit-display">${hitInputValue === '' ? '0' : hitInputValue}<span class="unit">G</span></div>
+                    <div class="hit-hint">この当選の<br>回転数を修正</div>
+                </div>
+            </div>`;
+        panel.classList.add('active');
+        positionHitPanel();
+    }
+
+    function hitEditSave() {
+        commitHitInput();
+        editHitIdx = -1;
+        renderMain();
+        setTimeout(calc, 0);
+        closeHitPanel();
+        if (document.getElementById('hit-modal').classList.contains('active')) renderHitModal();
+    }
+
+    // ============================================================
+    // 大当たり回転数 入力パネル（テンキー）
+    // ============================================================
+    let hitInputKind = 'b';
+    let hitInputValue = '';
+    let hitInputFresh = false; // true のとき最初の数字入力で既存値をクリア
+
+    let hitPanelCentered = false;
+
+    function positionHitPanel() {
+        const panel = document.getElementById('hit-panel');
+        const isLandscape = window.innerWidth > window.innerHeight;
+        if (hitPanelCentered) {
+            // 分析モーダルからの編集: 画面中央
+            panel.style.top = '50%';
+            panel.style.left = '50%';
+            panel.style.right = 'auto';
+            panel.style.width = isLandscape ? 'min(340px, 52%)' : 'min(340px, 94%)';
+            panel.style.transform = 'translate(-50%, -50%)';
+            return;
+        }
+        if (isLandscape) {
+            // 横画面: 右カラムに被せる
+            panel.style.top = '60px';
+            panel.style.right = '10px';
+            panel.style.left = 'auto';
+            panel.style.width = 'min(340px, 52%)';
+            panel.style.transform = 'none';
+        } else {
+            // 縦画面: スイカより下あたりに被せる
+            panel.style.top = '38%';
+            panel.style.left = '50%';
+            panel.style.right = 'auto';
+            panel.style.width = 'min(340px, 94%)';
+            panel.style.transform = 'translateX(-50%)';
+        }
+    }
+
+    function openHitInput(kind) {
+        // 新規当選: それまでのハマり分が新記録のG数になるため、当選後のハマりは0
+        hitTailG = 0;
+        hitPanelCentered = false;
+        hitInputKind = kind;
+        hitInputValue = '';
+        hitInputFresh = false;
+        editHitIdx = 0; // 先頭（今作成した記録）を編集
+        const panel = document.getElementById('hit-panel');
+        const label = document.getElementById('hit-kind-label');
+        label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 当選回転数';
+        label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
+
+        document.getElementById('hit-panel-body').innerHTML = `
+            <div class="hit-keys-wrap">
+                <div class="hit-keys">
+                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
+                    <button class="hit-key del" onclick="hitKey('del')">⌫</button>
+                    <button class="hit-key" onclick="hitKey('0')">0</button>
+                    <button class="hit-key ok" onclick="hitEditSave()">OK</button>
+                </div>
+                <div class="hit-side">
+                    <div class="hit-display" id="hit-display">0<span class="unit">G</span></div>
+                    <div class="hit-hint">記録は既に<br>作成済み<br>閉じても残ります</div>
+                </div>
+            </div>
+        `;
+        panel.classList.add('active');
+        positionHitPanel();
+    }
+
+    function hitKey(k) {
+        if (k === 'del') {
+            hitInputFresh = false;
+            hitInputValue = hitInputValue.slice(0, -1);
+        } else {
+            if (hitInputFresh) { hitInputValue = ''; hitInputFresh = false; } // 上書き入力
+            if (hitInputValue.length >= 5) return;
+            hitInputValue += k;
+        }
+        const disp = document.getElementById('hit-display');
+        if (disp) disp.innerHTML = (hitInputValue === '' ? '0' : hitInputValue) + '<span class="unit">G</span>';
+        // 入力中の値を即座に記録へ反映（✕や外側タップで閉じても残る）
+        commitHitInput();
+    }
+
+    // 現在の入力値を対象の記録へ書き込む
+    function commitHitInput() {
+        const d = getData();
+        if (editHitIdx < 0 || !Array.isArray(d.hits) || !d.hits[editHitIdx]) return;
+        const g = parseInt(hitInputValue, 10);
+        d.hits[editHitIdx].g = (!isNaN(g) && g >= 0) ? g : null;
+        syncGameCountFromHits();
+        save(true);
+    }
+
+    function closeHitPanel() {
+        commitHitInput();      // 入力途中でも確定
+        editHitIdx = -1;
+        document.getElementById('hit-panel').classList.remove('active');
+        renderMain();
+        setTimeout(calc, 0);
+        if (document.getElementById('hit-modal').classList.contains('active')) renderHitModal();
+    }
+
+    // ============================================================
+    // 一括加算パネル（機種名長押し）
+    // ============================================================
+    let bulkTarget = 'bell';
+    let bulkValue = '';
+
+    function bulkTargetList() {
+        const pm = ALL_PARAMS[data.machine];
+        const isNew = data.machine === 'newking';
+        const L = pm.labels || {};
+        const list = [
+            { id:'g', label:'G数' },
+            { id:'b', label:'BIG' },
+            { id:'r', label:'REG' },
+            { id:'bell', label:'ベル' },
+            { id:'suika', label: isNew ? 'スイカ前' : 'スイカ' }
+        ];
+        if (isNew) list.push({ id:'suikaR', label:'スイカR' });
+        list.push({ id:'retro_d', label:'レトロ達' });
+        list.push({ id:'retro', label:'レトロ発' });
+        return list;
+    }
+
+    function openBulkPanel() {
+        bulkValue = '';
+        renderBulkPanel();
+        document.getElementById('bulk-panel').classList.add('active');
+    }
+    function closeBulkPanel() {
+        document.getElementById('bulk-panel').classList.remove('active');
+    }
+
+    function renderBulkPanel() {
+        const d = getData();
+        const list = bulkTargetList();
+        if (!list.some(x => x.id === bulkTarget)) bulkTarget = list[0].id;
+
+        document.getElementById('bulk-targets').innerHTML = list.map(x =>
+            `<div class="bulk-target ${x.id === bulkTarget ? 'active' : ''}" onclick="setBulkTarget('${x.id}')">
+                ${x.label}<span class="cur">${d.cur[x.id] || 0}</span>
+             </div>`
+        ).join('');
+
+        document.getElementById('bulk-display').textContent = bulkValue === '' ? '0' : ('+' + bulkValue);
+
+        document.getElementById('bulk-keys').innerHTML = `
+            <div class="hit-keys">
+                ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="bulkKey('${n}')">${n}</button>`).join('')}
+                <button class="hit-key del" onclick="bulkKey('del')">⌫</button>
+                <button class="hit-key" onclick="bulkKey('0')">0</button>
+                <button class="hit-key ok" onclick="bulkKey('ok')">加算</button>
+            </div>
+            <div class="hit-hint">項目を選んで数を入力 → 加算</div>
+        `;
+    }
+
+    function setBulkTarget(id) {
+        bulkTarget = id;
+        renderBulkPanel();
+    }
+
+    function bulkKey(k) {
+        if (k === 'del') {
+            bulkValue = bulkValue.slice(0, -1);
+        } else if (k === 'ok') {
+            const n = parseInt(bulkValue, 10);
+            if (!isNaN(n) && n > 0) {
+                const d = getData();
+                d.cur[bulkTarget] = Math.max(0, (Number(d.cur[bulkTarget]) || 0) + n);
+                save(true);
+                renderMain();
+                setTimeout(calc, 0);
+            }
+            bulkValue = '';
+            renderBulkPanel();
+            return;
+        } else {
+            if (bulkValue.length >= 5) return;
+            bulkValue += k;
+        }
+        document.getElementById('bulk-display').textContent = bulkValue === '' ? '0' : ('+' + bulkValue);
+    }
+
+    // ============================================================
+    // 大当たり分析モーダル
+    // ============================================================
+    let hitTab = 'rec';
+    let hitListKind = 'all';
+    let probSetIdx = null; // null = 推測トップを自動選択
+
+    function openHitModal() {
+        document.getElementById('hit-modal').classList.add('active');
+        probSetIdx = null;
+        renderHitModal();
+    }
+    function closeHitModal() {
+        document.getElementById('hit-modal').classList.remove('active');
+    }
+    function setHitTab(t) {
+        hitTab = t;
+        document.querySelectorAll('.hm-tab').forEach(el => {
+            el.classList.toggle('active', el.dataset.tab === t);
+        });
+        renderHitModal();
+    }
+    function setHitListKind(k) {
+        hitListKind = k;
+        renderHitModal();
+    }
+    function setProbSet(i) {
+        probSetIdx = i;
+        renderHitModal();
+    }
+
+    function renderHitModal() {
+        const el = document.getElementById('hm-content');
+        if (!el) return;
+        el.innerHTML = (hitTab === 'rec') ? renderHitRecords() : renderHitProb();
+    }
+
+    function renderHitRecords() {
+        const list = buildFilteredHits(hitListKind);
+        const hamari = currentHamari(hitListKind);
+        const kindLabel = hitListKind === 'all' ? '前回の当たり' : (hitListKind === 'b' ? '前回のBIG' : '前回のREG');
+
+        let html = `
+            <div class="hm-sub">
+                <div class="hm-sub-btn ${hitListKind==='all'?'active':''}" onclick="setHitListKind('all')">全体</div>
+                <div class="hm-sub-btn ${hitListKind==='b'?'active':''}" onclick="setHitListKind('b')">BIG</div>
+                <div class="hm-sub-btn ${hitListKind==='r'?'active':''}" onclick="setHitListKind('r')">REG</div>
+            </div>
+            <div class="hm-now">
+                <div class="hm-now-g">${hamari}<span style="font-size:15px;">G</span></div>
+                <div class="hm-now-l">${kindLabel}から</div>
+            </div>`;
+
+        if (list.length === 0) {
+            return html + '<div class="hm-empty">記録がありません<br><span style="font-size:11px;">BIG/REGを加算すると入力できます</span></div>';
+        }
+
+        // 統計は G が入力済みのものだけで計算
+        const valid = list.filter(h => h.g != null && !h.blank);
+        if (valid.length > 0) {
+            const sum = valid.reduce((a, h) => a + h.g, 0);
+            const avg = Math.round(sum / valid.length);
+            const max = Math.max(...valid.map(h => h.g));
+            const min = Math.min(...valid.map(h => h.g));
+            html += `
+                <div class="hm-stat">
+                    <div class="hm-stat-box"><div class="hm-stat-v">${list.length}</div><div class="hm-stat-l">回数</div></div>
+                    <div class="hm-stat-box"><div class="hm-stat-v">1/${avg}</div><div class="hm-stat-l">平均</div></div>
+                    <div class="hm-stat-box"><div class="hm-stat-v">${max}</div><div class="hm-stat-l">最大</div></div>
+                    <div class="hm-stat-box"><div class="hm-stat-v">${min}</div><div class="hm-stat-l">最小</div></div>
+                </div>`;
+        }
+        html += `<div style="font-size:10px;color:#666;margin-bottom:6px;">G数をタップすると修正できます</div><div class="hm-list">`;
+
+        const n = list.length;
+        list.forEach((h, i) => {
+            const kc = h.k === 'b' ? 'big' : 'reg';
+            const kl = h.k === 'b' ? 'BIG' : 'REG';
+            const isBlank = (h.g == null) || h.blank;
+            const gTxt = (h.g == null)
+                ? `<span style="color:#f80;">未入力</span>`
+                : `${h.g}<span style="font-size:11px;color:#888;">G</span>${h.blank ? '<span style="color:#f80;font-size:10px;">*</span>' : ''}`;
+            html += `<div class="hm-row">
+                <div class="hm-no">${n - i}</div>
+                <div class="hm-g hm-edit" onclick="editHitG(${h.idx})" style="cursor:pointer;">${gTxt}</div>
+                <div class="hm-kind ${kc}">${kl}</div>
+            </div>`;
+        });
+        html += '</div>';
+        if (list.some(h => h.blank || h.g == null)) {
+            html += `<div style="font-size:10px;color:#f80;margin-top:8px;">※ 未入力の記録が含まれています（* は未入力を含む区間）</div>`;
+        }
+        return html;
+    }
+
+    function renderHitProb() {
+        const pm = ALL_PARAMS[data.machine];
+        const settings = pm.settings;
+
+        // 初期は推測トップ、以降は手動選択
+        let idx = probSetIdx;
+        if (idx === null || idx === undefined || idx < 0 || idx >= settings.length) {
+            idx = (lastCalcResult && typeof lastCalcResult.bestIdx === 'number') ? lastCalcResult.bestIdx : 0;
+        }
+
+        // 合算確率（分母）
+        const denom = pm.gassan[idx];
+        const p = 1 / denom;
+
+        // 到達確率 P(G以内に当たる) = 1 - (1-p)^G
+        const probAt = (g) => 1 - Math.pow(1 - p, g);
+        // 指定確率に達するG数（切り上げ）
+        const gForProb = (target) => Math.ceil(Math.log(1 - target) / Math.log(1 - p));
+
+        // 行の構築
+        const rows = [];
+        rows.push({ g: 100, note: '' });
+        rows.push({ g: Math.ceil(denom), note: '確率分母' });
+        rows.push({ g: gForProb(0.80), note: '80%' });
+        // 確率分母のN倍（2倍〜、1000G未満まで）
+        for (let mult = 2; mult <= 10; mult++) {
+            const g = Math.ceil(denom * mult);
+            if (g >= 1000) break;
+            rows.push({ g: g, note: `${mult}倍` });
+        }
+        rows.push({ g: gForProb(0.90), note: '90%' });
+        rows.push({ g: 1000, note: '' });
+
+        // G数でユニーク化して昇順（=確率昇順）
+        const map = new Map();
+        rows.forEach(r => {
+            if (map.has(r.g)) {
+                const ex = map.get(r.g);
+                if (r.note && !ex.note.includes(r.note)) ex.note = ex.note ? `${ex.note}/${r.note}` : r.note;
+            } else {
+                map.set(r.g, { g: r.g, note: r.note });
+            }
+        });
+        const finalRows = [...map.values()].sort((a, b) => a.g - b.g);
+
+        // 実績（全記録・合算）。G数未入力(null)は集計から除外
+        const all = buildFilteredHits('all').filter(h => h.g != null);
+        const total = all.length;
+
+        let html = `<div class="set-tabs">` +
+            settings.map((s, i) =>
+                `<div class="set-tab ${i === idx ? 'active' : ''}" onclick="setProbSet(${i})">${s}</div>`
+            ).join('') + `</div>`;
+
+        html += `<div style="font-size:11px;color:#888;text-align:center;margin-bottom:8px;">
+            設定${settings[idx]} 合算 1/${denom.toFixed(1)}　実績 ${total}回
+        </div>`;
+
+        html += `<table class="prob-table">
+            <tr><th>到達G</th><th>理論</th><th>実績</th><th></th></tr>`;
+
+        finalRows.forEach(r => {
+            const th = probAt(r.g) * 100;
+            let acHtml = '<span style="color:#555;">-</span>';
+            if (total > 0) {
+                const cnt = all.filter(h => h.g <= r.g).length;
+                const ac = cnt / total * 100;
+                const cls = ac >= th ? 'over' : 'under';
+                acHtml = `<span class="prob-ac ${cls}">${ac.toFixed(1)}%</span><br><span class="prob-note">${cnt}/${total}</span>`;
+            }
+            html += `<tr>
+                <td class="prob-g">${r.g}G</td>
+                <td class="prob-th">${th.toFixed(1)}%</td>
+                <td>${acHtml}</td>
+                <td class="prob-note">${r.note}</td>
+            </tr>`;
+        });
+        html += `</table>`;
+        html += `<div style="font-size:10px;color:#666;margin-top:10px;line-height:1.6;">
+            ※ 理論=その回転数までに当たる確率／実績=記録のうちその回転数以内だった割合<br>
+            ※ 実績は全記録（BIG+REG合算）で計算しています
+        </div>`;
+        return html;
+    }
+
+    // --- スプレッドシート連携: 機種別シート構造 ---
+    // ヘッダー先頭は空文字 = A列空欄。データ行も先頭は空欄を入れる。
+    // 末尾4列は機種共通: 推測設定, 高設定期待度, 差枚数, 復元用JSON
+    const SHEET_CONFIG = {
+        houou: {
+            sheetName: 'ハナハナホウオウ天翔',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        king: {
+            sheetName: 'キングハナハナ',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        dragon: {
+            sheetName: 'ドラゴンハナハナ閃光',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        star: {
+            sheetName: 'スターハナハナ',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG)',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：赤', 'BIG筐体：虹',
+                      'REGサイド：青', 'REGサイド：黃', 'REGサイド：緑', 'REGサイド：赤', 'REGサイド：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：赤', 'REG筐体：虹',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        },
+        newking: {
+            sheetName: 'ニューキングハナハナⅤ',
+            headers: ['', '日付', '総回転数', '通常時回転数', 'ボーナス回転数', 'BIG', 'REG', 'ベル(通常時)', 'スイカ(BIG前半)', 'スイカ(REG)',
+                      'BIG後半サイド：青', 'BIG後半サイド：黃', 'BIG後半サイド：緑', 'BIG後半サイド：赤', 'BIG後半サイド：虹',
+                      'BIG筐体：青', 'BIG筐体：黃', 'BIG筐体：緑', 'BIG筐体：紫', 'BIG筐体：虹',
+                      'REG筐体：青', 'REG筐体：黃', 'REG筐体：緑', 'REG筐体：紫',
+                      'レトロ達成', 'レトロ発生',
+                      '推測設定', '高設定期待度', '差枚数', '復元用JSON']
+        }
+    };
+    // シート名→機種ID 逆引き
+    const SHEET_TO_MACHINE = {};
+    Object.keys(SHEET_CONFIG).forEach(m => { SHEET_TO_MACHINE[SHEET_CONFIG[m].sheetName] = m; });
+
+    // 推測結果の信頼度(0-1)を、対数尤度比から算出
+    // LLR(トップと2位の対数尤度差)が大きいほど確からしさが高い
+    // 紫ランプ等の確定示唆があれば自然に1に近づき、サンプル不足では低くなる
+    function calcReliability(totalL) {
+        if (!totalL || totalL.length < 2) return 0;
+        const logL = totalL.map(v => Math.log(Math.max(v, 1e-300)));
+        const sorted = [...logL].sort((a, b) => b - a);
+        const llr = sorted[0] - sorted[1];
+        if (!isFinite(llr) || isNaN(llr)) return 0;
+        // LLRが大きいほど確信度が高い。LLR=2で約63%、LLR=4で約86%、LLR=6で約95%
+        return Math.max(0, Math.min(1, 1 - Math.exp(-llr / 2)));
+    }
+
+    // 信頼度ランク定義
+    // -1: 旧データ(JSON/信頼度なし), 0: 全て対象, 1-6: ランク
+    const RANK_LABELS = ['?', '最低', '低', '中', '高', '最高', '虹'];
+    const RANK_CSSCLASS = ['rank-unknown', 'rank-low0', 'rank-low1', 'rank-mid', 'rank-high', 'rank-top', 'rank-rainbow'];
+
+    // 機種ごとの最高設定確定示唆:
+    // ニューキングⅤ: REG筐体ランプ「紫」(regT[3]) が出ていれば設定V確定
+    // 他機種: REG筐体ランプ「虹」(regT[4]) が出ていれば設定6確定
+    function hasMaxSettingConfirmed(machineData, machineId) {
+        if (!machineData || !machineData.lamps || !machineData.lamps.regT) return false;
+        const t = machineData.lamps.regT;
+        if (machineId === 'newking') return (t[3] || 0) > 0;
+        return (t[4] || 0) > 0;
+    }
+
+    // 信頼度ランク
+    // rank=0: 旧データ(信頼度不明)
+    // rank=1: 最低 (<10%)
+    // rank=2: 低   (10-25%)
+    // rank=3: 中   (25-50%)
+    // rank=4: 高   (50-80%)
+    // rank=5: 最高 (80%以上、ただし最高設定確定示唆なし)
+    // rank=6: 虹   (最高設定の確定示唆あり = REG筐体ランプ紫or虹)
+    function reliabilityRank(rel, maxConfirmed) {
+        if (maxConfirmed === true) return 6; // 虹は確定示唆ありの時のみ
+        if (rel === null || rel === undefined || isNaN(rel)) return 0;
+        if (rel >= 0.80) return 5;
+        if (rel >= 0.50) return 4;
+        if (rel >= 0.25) return 3;
+        if (rel >= 0.10) return 2;
+        return 1;
+    }
+
+    // 履歴フィルタ状態
+    let relFilterRank = 1;            // デフォルト: 最低以上(=旧データ除外)
+    let settingFilter = new Set();    // 空 = 全設定を対象
+
+    // 機種選択に応じて推定設定フィルタを動的生成
+    function renderSettingFilter() {
+        const m = data.machine;
+        const settings = (ALL_PARAMS[m] && ALL_PARAMS[m].settings) ? ALL_PARAMS[m].settings : [1,2,3,4,5,6];
+        const el = document.getElementById('setting-filter');
+        if (!el) return;
+        let html = `<div class="hist-filter-btn ${settingFilter.size === 0 ? 'active' : ''}" data-set="" onclick="clearSettingFilter()">全て</div>`;
+        settings.forEach(s => {
+            const label = `設定${s}`;
+            const isActive = settingFilter.has(label);
+            html += `<div class="hist-filter-btn ${isActive ? 'active' : ''}" data-set="${label}" onclick="toggleSettingFilter('${label}')">${s}</div>`;
+        });
+        el.innerHTML = html;
+    }
+
+
+    function loadData() {
+        try {
+            const saved = localStorage.getItem('hana_v20_data');
+            let d = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULTS));
+            
+            const machines = ['houou', 'king', 'dragon', 'star', 'newking'];
+            machines.forEach(m => {
+                if (!d[m]) d[m] = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
+            });
+            if (!d.weights) {
+                d.weights = JSON.parse(JSON.stringify(DEFAULTS.weights));
+            } else {
+                machines.forEach(m => {
+                    if (!d.weights[m]) {
+                        d.weights[m] = JSON.parse(JSON.stringify(DEFAULTS.weights[m]));
+                    } else {
+                        // 保存データに無い重みキー(後から追加されたもの)を初期値で補完
+                        Object.keys(DEFAULTS.weights[m]).forEach(k => {
+                            if (d.weights[m][k] === undefined) d.weights[m][k] = DEFAULTS.weights[m][k];
+                        });
+                    }
+                });
+            }
+            machines.forEach(m => {
+                if (d[m] && !Array.isArray(d[m].hits)) d[m].hits = [];
+                if (d[m] && d[m]._lastHitTotal !== undefined) delete d[m]._lastHitTotal; // 旧方式の残骸
+            });
+            if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
+            if (!d.gasUrl) d.gasUrl = '';
+            if (!d.gasToken) d.gasToken = 'hanahana2026';
+
+            return d;
+        } catch(e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
+    }
+
+    // 入力枠のフォーカス消失を防ぐため、skipRenderフラグを追加
+    function save(skipRender = false) { 
+        localStorage.setItem('hana_v20_data', JSON.stringify(data)); 
+        if(!skipRender) renderMain(); 
+    }
+    function getData() { return data[data.machine]; }
+
+    function init() {
+        document.getElementById('machine-select').value = data.machine || 'houou';
+        document.getElementById('gas-url').value = data.gasUrl || '';
+        document.getElementById('gas-token').value = data.gasToken || 'hanahana2026';
+        syncInputs();
+        renderMorningSelector();
+        renderWeightSettings();
+        renderMain();
+        renderSettingFilter();
+    }
+
+    function syncInputs() {
+        const d = getData();
+        document.getElementById('start-g').value = d.start.g;
+        document.getElementById('start-b').value = d.start.b;
+        document.getElementById('start-r').value = d.start.r;
+    }
+
+    // 0/0表記を0/分母にする、かつ桁数指定
+    function getP(k, n, digits = 2) { 
+        if (n <= 0) return "0/0";
+        if (k <= 0) return `0/${Math.round(n)}`; 
+        return `1/${(n/k).toFixed(digits)}`; 
+    }
+
+    function renderMorningSelector() {
+        const pm = ALL_PARAMS[data.machine];
+        const d = getData();
+        const labs = ['白', ...pm.labels.slice(0,4)];
+        const cols = ['var(--lamp-white)', ...pm.colors.slice(0,4)];
+        let html = '';
+        labs.forEach((l, i) => {
+            const isSel = (d.morning === i) ? 'selected-lamp' : '';
+            const colStyle = cols[i] === 'rainbow' ? 'class="rainbow"' : `style="color:${cols[i].startsWith('var')?cols[i]:'var('+cols[i]+')'}"`;
+            html += `<div class="cell ${isSel}" onclick="setMorning(${i})"><div class="label-large" ${colStyle}>${l}</div></div>`;
+        });
+        document.getElementById('morning-lamp-selector').innerHTML = html;
+    }
+    
+    function setMorning(val) { 
+        getData().morning = (getData().morning === val) ? -1 : val; 
+        save(); renderMorningSelector(); 
+    }
+
+    function renderWeightSettings() {
+        const w = data.weights[data.machine];
+        const isNew = data.machine === 'newking';
+        const pm = ALL_PARAMS[data.machine];
+        const labels = pm.w_labels;
+        
+        let html = `
+            ${mkW(labels.b, 'b', w.b)}
+            ${mkW(labels.r, 'r', w.r)}
+            ${mkW(labels.gas, 'gas', w.gas)}
+            ${mkW(labels.bell, 'bell', w.bell)}
+            ${mkW(labels.sui, 'sui', w.sui)}
+            ${isNew ? mkW(labels.suiR, 'suiR', w.suiR) : '<div style="background: var(--bg-color);"></div>'}
+            ${mkW(labels.sl, 'sl', w.sl)}
+            ${mkW(labels.morn, 'morn', w.morn)}
+            ${mkW(labels.bl, 'bl', w.bl)}
+            ${mkW(labels.rl, 'rl', w.rl)}
+            ${mkW(labels.ret, 'ret', w.ret)}
+        `;
+        document.getElementById('weight-settings').innerHTML = html;
+    }
+    function mkW(label, key, val) {
+        return `<div class="cell"><div class="label">${label}</div><div style="display:flex; justify-content:center; align-items:baseline; width:100%;"><input type="number" class="val-input weight-input" style="width:40px; text-align:right; padding-right:2px;" data-key="${key}" value="${val}" onchange="saveWeight(this)" onfocus="this.select()"><span style="color:white; font-size:14px; font-weight:bold;">％</span></div></div>`;
+    }
+    function saveWeight(el) {
+        const key = el.dataset.key;
+        let val = Number(el.value);
+        if(val < 0) val = 0;
+        data.weights[data.machine][key] = val;
+        save();
+    }
+
+    function setViewMode(m) { data.viewMode = m; save(); updateHeader(); }
+    function setInputMode(m) { data.mode = m; save(); updateHeader(); }
+    function updateMachine() { 
+        data.machine = document.getElementById('machine-select').value; 
+        syncInputs();
+        save(); updateHeader(); renderMorningSelector(); renderWeightSettings();
+    }
+    
+    function saveStart() {
+        const d = getData();
+        const old_sg = d.start.g || 0;
+        const old_sb = d.start.b || 0;
+        const old_sr = d.start.r || 0;
+
+        d.start.g = Number(document.getElementById('start-g').value) || 0;
+        d.start.b = Number(document.getElementById('start-b').value) || 0;
+        d.start.r = Number(document.getElementById('start-r').value) || 0;
+        
+        d.cur.g = Math.max(0, d.cur.g + (d.start.g - old_sg));
+        d.cur.b = Math.max(0, d.cur.b + (d.start.b - old_sb));
+        d.cur.r = Math.max(0, d.cur.r + (d.start.r - old_sr));
+        
+        save();
+    }
+
+    function renderMain() {
+        const d = getData();
+        const c = d.cur; const s = d.start;
+        const vG = c.g; const vB = c.b; const vR = c.r;
+        const isNew = data.machine === 'newking';
+        const pm = ALL_PARAMS[data.machine];
+        const labels = pm.w_labels;
+        
+        let html = '';
+
+        if (isNew) {
+            html = `
+            <div class="main-layout">
+                <div class="col-left">
+                    <p class="section-title">＜打ち始め＞</p>
+                    <div class="grid grid-3">
+                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+                    </div>
+                    <p class="section-title">＜現在＞</p>
+                    <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <p class="section-title">＜${labels.bell}＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
+                    <p class="section-title">＜ボーナス：スイカ＞</p>
+                    <div class="grid grid-2">${mkC('suika', labels.sui, c.suika)}${mkC('suikaR', labels.suiR, c.suikaR)}</div>
+                </div>
+                <div class="col-right">
+                    <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                    <p class="section-title">＜${labels.bl}＞</p><div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-4">${mkL('regT')}</div>
+                    <p class="section-title">＜${labels.ret}＞</p>
+                    <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
+                </div>
+            </div>`;
+        } else {
+            html = `
+            <div class="main-layout">
+                <div class="col-left">
+                    <p class="section-title">＜打ち始め＞</p>
+                    <div class="grid grid-3">
+                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
+                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
+                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
+                    </div>
+                    <p class="section-title">＜現在＞</p>
+                    <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
+                    <p class="section-title">＜${labels.bell}＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
+                    <p class="section-title">＜${labels.sui}＞</p><div class="grid">${mkC('suika','&nbsp;',c.suika)}</div>
+                </div>
+                <div class="col-right">
+                    <p class="section-title">＜${labels.sl}＞</p><div class="grid grid-5">${mkL('regS')}</div>
+                    <p class="section-title">＜${labels.bl}＞</p><div class="grid grid-5">${mkL('big')}</div>
+                    <p class="section-title">＜${labels.rl}＞</p><div class="grid grid-5">${mkL('regT')}</div>
+                    <p class="section-title">＜${labels.ret}＞</p>
+                    <div class="grid grid-2">${mkC('retro_d','条件達成',c.retro_d)}${mkC('retro','発生',c.retro)}</div>
+                </div>
+            </div>`;
+        }
+
+        _dIdx = 0;
+        document.getElementById('main-ui').innerHTML = html;
+        if(data.mode === 'tap') attachEvents();
+        updateHeader();
+        setTimeout(calc, 0);
+    }
+
+    let _dIdx = 0; // ダミー用セル連番
+
+    function mkC(id, label, val, step=1) {
+        const idx = _dIdx++;
+        const dv = dummyNum(val, idx, dummyKind(id));
+        if(data.mode === 'input') {
+            if (dummyMode) return `<div class="cell"><div class="label">${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
+            return `<div class="cell"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="getData().cur.${id}=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
+        }
+        return `<div class="cell t-btn" data-id="${id}" data-step="${step}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
+    }
+
+    function mkL(type) {
+        const pm = ALL_PARAMS[data.machine];
+        const d = getData();
+        
+        let useCols = pm.colors;
+        let useLabs = pm.labels;
+        if (data.machine === 'newking') {
+            if (type === 'regS') {
+                useCols = pm.colors_side;
+                useLabs = pm.labels_side;
+            } else if (type === 'regT') {
+                useCols = pm.colors_regT;
+                useLabs = pm.labels_regT;
+            }
+        }
+
+        return useLabs.map((l, i) => {
+            const v = d.lamps[type][i];
+            const col = useCols[i];
+            const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
+            const didx = _dIdx++;
+            const dv = dummyNum(v, didx, 'one');
+            if(data.mode === 'input') {
+                if (dummyMode) return `<div class="cell"><div class="label" ${cls}>${l}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
+                return `<div class="cell"><div class="label" ${cls}>${l}</div><input type="number" class="val-input" value="${v}" onchange="getData().lamps.${type}[${i}]=Math.max(0,Number(this.value)||0);save(true);setTimeout(calc,0);" onfocus="this.select()"></div>`;
+            }
+            return `<div class="cell t-lamp" data-type="${type}" data-idx="${i}" data-didx="${didx}"><div class="label" ${cls}>${l}</div><div class="value">${dv}</div></div>`;
+        }).join('');
+    }
+
+    function updateHeader() {
+        const nameEl = document.getElementById('disp-machine');
+        nameEl.innerText = ALL_PARAMS[data.machine].name;
+        nameEl.style.opacity = dummyMode ? '0.5' : '1';
+        document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
+        document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
+        document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
+        document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
+    }
+
+    function attachEvents() {
+        document.querySelectorAll('.cell.t-btn, .cell.t-lamp').forEach(el => {
+            let sy, sx, isC, minusTimer, visualTimer;
+            
+            const handleStart = (y, x) => {
+                sy = y; sx = x; isC = false;
+                
+                // ① 水色への変化を「70ミリ秒」遅らせる（スクロール時の誤発光防止）
+                visualTimer = setTimeout(() => { 
+                    if(!isC) el.classList.add('touch-active'); 
+                }, 70);
+                
+                // ② 赤色（マイナス）への変化時間を「300ミリ秒」に短縮（※さらに短くしたい場合はここを変更）
+                minusTimer = setTimeout(() => { 
+                    if(!isC) el.classList.add('minus-mode'); 
+                }, 300);
+            };
+            
+            const handleMove = (y, x) => {
+                // 指が50px以上ズレたらスクロールとみなし、タイマーを止めて色も消す
+                if(Math.abs(y - sy) > 50 || Math.abs(x - sx) > 50) { 
+                    isC = true; 
+                    clearTimeout(visualTimer); 
+                    clearTimeout(minusTimer); 
+                    el.classList.remove('touch-active', 'minus-mode'); 
+                }
+            };
+            
+            const handleEnd = () => {
+                clearTimeout(visualTimer);
+                clearTimeout(minusTimer);
+                if(isC) return; // スクロールキャンセルされていれば終了
+                
+                const isMinus = el.classList.contains('minus-mode');
+                const step = (isMinus ? -1 : 1) * Number(el.dataset.step || 1);
+                const d = getData();
+                
+                let newVal = 0;
+                let _changed = true;
+                if(el.dataset.id) {
+                    const _id = el.dataset.id;
+                    // g / b / r は打ち始めの値を下回らせない（全体表示との矛盾防止）
+                    const _floor = (_id === 'g' || _id === 'b' || _id === 'r')
+                        ? (Number(d.start[_id]) || 0) : 0;
+                    const _before = Number(d.cur[_id]) || 0;
+                    d.cur[_id] = Math.max(_floor, _before + step);
+                    _changed = (d.cur[_id] !== _before);
+                    newVal = d.cur[el.dataset.id];
+                } else {
+                    d.lamps[el.dataset.type][el.dataset.idx] = Math.max(0, d.lamps[el.dataset.type][el.dataset.idx] + step);
+                    newVal = d.lamps[el.dataset.type][el.dataset.idx];
+                }
+                
+                if (dummyMode) {
+                    const didx = parseInt(el.dataset.didx) || 0;
+                    const kind = el.dataset.id ? dummyKind(el.dataset.id) : 'one';
+                    el.querySelector('.value').innerText = dummyNum(newVal, didx, kind);
+                } else {
+                    el.querySelector('.value').innerText = newVal;
+                }
+                
+                // ③ 超高速タップ（70ms未満）でも「押した感」を出すためのフラッシュ演出
+                if(!isMinus) {
+                    el.classList.add('touch-active');
+                    setTimeout(() => el.classList.remove('touch-active'), 100);
+                } else {
+                    el.classList.remove('touch-active', 'minus-mode');
+                }
+                
+                save(true);
+                setTimeout(calc, 0);
+
+                // BIG/REG の増減時の記録連動
+                if (el.dataset.id === 'b' || el.dataset.id === 'r') {
+                    if (step > 0 && _changed) {
+                        // 押した時点で記録を作成（G数は未入力）
+                        const dd = getData();
+                        if (!Array.isArray(dd.hits)) dd.hits = [];
+                        dd.hits.unshift({ g: null, k: el.dataset.id });
+                        save(true);
+                        // 作成した記録（先頭）のG数を入力するモードで開く
+                        openHitInput(el.dataset.id);
+                    } else if (step < 0 && _changed) {
+                        removeLatestHit(el.dataset.id);
+                    }
+                }
+            };
+
+            const handleCancel = () => {
+                isC = true; 
+                clearTimeout(visualTimer);
+                clearTimeout(minusTimer);
+                el.classList.remove('touch-active', 'minus-mode');
+            };
+
+            // Pointer Events
+            el.onpointerdown = (e) => {
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                el.setPointerCapture(e.pointerId);
+                handleStart(e.clientY, e.clientX);
+            };
+            
+            el.onpointermove = (e) => {
+                handleMove(e.clientY, e.clientX);
+            };
+            
+            el.onpointerup = (e) => {
+                el.releasePointerCapture(e.pointerId);
+                handleEnd();
+            };
+            
+            el.onpointercancel = () => {
+                handleCancel();
+            };
+            
+            el.oncontextmenu = (e) => e.preventDefault();
+        });
+    }
+
+    function calcLikelihoodInverse(n, k, probList) {
+        if(n <= 0 || k < 0 || k > n) return probList.map(()=>1);
+        let logs = probList.map(p => {
+            const pr = 1/p;
+            return k * Math.log(pr) + (n - k) * Math.log(1 - pr);
+        });
+        const maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return probList.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog));
+    }
+
+    function calcLikelihoodDirect(n, k, probList) {
+        if(n <= 0 || k < 0 || k > n) return probList.map(()=>1);
+        let logs = probList.map(pr => {
+            if(pr <= 0 || pr >= 1) return (k===0 && pr<=0) || (k===n && pr>=1) ? 0 : -Infinity;
+            return k * Math.log(pr) + (n - k) * Math.log(1 - pr);
+        });
+        const maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return probList.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog));
+    }
+    
+    function calcMultiLikelihood(counts, table) {
+        if(counts.reduce((a,b)=>a+b,0) === 0) return table.map(()=>1);
+        let logs = table.map(row => {
+            let l = 0;
+            counts.forEach((c, i) => { if(c > 0) l += c * Math.log(row[i] || 1e-10); });
+            return l;
+        });
+        const maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return table.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog));
+    }
+    
+    function calcBigLampLikelihood(bL_counts, rawProbsMatrix, totalBig) {
+        let sumCounts = bL_counts.reduce((a, b) => a + b, 0);
+        let whiteCount = totalBig - sumCounts;
+        if (whiteCount < 0 || totalBig <= 0) return rawProbsMatrix.map(()=>1);
+
+        // lampB の各値は「その色が点灯する直接確率」。
+        // 5色の合計が blamp（BIGランプ全体の分母）と一致することを確認済みのため、
+        // 逐次抽選への変換は行わず、そのまま多項分布の尤度として扱う。
+        let logs = rawProbsMatrix.map(rawP => {
+            const coloredP = rawP.reduce((a, b) => a + b, 0);
+            const whiteP = Math.max(1e-12, 1 - coloredP);
+
+            let l = 0;
+            for (let i = 0; i < 5; i++) {
+                if (bL_counts[i] > 0) l += bL_counts[i] * Math.log(Math.max(rawP[i], 1e-12));
+            }
+            if (whiteCount > 0) l += whiteCount * Math.log(whiteP);
+            return l;
+        });
+
+        let maxLog = Math.max(...logs);
+        if (maxLog === -Infinity) return rawProbsMatrix.map(()=>1);
+        return logs.map(l => Math.exp(l - maxLog));
+    }
+
+    function renderBarGraph(likes, settings, strs = null) {
+        const sum = likes.reduce((a,b)=>a+b,0) || 1;
+        const pcts = likes.map(v => (v/sum)*100);
+        const maxPct = Math.max(...pcts) || 1;
+        return pcts.map((p, i) => `
+            <div class="bar-row">
+                <div class="bar-label">設定${settings[i]} <span style="font-size:10px;color:#aaa">${strs?strs[i]:''}</span></div>
+                <div class="bar-bg"><div class="bar-fill" style="width:${(p/maxPct)*100}%"></div></div>
+                <div class="bar-val">${p.toFixed(2)}%</div>
+            </div>`).join('');
+    }
+
+    // 長押し・タップ検知用
+    let pressTimer = null;
+    let isLongPress = false;
+    let lastTouchTime = 0;
+
+    function startPress(id, isTouch) {
+        if (isTouch) {
+            lastTouchTime = Date.now();
+        } else if (Date.now() - lastTouchTime < 800) {
+            return; // タッチ直後に発生する合成マウスイベントを無視（長押し誤爆防止）
+        }
+        isLongPress = false;
+        pressTimer = setTimeout(() => {
+            isLongPress = true;
+            const table = document.getElementById('detail-rows');
+            let colorRows = table ? table.querySelectorAll('.' + id + '-colors') : [];
+            if(colorRows.length > 0) {
+                const modalBody = table.closest('.modal-body');
+                const refEl = document.getElementById('row-' + id);
+                let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
+
+                let isHidden = colorRows[0].style.display === 'none';
+                colorRows.forEach(el => { el.style.display = isHidden ? 'table-row' : 'none'; });
+
+                if (refEl && modalBody) {
+                    let topAfter = refEl.getBoundingClientRect().top;
+                    modalBody.scrollTop += (topAfter - topBefore);
+                }
+            }
+        }, 500); // 500ミリ秒で長押し判定
+    }
+
+    function cancelPress() {
+        if (pressTimer) clearTimeout(pressTimer);
+    }
+
+    function handleTap(id, hasGraph) {
+        if (isLongPress) return;
+        if (hasGraph) {
+            toggleGraph('g-' + id);
+        }
+    }
+
+    function calc(targetId = "") {
+        const prefix = targetId ? targetId + "-" : "";
+        const d = getData();
+        const c = d.cur; const s = d.start;
+        const pm = ALL_PARAMS[data.machine];
+        const isNew = data.machine === 'newking';
+        const w = data.weights[data.machine];
+        const labels = pm.w_labels;
+        
+        const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
+        if(document.getElementById(prefix+'title-predict')) {
+            document.getElementById(prefix+'title-predict').innerText = `＜推測設定 ${modeStr}＞`;
+            document.getElementById(prefix+'title-expect').innerText = `＜実践値 ${modeStr}＞`;
+            document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
+        }
+
+        const personalG = Math.max(0, c.g - s.g);
+        const personalB = Math.max(0, c.b - s.b);
+        const personalR = Math.max(0, c.r - s.r);
+
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            calcG = personalG; calcB = personalB; calcR = personalR;
+        } else {
+            calcG = c.g; calcB = c.b; calcR = c.r;
+        }
+        
+        const actG = personalG;
+        const actB = personalB;
+        const actR = personalR;
+
+        const totalG_disp = calcG + (calcB * pm.bigG) + (calcR * pm.regG);
+
+        const rawB = calcLikelihoodInverse(calcG, calcB, pm.b);
+        const lB = rawB.map(v => Math.pow(v, w.b / 100));
+
+        const rawR = calcLikelihoodInverse(calcG, calcR, pm.r);
+        const lR = rawR.map(v => Math.pow(v, w.r / 100));
+
+        const rawG = calcLikelihoodInverse(calcG, calcB + calcR, pm.gassan);
+        const lG = rawG.map(v => Math.pow(v, w.gas / 100));
+
+        const rawBell = calcLikelihoodInverse(actG, c.bell, pm.bell);
+        const lBell = rawBell.map(v => Math.pow(v, w.bell / 100));
+        
+        const rawSui = calcLikelihoodInverse(actB * pm.suikaDenom, c.suika, pm.suika);
+        const lSui = rawSui.map(v => Math.pow(v, w.sui / 100)); 
+        
+        const rawRet = (c.retro_d > 0) ? calcLikelihoodInverse(c.retro_d, c.retro, pm.retro) : pm.settings.map(()=>1);
+        const lRet = rawRet.map(v => Math.pow(v, w.ret / 100));
+
+        let lSuiR = pm.settings.map(()=>1);
+        let rawSuiR = null;
+        if(isNew) {
+            // 0回でも「出ていない」こと自体が推測材料になるため常に計算する
+            rawSuiR = calcLikelihoodInverse(actR * pm.regG, c.suikaR, pm.suikaR);
+            lSuiR = rawSuiR.map(v => Math.pow(v, (w.suiR || 0) / 100));
+        }
+
+        let bigLamps = [...d.lamps.big];
+        let lampCalcB = actB;
+
+        // 朝一1回目のBIGランプは偶奇示唆の別抽選のため、通常のBIGランプ推測から除外する。
+        // 仕様: 朝一の色はBIGランプのカウンターには含めない（アンダーバー表示のみ）。
+        // よって色カウントは触らず、BIG総回数だけ1回分減らす（白として誤計上されるのを防ぐ）。
+        if (d.morning >= 0 && lampCalcB > 0) {
+            lampCalcB -= 1;
+        }
+
+        // 総合予測用のランプ計算
+        const rawBigL = calcBigLampLikelihood(bigLamps, pm.lampB, lampCalcB);
+        const lBigL_multi = rawBigL.map(v => Math.pow(v, w.bl / 100));
+        // 個別グラフ表示用のランプ計算
+        const sumBigLamps = bigLamps.reduce((a,b)=>a+b,0);
+        const lBigL_indiv = calcLikelihoodInverse(lampCalcB, sumBigLamps, pm.blamp);
+
+        const rawSidL = calcMultiLikelihood(d.lamps.regS, pm.sideR);
+        const lSidL = rawSidL.map(v => Math.pow(v, w.sl / 100));
+
+        let lRegL = pm.settings.map(()=>1);
+        const t = d.lamps.regT;
+        if(data.machine === 'newking') {
+            if(t[3]>0) lRegL=[0,0,0,0,1];      // 紫 
+            else if(t[2]>0) lRegL=[0,0,0,1,1]; // 緑
+            else if(t[1]>0) lRegL=[0,0,1,1,1]; // 黄
+            else if(t[0]>0) lRegL=[0,1,1,1,1]; // 青
+        } else {
+            if(t[4]>0) lRegL=[0,0,0,0,0,1]; else if(t[3]>0) lRegL=[0,0,0,0,1,1];
+            else if(t[2]>0) lRegL=[0,0,0,1,1,1]; else if(t[1]>0) lRegL=[0,0,1,1,1,1]; else if(t[0]>0) lRegL=[0,1,1,1,1,1];
+        }
+        lRegL = lRegL.map(v => Math.pow(v, w.rl / 100));
+
+        // 朝一ランプ推測
+        let lMorn = pm.settings.map(()=>1);
+        if (d.morning >= 1 && d.morning <= 4) { // 0(白)の場合は推測無視で等倍処理。1:青, 2:黄, 3:緑, 4:赤/紫
+            let isEvenColor = (d.morning === 1 || d.morning === 3);
+            let evenRate = pm.mornRate;
+            let oddRate = 1 - evenRate;
+
+            if (data.machine === 'newking') {
+                lMorn = pm.settings.map((set, i) => {
+                    let isEvenSetting = (i === 1 || i === 3);
+                    return isEvenSetting ? (isEvenColor ? evenRate : oddRate) : (isEvenColor ? oddRate : evenRate);
+                });
+            } else {
+                lMorn = pm.settings.map((set, i) => {
+                    let isEvenSetting = (i === 1 || i === 3 || i === 5);
+                    return isEvenSetting ? (isEvenColor ? evenRate : oddRate) : (isEvenColor ? oddRate : evenRate);
+                });
+            }
+            lMorn = lMorn.map(v => Math.pow(v, w.morn / 100));
+        }
+
+        const totalL = lB.map((v, i) => v * lR[i] * lG[i] * lBell[i] * lSui[i] * lSuiR[i] * lRet[i] * lBigL_multi[i] * lSidL[i] * lRegL[i] * lMorn[i]);
+        document.getElementById(prefix+'predict-bars').innerHTML = renderBarGraph(totalL, pm.settings);
+
+        const sumL = totalL.reduce((a,b)=>a+b,0) || 1;
+        const pcts = totalL.map(v => v/sumL);
+
+        let bestIdx = 0;
+        let maxPct = -1;
+        pcts.forEach((p, i) => { if(p > maxPct) { maxPct = p; bestIdx = i; } });
+
+        // 保存用に推測結果をキャッシュ（メインcalcの時のみ）
+        if (!targetId) {
+            const reliability = calcReliability(totalL);
+            const maxConfirmed = hasMaxSettingConfirmed(d, data.machine);
+            lastCalcResult = { pcts, bestIdx, settings: pm.settings, highSetRateIdx: pm.highSetRateIdx, payout: pm.payout, reliability, maxConfirmed };
+        }
+
+        // --- 期待機械割・期待獲得枚数のノイズ除去（トップの1/10未満の設定を除外して再計算） ---
+        let threshold = maxPct / 10;
+        let validPcts = pcts.map(p => p >= threshold ? p : 0);
+        let validSum = validPcts.reduce((a,b) => a+b, 0);
+        let normPcts = validSum > 0 ? validPcts.map(p => p / validSum) : pcts;
+
+        let highSetRate = 0;
+        pm.highSetRateIdx.forEach(idx => {
+            highSetRate += pcts[idx];
+        });
+
+        const expRate = normPcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
+        const diff = (calcG * 3) * (expRate/100 - 1);
+
+        let usedBell = c.bell;
+        if (personalG >= 500 && c.bell === 0) {
+            usedBell = personalG / pm.bell[bestIdx];
+        }
+        if (data.viewMode === 'total' && s.g > 0) {
+            usedBell += (s.g / pm.bell[bestIdx]);
+        }
+
+        let diffReal = pm.calcDiffReal(calcB, calcR, usedBell, calcG);
+
+        let diffRealColor = '#0f0';
+        if (Math.round(diffReal) < 0) diffRealColor = '#ff4444';
+        else if (Math.round(diffReal) === 0) diffRealColor = '#ffffff';
+
+        let colorStyle = '#0f0';
+        if (expRate < 100) colorStyle = '#ff4444'; 
+        else if (Math.abs(expRate - 100) < 0.01 && Math.round(diff) === 0) colorStyle = '#ffffff';
+
+        document.getElementById(prefix+'expect-info').innerHTML = `
+            <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${totalG_disp} G</div></div>
+            <div class="expect-row" style="margin-bottom:8px;"><div>現在獲得枚数</div><div class="expect-val" style="color:${diffRealColor}">${Math.round(diffReal) > 0 ? '+' : ''}${Math.round(diffReal)} 枚</div></div>
+            <div class="expect-row"><div>高設定(4以上)期待度</div><div class="expect-val" style="color:${highSetRate >= 0.5 ? '#0f0' : '#fff'}">${(highSetRate*100).toFixed(2)}%</div></div>
+            <div class="expect-row"><div>期待機械割</div><div class="expect-val" style="color:${colorStyle}">${expRate.toFixed(2)}%</div></div>
+            <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val" style="color:${colorStyle}">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
+        `;
+
+        let rows = [
+            { id:'g', lab:'通常時回転数', val:`${calcG}回転`, l:null, str:null },
+            { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG, 2)})</span>`, l:rawB, str:pm.b_str },
+            { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG, 2)})</span>`, l:rawR, str:pm.r_str },
+            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG, 2)})</span>`, l:rawG, str:pm.gas_str },
+            { id:'bel', lab: labels.bell, val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG, 3)})</span>`, l:rawBell, str:pm.bell_str },
+            { id:'sui', lab: labels.sui, val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom, 2)})</span>`, l:rawSui, str:pm.suika_str }
+        ];
+        
+        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * pm.regG, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
+
+        rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });
+        
+        let sideCols = isNew ? pm.colors_side : pm.colors;
+        let sideLabs = isNew ? pm.labels_side : pm.labels;
+        let totalSide = d.lamps.regS.reduce((a,b)=>a+b,0);
+        sideLabs.forEach((lab, i) => {
+            if (!sideCols[i]) return;
+            let c_v = d.lamps.regS[i];
+            let c_l = calcLikelihoodDirect(totalSide, c_v, pm.sideR.map(arr => arr[i]));
+            let pct = totalSide > 0 ? ((c_v / totalSide)*100).toFixed(2) : "0.00";
+            let cName = sideCols[i] === 'rainbow' ? lab : `<span style="color:var(${sideCols[i]})">${lab}</span>`;
+            rows.push({
+                id: `sl-c${i}`,
+                lab: `　${labels.sl}（${cName}）`,
+                val: `${c_v}回 <span class="white-txt">(${pct}%)</span>`,
+                l: c_l,
+                str: pm.sideR_str[i],
+                isColorRow: true,
+                parent: 'sl'
+            });
+        });
+
+        rows.push({ id:'bl', lab: labels.bl, val:mkLmpT(bigLamps, pm, 'big'), l:lBigL_indiv, str:pm.blamp_str, hasColors: true });
+        
+        pm.labels.forEach((lab, i) => {
+            let c_v = bigLamps[i];
+            let c_l = calcLikelihoodDirect(lampCalcB, c_v, pm.lampB.map(arr => arr[i]));
+            let cName = pm.colors[i] === 'rainbow' ? lab : `<span style="color:var(${pm.colors[i]})">${lab}</span>`;
+            rows.push({
+                id: `bl-c${i}`,
+                lab: `　${labels.bl}（${cName}）`,
+                val: `${c_v}回 <span class="white-txt">(${getP(c_v, lampCalcB, 2)})</span>`,
+                l: c_l,
+                str: pm.lampB_str[i],
+                isColorRow: true,
+                parent: 'bl'
+            });
+        });
+
+        rows.push({ id:'rl', lab: labels.rl, val:mkLmpT(d.lamps.regT, pm, 'regT'), l:null, str:null });
+        rows.push({ id:'ret', lab: labels.ret, val:`${c.retro}回 <span class="white-txt">(${getP(c.retro, c.retro_d, 2)})</span>`, l:rawRet, str:pm.retro_str });
+
+        const container = document.getElementById(prefix+'detail-rows');
+        const interactive = !targetId; // 画像出力用テーブルにはイベントを付けない
+
+        let htmlRows = '';
+        rows.forEach((r, i) => {
+            let hasGraph = r.l !== null && r.l !== undefined;
+
+            if (r.isColorRow) {
+                let tapEvt = interactive ? (hasGraph ? `onclick="toggleGraph('${prefix}g-${r.id}')"` : `onclick="event.stopPropagation();"`) : '';
+                htmlRows += `<tr class="${prefix}${r.parent}-colors" style="display:none;" ${tapEvt}>
+                                <th>${r.lab}</th><td>${r.val}</td>
+                             </tr>`;
+            } else {
+                let tapEvt = '';
+                if (interactive) {
+                    if (r.hasColors) {
+                        // 長押し用イベントと、単発タップ用(onclick)を綺麗に分離
+                        tapEvt = `onclick="handleTap('${r.id}', ${hasGraph})" ontouchstart="startPress('${r.id}', true)" ontouchend="cancelPress()" ontouchmove="cancelPress()" onmousedown="startPress('${r.id}')" onmouseup="cancelPress()" onmouseleave="cancelPress()" oncontextmenu="event.preventDefault();"`;
+                    } else if (hasGraph) {
+                        tapEvt = `onclick="toggleGraph('${prefix}g-${r.id}')"`;
+                    } else {
+                        tapEvt = `onclick="event.stopPropagation();"`;
+                    }
+                }
+                htmlRows += `<tr id="${prefix}row-${r.id}" ${tapEvt}><th>${r.lab}</th><td>${r.val}</td></tr>`;
+            }
+
+            if (hasGraph) {
+                let gId = `${prefix}g-${r.id}`;
+                let graphHtml = `<tr id="${gId}" class="sub-graph-row"><td colspan="2" style="padding:0;"><div style="padding: 0px 5px 2px 5px;"><p style="font-size:10px;color:#aaa;margin:2px 0;">▼個別設定推測</p>${renderBarGraph(r.l, pm.settings, r.str)}</div></td></tr>`;
+                htmlRows += graphHtml;
+            }
+        });
+        
+        container.innerHTML = htmlRows;
+    }
+
+    function mkLmpT(arr, pm, type) {
+        let cols = pm.colors;
+        let labs = pm.labels;
+        if (data.machine === 'newking') {
+            if (type === 'regS') { cols = pm.colors_side; labs = pm.labels_side; }
+            else if (type === 'regT') { cols = pm.colors_regT; labs = pm.labels_regT; }
+        }
+        const d = getData();
+
+        return arr.map((v,i) => {
+            if(!cols[i]) return ""; 
+            const col = cols[i]; const lab = labs[i];
+            const s = col==='rainbow'?'class="rainbow"':`style="color:var(${col})"`;
+            let vStr = v;
+            if (type === 'big' && i === (d.morning - 1)) {
+                vStr = `<u>${v}</u>`;
+            }
+            return `<span ${s}>${lab}</span>:${vStr}`;
+        }).join(' ');
+    }
+
+    function toggleGraph(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const modalBody = el.closest('.modal-body');
+
+        // タップした行（基準位置）の座標を記録
+        const refEl = el.previousElementSibling;
+        let topBefore = refEl ? refEl.getBoundingClientRect().top : 0;
+
+        const isOp = el.classList.contains('open');
+        const scope = el.closest('table') || document;
+        scope.querySelectorAll('.sub-graph-row').forEach(r => r.classList.remove('open'));
+        if(!isOp) el.classList.add('open');
+
+        // 開閉後のズレをスクロールで補正
+        if (refEl && modalBody) {
+            let topAfter = refEl.getBoundingClientRect().top;
+            modalBody.scrollTop += (topAfter - topBefore);
+        }
+    }
+
+    function exportData() {
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+        const dat = getData();
+        const pm = ALL_PARAMS[data.machine];
+        
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            calcG = Math.max(0, dat.cur.g - dat.start.g);
+            calcB = Math.max(0, dat.cur.b - dat.start.b);
+            calcR = Math.max(0, dat.cur.r - dat.start.r);
+        } else {
+            calcG = dat.cur.g;
+            calcB = dat.cur.b; calcR = dat.cur.r;
+        }
+        
+        const totalG_out = calcG + (calcB * pm.bigG) + (calcR * pm.regG);
+        const bL = [...dat.lamps.big];
+        
+        let txt = "";
+        if (data.machine === 'newking') {
+            const regT_out = dat.lamps.regT.slice(0, 4);
+            const row = [dateStr, totalG_out, calcG, (calcB*pm.bigG)+(calcR*pm.regG), calcB, calcR, dat.cur.bell, dat.cur.suika, dat.cur.suikaR, ...dat.lamps.regS, ...bL, ...regT_out, dat.cur.retro_d, dat.cur.retro];
+            txt = row.join('\t');
+        } else {
+            const row = [dateStr, totalG_out, calcG, (calcB*pm.bigG)+(calcR*pm.regG), calcB, calcR, dat.cur.bell, dat.cur.suika, ...bL, ...dat.lamps.regS, ...dat.lamps.regT, dat.cur.retro_d, dat.cur.retro];
+            txt = row.join('\t');
+        }
+
+        // クリップボードにコピー
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(() => afterCopy(true)).catch(() => afterCopy(legacyCopy(txt)));
+        } else {
+            afterCopy(legacyCopy(txt));
+        }
+    }
+
+    function afterCopy(copied) {
+        const copyMsg = copied ? "データをコピーしました。" : "データのコピーに失敗しました。";
+
+        if (!data.gasUrl) {
+            // GAS未設定: 従来動作
+            if (typeof html2canvas === 'undefined') { alert(copyMsg); return; }
+            if (confirm(copyMsg + "\n設定推測画像を生成しますか？")) {
+                setTimeout(() => generateImage(), 100);
+            }
+            return;
+        }
+
+        // GAS設定済み: 保存確認
+        if (confirm(copyMsg + "\nスプレッドシートに保存しますか？")) {
+            saveToSheet(() => {
+                if (typeof html2canvas !== 'undefined' && confirm("保存しました。\n設定推測画像を生成しますか？")) {
+                    setTimeout(() => generateImage(), 100);
+                }
+            });
+        } else {
+            if (typeof html2canvas !== 'undefined' && confirm("保存をスキップしました。\n設定推測画像を生成しますか？")) {
+                setTimeout(() => generateImage(), 100);
+            }
+        }
+    }
+
+    // --- スプレッドシート連携 ---
+
+    // 画面回転時に入力パネルの位置を再調整
+    window.addEventListener('resize', () => {
+        const p = document.getElementById('hit-panel');
+        if (p && p.classList.contains('active')) positionHitPanel();
+    });
+
+    // テンキー外をタップしたら自動で閉じる（入力値は保持される）
+    document.addEventListener('pointerdown', (e) => {
+        const p = document.getElementById('hit-panel');
+        if (!p || !p.classList.contains('active')) return;
+        if (p.contains(e.target)) return; // パネル内は無視
+        closeHitPanel();
+    }, true);
+
+    function saveGasConfig() {
+        const url = document.getElementById('gas-url').value.trim();
+        let token = document.getElementById('gas-token').value.trim();
+        if (!token) {
+            token = 'hanahana2026';
+            document.getElementById('gas-token').value = token;
+        }
+        data.gasUrl = url;
+        data.gasToken = token;
+        save(true);
+    }
+
+    function saveToSheet(onSuccess) {
+        if (!data.gasUrl) { alert('GAS URLが設定されていません。'); return; }
+
+        calc(); // 最新化
+        const m = data.machine;
+        const pm = ALL_PARAMS[m];
+        const cfg = SHEET_CONFIG[m];
+        if (!cfg) { alert('この機種はシート保存に未対応です。'); return; }
+
+        const dat = getData();
+        const c = dat.cur, s = dat.start;
+        let calcG, calcB, calcR;
+        if (data.viewMode === 'personal') {
+            calcG = Math.max(0, c.g - s.g);
+            calcB = Math.max(0, c.b - s.b);
+            calcR = Math.max(0, c.r - s.r);
+        } else {
+            calcG = c.g; calcB = c.b; calcR = c.r;
+        }
+        const bonusG = (calcB * pm.bigG) + (calcR * pm.regG);
+        const totalG = calcG + bonusG;
+
+        // 推測結果
+        let predictedSetting = '-';
+        let highProb = 0;
+        let expRate = 100;
+        if (lastCalcResult) {
+            const r = lastCalcResult;
+            predictedSetting = '設定' + r.settings[r.bestIdx];
+            r.highSetRateIdx.forEach(idx => { highProb += r.pcts[idx]; });
+
+            let threshold = r.pcts[r.bestIdx] / 10;
+            let validPcts = r.pcts.map(p => p >= threshold ? p : 0);
+            let validSum = validPcts.reduce((a,b) => a+b, 0);
+            let normPcts = validSum > 0 ? validPcts.map(p => p / validSum) : r.pcts;
+            expRate = normPcts.reduce((a, b, i) => a + (b * r.payout[i]), 0);
+        }
+
+        // 差枚計算
+        const bIdx = lastCalcResult ? lastCalcResult.bestIdx : 0;
+        let usedBell = c.bell;
+        if (calcG >= 500 && c.bell === 0) usedBell = calcG / pm.bell[bIdx];
+        if (data.viewMode === 'total' && s.g > 0) usedBell += (s.g / pm.bell[bIdx]);
+        const diffReal = Math.round(pm.calcDiffReal(calcB, calcR, usedBell, calcG));
+
+        // 日付
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+
+        // CSV互換の行データを構築
+        // 共通先頭: '', 日付, 総回転, 通常時, ボーナス, BIG, REG, ベル
+        const head = ['', dateStr, totalG, calcG, bonusG, calcB, calcR, c.bell];
+        let mid;
+        if (m === 'newking') {
+            // スイカ前半, スイカREG, サイドランプ(5), BIG筐体(5), REG筐体(4)
+            mid = [c.suika, c.suikaR, ...dat.lamps.regS, ...dat.lamps.big, ...dat.lamps.regT.slice(0, 4)];
+        } else {
+            // スイカ, BIG筐体(5), REGサイド(5), REG筐体(5)
+            mid = [c.suika, ...dat.lamps.big, ...dat.lamps.regS, ...dat.lamps.regT];
+        }
+        // 末尾4列(推測設定/高設定期待度/差枚数/復元用JSON)は空欄。
+        // 履歴表示時に最新の weights / ロジックで再計算する方針のため、保存時は計算しない。
+        const tail = [c.retro_d, c.retro, '', '', '', ''];
+        const rowData = [...head, ...mid, ...tail];
+
+        const payload = {
+            token: data.gasToken,
+            sheetName: cfg.sheetName,
+            headers: cfg.headers,
+            rowData: rowData
+        };
+
+        const btn = document.querySelector('.export-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+
+        fetch(data.gasUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // CORSプリフライト回避
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) { if (onSuccess) onSuccess(); }
+            else if (res.error === 'unauthorized') {
+                alert('保存エラー: トークン不一致\n\n設定画面のトークン「' + data.gasToken + '」とGASコードの TOKEN 変数を一致させてください。');
+            }
+            else { alert('保存エラー: ' + (res.error || '不明')); }
+        })
+        .catch(err => {
+            alert('通信エラー: ' + err.message + '\n\nURLとネットワーク接続を確認してください。');
+        })
+        .finally(() => {
+            if (btn) { btn.disabled = false; btn.textContent = 'データ保存・画像出力'; }
+        });
+    }
+
+    function openHistory() {
+        if (!data.gasUrl) {
+            alert('スプレッドシート連携が設定されていません。\n⚙️設定画面からGAS URLを入力してください。');
+            return;
+        }
+        const modal = document.getElementById('history-modal');
+        modal.classList.add('active');
+        document.getElementById('hist-list').innerHTML = '<div class="hist-loading">読み込み中...</div>';
+        document.getElementById('hist-summary').innerHTML = '';
+        document.getElementById('hist-count').textContent = '';
+
+        const url = data.gasUrl + '?action=getAll&token=' + encodeURIComponent(data.gasToken);
+        fetch(url)
+        .then(r => r.json())
+        .then(async res => {
+            if (!res.success) {
+                if (res.error === 'unauthorized') {
+                    throw new Error('トークン不一致: アプリの設定画面のトークンとGASコードの TOKEN 変数を一致させてください。\n\n現在アプリが送信中のトークン: 「' + data.gasToken + '」');
+                }
+                throw new Error(res.error || '取得失敗');
+            }
+            window._historyRowsRaw = res.data;
+            renderSettingFilter();
+            document.querySelectorAll('#rel-filter .hist-filter-btn').forEach(btn => {
+                const v = btn.dataset.rel;
+                const matched = (relFilterRank === 6 && v === 'rainbow') || (parseInt(v) === relFilterRank);
+                btn.classList.toggle('active', matched);
+            });
+            document.getElementById('hist-list').innerHTML = '<div class="hist-loading">推測値を計算中...</div>';
+            await new Promise(rs => setTimeout(rs, 10));
+            await calculateAllHistoryRows();
+            renderHistory();
+        })
+        .catch(err => {
+            document.getElementById('hist-list').innerHTML = '<div class="hist-error">読み込みエラー: ' + err.message + '</div>';
+        });
+    }
+
+    async function calculateAllHistoryRows() {
+        const rawRows = window._historyRowsRaw || [];
+        const calculated = [];
+        const backup = JSON.parse(JSON.stringify(data));
+        const listEl = document.getElementById('hist-list');
+
+        for (let i = 0; i < rawRows.length; i++) {
+            const r = rawRows[i];
+            const v = r.values || [];
+            const totalG = Number(v[2]);
+            if (!isFinite(totalG) || totalG <= 0) continue;
+
+            const m = SHEET_TO_MACHINE[r.sheet];
+            if (!m) {
+                calculated.push({
+                    sheet: r.sheet, rowNum: r.row, machineId: null,
+                    machineName: r.sheet,
+                    date: formatHistDate(v[1]),
+                    spins: Number(v[3]) || 0, big: Number(v[5]) || 0, reg: Number(v[6]) || 0,
+                    predictedSetting: '', highSettingProb: '',
+                    reliability: null, maxConfirmed: false, diff: 0,
+                    rawValues: v
+                });
+                continue;
+            }
+
+            data.machine = m;
+            const dat = data[m];
+            dat.start = { g:0, b:0, r:0 };
+            dat.morning = -1;
+            dat.cur.g = Number(v[3]) || 0;
+            dat.cur.b = Number(v[5]) || 0;
+            dat.cur.r = Number(v[6]) || 0;
+            dat.cur.bell = Number(v[7]) || 0;
+            if (m === 'newking') {
+                dat.cur.suika  = Number(v[8]) || 0;
+                dat.cur.suikaR = Number(v[9]) || 0;
+                dat.lamps.regS = [10,11,12,13,14].map(i => Number(v[i]) || 0);
+                dat.lamps.big  = [15,16,17,18,19].map(i => Number(v[i]) || 0);
+                dat.lamps.regT = [20,21,22,23].map(i => Number(v[i]) || 0);
+                dat.cur.retro_d = Number(v[24]) || 0;
+                dat.cur.retro   = Number(v[25]) || 0;
+            } else {
+                dat.cur.suika  = Number(v[8]) || 0;
+                dat.lamps.big  = [9,10,11,12,13].map(i => Number(v[i]) || 0);
+                dat.lamps.regS = [14,15,16,17,18].map(i => Number(v[i]) || 0);
+                dat.lamps.regT = [19,20,21,22,23].map(i => Number(v[i]) || 0);
+                dat.cur.retro_d = Number(v[24]) || 0;
+                dat.cur.retro   = Number(v[25]) || 0;
+            }
+            data.viewMode = 'personal';
+
+            try { calc(); } catch(e) { console.error('calc error row', r.row, e); continue; }
+            const lcr = lastCalcResult;
+            if (!lcr) continue;
+
+            const pm = ALL_PARAMS[m];
+            const predictedSetting = '設定' + lcr.settings[lcr.bestIdx];
+            let highProb = 0;
+            lcr.highSetRateIdx.forEach(idx => { highProb += lcr.pcts[idx]; });
+
+            const bIdx = lcr.bestIdx;
+            let usedBell = dat.cur.bell;
+            if (dat.cur.g >= 500 && dat.cur.bell === 0) usedBell = dat.cur.g / pm.bell[bIdx];
+            const diffReal = Math.round(pm.calcDiffReal(dat.cur.b, dat.cur.r, usedBell, dat.cur.g));
+
+            calculated.push({
+                sheet: r.sheet, rowNum: r.row, machineId: m,
+                machineName: pm.name,
+                date: formatHistDate(v[1]),
+                spins: dat.cur.g, big: dat.cur.b, reg: dat.cur.r,
+                predictedSetting,
+                highSettingProb: (highProb * 100).toFixed(1) + '%',
+                reliability: lcr.reliability,
+                maxConfirmed: lcr.maxConfirmed === true,
+                diff: diffReal,
+                rawValues: v
+            });
+
+            if (i % 10 === 9) {
+                if (listEl) listEl.innerHTML = `<div class="hist-loading">計算中... (${i+1}/${rawRows.length})</div>`;
+                await new Promise(rs => setTimeout(rs, 0));
+            }
+        }
+
+        Object.keys(backup).forEach(k => { data[k] = backup[k]; });
+        try { calc(); } catch(e) {}
+
+        window._historyRowsCalculated = calculated;
+    }
+
+    function closeHistory() {
+        document.getElementById('history-modal').classList.remove('active');
+    }
+
+    // 日付セルを表示用にフォーマット (ISO 8601, Date型, スプレッドシート文字列に対応)
+    function formatHistDate(v) {
+        if (!v && v !== 0) return '---';
+        const str = String(v);
+        // ISO 8601 形式 (例: 2026-06-14T15:00:00.000Z) → yyyy/M/d
+        const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+        if (isoMatch) {
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) {
+                return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+            }
+        }
+        // 既に yyyy/M/d 形式ならそのまま
+        if (/^\d{4}\/\d{1,2}\/\d{1,2}/.test(str)) return str;
+        // スプレッドシートで日付セルが文字列化された場合(yyyy-MM-dd等)
+        const d2 = new Date(str);
+        if (!isNaN(d2.getTime()) && str.match(/\d{4}/)) {
+            return `${d2.getFullYear()}/${d2.getMonth()+1}/${d2.getDate()}`;
+        }
+        return str;
+    }
+
+    function renderHistory() {
+        const allRows = window._historyRowsCalculated || [];
+        const currentSheetName = SHEET_CONFIG[data.machine]
+            ? SHEET_CONFIG[data.machine].sheetName : null;
+        const rows = allRows.filter(r => !currentSheetName || r.sheet === currentSheetName);
+
+        // 信頼度ランク + 推定設定でフィルタ
+        const includedRows = rows.filter(r => {
+            const rank = reliabilityRank(r.reliability, r.maxConfirmed);
+            if (rank === 0) return false; // 旧データ常に除外(補完で対応)
+            if (relFilterRank === 6) {
+                if (rank !== 6) return false;
+            } else {
+                if (rank < relFilterRank) return false;
+            }
+            if (settingFilter.size > 0) {
+                if (!settingFilter.has(String(r.predictedSetting || ''))) return false;
+            }
+            return true;
+        });
+
+        // 機種不明データの通知のみ
+        const unknownCount = allRows.filter(r => r.machineId === null).length;
+        const fillNotice = document.getElementById('hist-fill-notice');
+        if (unknownCount > 0) {
+            fillNotice.style.display = 'block';
+            fillNotice.textContent = `※ ${unknownCount}件は機種が特定できないため集計から除外されています`;
+        } else {
+            fillNotice.style.display = 'none';
+        }
+
+        // --- 設定ツモ率サマリ(対象のみ) ---
+        const settingCount = {};
+        includedRows.forEach(r => {
+            const s = String(r.predictedSetting || '');
+            if (s.startsWith('設定')) {
+                settingCount[s] = (settingCount[s] || 0) + 1;
+            }
+        });
+        const total = includedRows.length;
+        const barColors = { '設定1':'#888', '設定2':'#4a9eff', '設定3':'#ffa500', '設定4':'#6f6', '設定5':'#f66', '設定6':'#f6f', '設定V':'#ff4466' };
+
+        let summaryHtml = '';
+        if (total === 0) {
+            summaryHtml = '<div style="color:#666; font-size:12px; text-align:center; padding:8px 0;">データなし</div>';
+        } else {
+            // 設定順にソート（V は最後）
+            const order = { '設定1':1,'設定2':2,'設定3':3,'設定4':4,'設定5':5,'設定6':6,'設定V':7 };
+            const allLabels = Object.keys(settingCount).sort((a,b) => (order[a]||99) - (order[b]||99));
+            const maxCount = Math.max(...allLabels.map(l => settingCount[l] || 0), 1);
+            allLabels.forEach(label => {
+                const cnt = settingCount[label] || 0;
+                const pct = (cnt / total * 100).toFixed(1);
+                const w = (cnt / maxCount * 100).toFixed(1);
+                const color = barColors[label] || '#888';
+                summaryHtml += `<div class="bar-row">
+                    <div class="bar-label">${label.replace('設定','')}</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color};"></div></div>
+                    <div class="bar-val">${pct}% (${cnt}回)</div>
+                </div>`;
+            });
+        }
+        document.getElementById('hist-summary').innerHTML = summaryHtml;
+        document.getElementById('hist-count').textContent = total > 0
+            ? `表示${total}件 / 全${rows.length}件`
+            : (rows.length > 0 ? `条件に該当なし (全${rows.length}件)` : '');
+
+        // --- 履歴リスト（新しい順） ---
+        const listEl = document.getElementById('hist-list');
+        if (rows.length === 0) {
+            const otherSheets = {};
+            (window._historyRowsCalculated || []).forEach(r => {
+                if (r.sheet !== currentSheetName) {
+                    otherSheets[r.sheet] = (otherSheets[r.sheet] || 0) + 1;
+                }
+            });
+            const otherSheetList = Object.keys(otherSheets);
+            const machineName = ALL_PARAMS[data.machine] ? ALL_PARAMS[data.machine].name : data.machine;
+            let msg = `<div class="hist-empty">${machineName}のデータはまだありません</div>`;
+            if (otherSheetList.length > 0) {
+                msg += `<div class="hist-empty" style="font-size:11px; margin-top:14px; color:#999; line-height:1.6;">`;
+                msg += `※ 他のシートには以下のデータがあります:<br>`;
+                otherSheetList.forEach(s => {
+                    msg += `&nbsp;&nbsp;・「${s}」: ${otherSheets[s]}件<br>`;
+                });
+                msg += `<br>機種を切り替えるか、スプレッドシートのシート名を以下に合わせてください:<br>`;
+                msg += `&nbsp;&nbsp;<span style="color:#fb6;">「${currentSheetName}」</span>`;
+                msg += `</div>`;
+            }
+            listEl.innerHTML = msg;
+            return;
+        }
+        // 表示は includedRows のみ(条件外は完全非表示)
+        // クリック時のインデックスは _historyRowsCalculated(全シート横断の生配列)に対応させる
+        const allCalc = window._historyRowsCalculated || [];
+        const reversed = [...includedRows].reverse();
+        let listHtml = '';
+        reversed.forEach((r, i) => {
+            const idx = allCalc.indexOf(r);
+            const diffVal = parseInt(r.diff) || 0;
+            const diffColor = diffVal > 0 ? '#4f4' : diffVal < 0 ? '#f44' : '#fff';
+            const diffSign = diffVal > 0 ? '+' : '';
+            const ps = String(r.predictedSetting || '');
+            const settingColor = ps.includes('V') ? '#ff4466'
+                : ps.match(/[4-6]/) ? '#6f6' : '#fff';
+            const rank = reliabilityRank(r.reliability, r.maxConfirmed);
+            const rankLabel = RANK_LABELS[rank];
+            const rankClass = RANK_CSSCLASS[rank];
+            const relText = `信頼度 <span class="${rankClass}">${rankLabel}</span>`;
+            listHtml += `<div class="hist-item" onclick="restoreHistory(${idx})">
+                <div class="hist-item-header">
+                    <div class="hist-item-date">${r.date || '---'}</div>
+                    <div class="hist-item-machine">${r.machineName || ''}</div>
+                </div>
+                <div class="hist-item-body">
+                    <div class="hist-item-stats">
+                        <span>${r.spins || 0}G</span>
+                        <span>B:${r.big || 0}</span>
+                        <span>R:${r.reg || 0}</span>
+                        <div class="hist-item-reliability">${relText}</div>
+                    </div>
+                    <div class="hist-item-result">
+                        <div class="hist-item-setting" style="color:${settingColor}">${r.predictedSetting || '-'}</div>
+                        <div class="hist-item-prob">${r.highSettingProb || ''}</div>
+                        <div class="hist-item-diff" style="color:${diffColor}">${diffSign}${diffVal}枚</div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        listEl.innerHTML = listHtml;
+        window._historyRows = rows;
+    }
+
+    function setRelFilter(rank) {
+        relFilterRank = rank;
+        document.querySelectorAll('#rel-filter .hist-filter-btn').forEach(btn => {
+            const v = btn.dataset.rel;
+            const matched = (rank === 6 && v === 'rainbow') || (parseInt(v) === rank);
+            btn.classList.toggle('active', matched);
+        });
+        if (window._historyRowsCalculated) renderHistory();
+    }
+
+    function toggleSettingFilter(setting) {
+        if (settingFilter.has(setting)) settingFilter.delete(setting);
+        else settingFilter.add(setting);
+        // 「全て」ボタンの状態を更新
+        const allBtn = document.querySelector('#setting-filter [data-set=""]');
+        if (allBtn) allBtn.classList.toggle('active', settingFilter.size === 0);
+        // 各設定ボタンのアクティブ状態
+        document.querySelectorAll('#setting-filter [data-set]:not([data-set=""])').forEach(btn => {
+            btn.classList.toggle('active', settingFilter.has(btn.dataset.set));
+        });
+        if (window._historyRowsCalculated) renderHistory();
+    }
+
+    function clearSettingFilter() {
+        settingFilter.clear();
+        document.querySelectorAll('#setting-filter .hist-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.set === '');
+        });
+        if (window._historyRowsCalculated) renderHistory();
+    }
+
+
+    function restoreHistory(idx) {
+        const rows = window._historyRowsCalculated;
+        if (!rows || !rows[idx]) return;
+        const r = rows[idx];
+        const dateStr = r.date || '不明';
+        const machineName = r.machineName || '';
+        const m = r.machineId;
+
+        if (!m || !data[m]) {
+            alert('機種が特定できないため復元できません。');
+            return;
+        }
+        if (!confirm(`${dateStr} ${machineName} のデータを復元しますか？\n\n※ 現在の入力データは上書きされます。`)) return;
+
+        // スプレッドシートの生データから機種データを構築
+        const v = r.rawValues || [];
+        data.machine = m;
+        const dat = data[m];
+        dat.start = { g:0, b:0, r:0 };
+        dat.morning = -1;
+        dat.cur.g = Number(v[3]) || 0;
+        dat.cur.b = Number(v[5]) || 0;
+        dat.cur.r = Number(v[6]) || 0;
+        dat.cur.bell = Number(v[7]) || 0;
+        if (m === 'newking') {
+            dat.cur.suika  = Number(v[8]) || 0;
+            dat.cur.suikaR = Number(v[9]) || 0;
+            dat.lamps.regS = [10,11,12,13,14].map(i => Number(v[i]) || 0);
+            dat.lamps.big  = [15,16,17,18,19].map(i => Number(v[i]) || 0);
+            dat.lamps.regT = [20,21,22,23].map(i => Number(v[i]) || 0);
+            dat.cur.retro_d = Number(v[24]) || 0;
+            dat.cur.retro   = Number(v[25]) || 0;
+        } else {
+            dat.cur.suika  = Number(v[8]) || 0;
+            dat.lamps.big  = [9,10,11,12,13].map(i => Number(v[i]) || 0);
+            dat.lamps.regS = [14,15,16,17,18].map(i => Number(v[i]) || 0);
+            dat.lamps.regT = [19,20,21,22,23].map(i => Number(v[i]) || 0);
+            dat.cur.retro_d = Number(v[24]) || 0;
+            dat.cur.retro   = Number(v[25]) || 0;
+        }
+        data.viewMode = 'personal';
+
+        save(true);
+        init();
+        closeHistory();
+        setTimeout(() => calc(), 50);
+    }
+
+    // 非HTTPS環境(file://等)用のコピーフォールバック
+    function legacyCopy(txt) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = txt;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch(e) { return false; }
+    }
+
+    function generateImage() {
+        const pm = ALL_PARAMS[data.machine];
+        const w = data.weights[data.machine];
+        const w_labels = pm.w_labels;
+
+        document.getElementById('cap-machine').innerText = pm.name;
+        calc('cap');
+        
+        let wHtml = '<p style="margin: 0 0 5px; font-weight: bold;">＜要素調整＞</p><div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px 10px;">';
+        const keys = ['b', 'r', 'gas', 'bell', 'sui', 'suiR', 'sl', 'morn', 'bl', 'rl', 'ret'];
+        
+        keys.forEach(key => {
+            if (w[key] !== undefined && w_labels[key]) {
+                if (key === 'suiR' && data.machine !== 'newking') return;
+                wHtml += `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #333;">
+                            <span>${w_labels[key]}</span>
+                            <span style="font-weight:bold; color:white;">${w[key]}%</span>
+                          </div>`;
+            }
+        });
+        wHtml += '</div>';
+        document.getElementById('cap-weight-info').innerHTML = wHtml;
+
+        const target = document.getElementById('capture-content');
+        const container = document.getElementById('capture-container');
+        container.style.visibility = 'visible';
+        
+        html2canvas(target, { backgroundColor: "#1a1a1a", scale: 4 }).then(canvas => {
+            const imgData = canvas.toDataURL("image/png");
+            document.getElementById('img-preview').src = imgData;
+            document.getElementById('img-modal').style.display = 'flex';
+            container.style.visibility = 'hidden';
+        }).catch(e => {
+            alert("画像の生成に失敗しました。");
+            container.style.visibility = 'hidden';
+        });
+    }
+
+    async function downloadImage() {
+        const imgSrc = document.getElementById('img-preview').src;
+        const filename = `hana_setting_${data.machine}_${Date.now()}.png`;
+
+        // dataURL → Blob
+        let blob;
+        try {
+            const res = await fetch(imgSrc);
+            blob = await res.blob();
+        } catch(e) {
+            // 失敗したら従来のダウンロード方式にフォールバック
+            return fallbackDownload(imgSrc, filename);
+        }
+
+        // Web Share API が画像ファイル共有に対応していれば、共有シートを開く
+        // → スマホでは「画像を保存」を選んで写真アプリに直接保存可
+        const file = new File([blob], filename, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: '設定推測結果' });
+                return; // 共有完了
+            } catch(e) {
+                // ユーザーがキャンセル or 共有失敗 → ダウンロードへフォールバック
+                if (e.name === 'AbortError') return; // キャンセルは何もしない
+            }
+        }
+
+        // 共有未対応(PC等) or 失敗 → 従来のダウンロード
+        fallbackDownload(imgSrc, filename);
+    }
+
+    function fallbackDownload(href, filename) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = href;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); if(id==='predict-modal') calc(); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); if(id==='predict-modal') closeHistory(); }
+    function resetAll() { 
+        if(confirm("現在選択中の機種データを全消去しますか？")) { 
+            data[data.machine] = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
+            save(true); // 裏側でデータを保存
+            init();     // 通信を発生させず、内部的に画面を初期化する（爆速化）
+            closeModal('setting-modal'); // ついでに設定画面を閉じる
+        }
+    }
+
+    window.onload = init;
+</script>
+
+<div id="capture-container" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; visibility:hidden; overflow:hidden;">
+    <div id="capture-content" style="width:400px; background:#1a1a1a; padding:10px 20px 20px; box-sizing:border-box;">
+        <h3 style="text-align:center; color:white; border-bottom:1px solid #fff; padding-bottom:10px; font-size:20px;">ハナハナカウンター</h3>
+        <p class="section-title" style="color:#ddd">機種: <span id="cap-machine"></span></p>
+        <p class="section-title" style="color:#ddd" id="cap-title-predict">＜推測設定＞</p>
+        <div id="cap-predict-bars" style="background:#222; padding:5px 10px; border-radius:5px; margin-bottom:10px;"></div>
+        <p class="section-title" style="color:#ddd" id="cap-title-expect">＜実践値＞</p>
+        <div id="cap-expect-info" class="expect-box"></div>
+        <p class="section-title" style="color:#ddd" id="cap-title-detail">＜詳細データ＞</p>
+        <table class="detail-table" id="cap-detail-rows"></table>
+        <div id="cap-weight-info" style="margin-top:15px; border-top:1px solid #444; padding-top:10px; color:#ddd; font-size:11px;"></div>
+    </div>
+</div>
+
+</body>
+</html>
