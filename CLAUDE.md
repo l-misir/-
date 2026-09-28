@@ -117,7 +117,9 @@ Apps Script で「デプロイを管理 → ✏️ → バージョン:**新バ�
 - バグ修正時は**先に再現テストを書き**、修正後に `npm test` が全件通ることを確認する
 - 期待値を自分で決めるときは時系列・意味から導く（過去に期待値そのものを間違えて誤った修正を「検証OK」と報告したことがある）
 - 仕様が曖昧なときは実装前に確認する。ユーザーは細かく仕様を指定してくれるので、推測で埋めない
-- 本番反映は GitHub Pages リポジトリへの push。push はユーザーの指示があった時だけ
+- 本番反映は GitHub Pages リポジトリ（`origin` = https://github.com/l-misir/- 、配信 https://l-misir.github.io/-/ ）への push
+- 2026-09-28 のユーザー指示により、**完成した変更は自動で push する**（`npm test` 全件合格・Codex レビューの指摘対応済み・CRLF 維持を確認してからコミット → push → Pages 反映を確認）。仕様を確認中のもの・テストが落ちているものは push しない
+- push 前に `git fetch` し、`git merge-base --is-ancestor origin/main HEAD` で GitHub 側の手編集が無いことを確認する（あれば取り込んでから）。強制 push はしない
 
 ## 現状の未解決事項
 
