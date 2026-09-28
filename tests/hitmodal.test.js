@@ -39,16 +39,20 @@ test('当選履歴の平均: ハマりが0Gなら従来どおり', () => {
   assert.equal(stat(app, '平均'), '1/150');
 });
 
-test('当選履歴のメモリ: 100G ごとに1個点く（1〜100Gで1個、101〜200Gで2個…）、1000G超えは10個＋↑', () => {
-  const gs = [1250, 1000, 250, 201, 200, 101, 100, 1, 0, null];
+test('当選履歴のメモリ: 100G の箱が10個、それぞれ10分割（10G 単位で点く。1〜10G で1目盛り）、1000G超えは全部＋↑', () => {
+  const gs = [1250, 1000, 250, 201, 200, 101, 100, 11, 10, 1, 0, null];
   const hits = gs.map((g) => ({ g, k: 'b' }));
-  const app = setup({ hits, curG: 3104 });
+  const app = setup({ hits, curG: 3074 });
   const rows = [...content(app).querySelectorAll('.hm-row')];
   assert.equal(rows.length, gs.length);
-  const lit = rows.map((r) => r.querySelectorAll('.hm-cell.on').length);
-  assert.deepEqual(lit, [10, 10, 3, 3, 2, 2, 1, 1, 0, 0]);
-  assert.ok(rows.every((r) => r.querySelectorAll('.hm-cell').length === 10), 'メモリは常に10個');
-  assert.deepEqual(rows.map((r) => !!r.querySelector('.hm-over')), [true, false, false, false, false, false, false, false, false, false]);
+  assert.ok(rows.every((r) => r.querySelectorAll('.hm-cell').length === 10), '100G の箱は常に10個');
+  const perBox = (r) => [...r.querySelectorAll('.hm-cell')].map((c) => Number(c.dataset.lit));
+  const total = (r) => perBox(r).reduce((a, b) => a + b, 0);
+  assert.deepEqual(rows.map(total), [100, 100, 25, 21, 20, 11, 10, 2, 1, 1, 0, 0]);
+  assert.deepEqual(perBox(rows[2]), [10, 10, 5, 0, 0, 0, 0, 0, 0, 0], '250G は 2箱と半分');
+  assert.deepEqual(perBox(rows[5]), [10, 1, 0, 0, 0, 0, 0, 0, 0, 0], '101G は 1箱と1目盛り');
+  assert.equal(rows[2].querySelectorAll('.hm-cell')[2].style.getPropertyValue('--p'), '50%');
+  assert.deepEqual(rows.map((r) => !!r.querySelector('.hm-over')), [true, false, false, false, false, false, false, false, false, false, false, false]);
 });
 
 test('当選履歴のメモリ: BIG/REG で絞ったとき、未入力を含む区間は点けない（↑も出さない）', () => {
@@ -57,9 +61,10 @@ test('当選履歴のメモリ: BIG/REG で絞ったとき、未入力を含む�
   app.window.setHitListKind('b');
   const rows = [...content(app).querySelectorAll('.hm-row')];
   assert.match(rows[0].textContent, /1200G\*/);
-  assert.equal(rows[0].querySelectorAll('.hm-cell.on').length, 0);
+  const lit = (r) => [...r.querySelectorAll('.hm-cell')].reduce((a, c) => a + Number(c.dataset.lit), 0);
+  assert.equal(lit(rows[0]), 0);
   assert.equal(rows[0].querySelector('.hm-over'), null);
-  assert.equal(rows[1].querySelectorAll('.hm-cell.on').length, 1); // 100G は1個
+  assert.equal(lit(rows[1]), 10); // 100G は1箱ぶん
 });
 
 test('当選履歴のメモリ: 色は少ない→多いで 青→緑→黄→赤（メモリの位置ごと、BIG/REG で変えない）', () => {
