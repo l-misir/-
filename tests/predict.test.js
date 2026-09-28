@@ -27,6 +27,20 @@ test('信頼度ランク: 虹は最高設定の確定示唆がある時だけ', 
   assert.equal(app.ev('reliabilityRank(0.30, false)'), 3);
 });
 
+test('信頼度ランクの境界: 最低<5% / 低5〜20% / 中20〜40% / 高40〜75% / 最高75%以上', () => {
+  const app = loadApp();
+  const r = (v) => app.ev(`RANK_LABELS[reliabilityRank(${v}, false)]`);
+  assert.equal(r(0.0499), '最低');
+  assert.equal(r(0.05), '低');
+  assert.equal(r(0.1999), '低');
+  assert.equal(r(0.20), '中');
+  assert.equal(r(0.3999), '中');
+  assert.equal(r(0.40), '高');
+  assert.equal(r(0.7499), '高');
+  assert.equal(r(0.75), '最高');
+  assert.equal(r(1), '最高');
+});
+
 test('ニューキングⅤ: REG筐体ランプ紫で設定V確定扱い', () => {
   const app = loadApp();
   app.selectMachine('newking');
