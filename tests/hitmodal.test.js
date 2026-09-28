@@ -80,6 +80,29 @@ test('当選履歴のメモリ: 色は少ない→多いで 青→緑→黄→�
   for (let i = 1; i < 10; i++) assert.ok(hs[i] <= hs[i - 1], '青→緑→黄→赤の順に色相が下がる');
 });
 
+test('確率表: BIG・REG は 2000G まで（分母の N 倍は 2000G 未満、1000G と 2000G の行）。全体は 1000G まで', () => {
+  const app = setup({ hits: [{ g: 150, k: 'b' }, { g: 1600, k: 'r' }, { g: 300, k: 'b' }], curG: 2050 });
+  app.window.setHitTab('prob');
+  app.window.setProbSet(0);
+  const rows = () => [...content(app).querySelectorAll('.prob-table tr')].slice(1)
+    .map((tr) => [Number(tr.querySelector('.prob-g').textContent.replace('G', '')), tr.querySelector('td:last-child').textContent]);
+  for (const [kind, key] of [['b', 'b'], ['r', 'r']]) {
+    app.window.setHitListKind(kind);
+    const denom = app.ev(`ALL_PARAMS.newking.${key}[0]`);
+    const r = rows();
+    const gs = r.map(([g]) => g);
+    assert.equal(Math.max(...gs), 2000, `${kind}: 最後は 2000G`);
+    assert.ok(gs.includes(1000), `${kind}: 1000G の行も残す`);
+    assert.deepEqual(gs, [...gs].sort((a, b) => a - b), `${kind}: G数の昇順`);
+    const mults = r.filter(([, note]) => /倍/.test(note)).map(([g]) => g);
+    const expected = [];
+    for (let m = 2; Math.ceil(denom * m) < 2000; m++) expected.push(Math.ceil(denom * m));
+    assert.deepEqual(mults, expected, `${kind}: 分母の N 倍は 2000G 未満まで`);
+  }
+  app.window.setHitListKind('all');
+  assert.equal(Math.max(...rows().map(([g]) => g)), 1000, '全体は 1000G まで');
+});
+
 test('確率表: 全体/BIG/REG を当選履歴と共通のボタンで切り替え、設定の選択はその下', () => {
   const app = setup({
     hits: [{ g: 50, k: 'r' }, { g: 150, k: 'b' }, { g: 300, k: 'b' }, { g: 90, k: 'r' }],

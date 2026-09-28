@@ -1439,14 +1439,17 @@
         rows.push({ g: 100, note: '' });
         rows.push({ g: Math.ceil(denom), note: '確率分母' });
         rows.push({ g: gForProb(0.80), note: '80%' });
-        // 確率分母のN倍（2倍〜、1000G未満まで）
-        for (let mult = 2; mult <= 10; mult++) {
+        // 表の上限: 全体は 1000G、BIG・REG は分母が大きいので 2000G まで
+        const maxG = (kind === 'all') ? 1000 : 2000;
+        // 確率分母のN倍（2倍〜、上限未満まで）
+        for (let mult = 2; mult <= 50; mult++) { // 50 は分母が不正な値だった時の無限ループよけ
             const g = Math.ceil(denom * mult);
-            if (g >= 1000) break;
+            if (g >= maxG) break;
             rows.push({ g: g, note: `${mult}倍` });
         }
         rows.push({ g: gForProb(0.90), note: '90%' });
         rows.push({ g: 1000, note: '' });
+        if (maxG > 1000) rows.push({ g: maxG, note: '' });
 
         // G数でユニーク化して昇順（=確率昇順）
         const map = new Map();
