@@ -2150,6 +2150,7 @@
                 clearTimeout(minusTimer);
                 el.classList.remove('touch-active', 'minus-mode');
                 sy = y; sx = x; isC = false;
+                lastDownCell = el;
                 pending = true; movedOut = false; downAt = Date.now();
                 log = { t: new Date().toTimeString().slice(0, 8), id: el.dataset.id || `${el.dataset.type}${el.dataset.idx}`, ev: 'down', ms: 0, result: '' };
                 pushTapLog(log);
@@ -2267,14 +2268,29 @@
             };
 
             // click（振動用ラベルの本物のタップ）: pointerup で数えていなければ、ここで数える。
-            // ラベルの click と、ラベルが中のスイッチへ送る click の2回来るが、pending で1回にする
-            const handleClick = () => {
+            // ラベルの click と、ラベルが中のスイッチへ送る click の2回来る。判定はラベル（またはセル）の1回目だけで行い、
+            // スイッチへの2回目は触らない（打ち消すとスイッチが切り替わらず振動しない）
+            const handleClick = (e) => {
+                if (e && e.target && e.target.tagName === 'INPUT') return;
+                // セルで押し始めていない click は、iOS のタップ位置補正でセルの外（「＜＞」の見出しなど）から
+                // 回ってきたもの。数えず、打ち消してスイッチも切り替えない（振動させない）
+                // 一番最近の押し始めがこのセルで、2秒以内のときだけ扱う（前の押下の記憶が残っていても、
+                // 見出しなど別の場所で押し始めていれば lastDownCell が変わるので打ち消せる）
+                const touchedHere = lastDownCell === el && downAt > 0 && Date.now() - downAt < 2000;
+                if (!touchedHere) {
+                    if (e) e.preventDefault();
+                    pushTapLog({ t: new Date().toTimeString().slice(0, 8), id: el.dataset.id || `${el.dataset.type}${el.dataset.idx}`, ev: 'click', ms: 0, result: '打ち消し(枠外のclick)' });
+                    renderTapLog();
+                    return;
+                }
+                const pressedMs = Date.now() - downAt;
+                downAt = 0; // この押下の click は処理済み（次に枠外から click が来たら打ち消す）
                 if (log && !/click/.test(log.ev)) {
                     log.ev += ' click';
-                    if (!/up|cancel/.test(log.ev)) log.ms = Date.now() - downAt; // 離した時刻が来ていなければ click までの時間
+                    if (!/up|cancel/.test(log.ev)) log.ms = pressedMs; // 離した時刻が来ていなければ click までの時間
                 }
                 if (!pending || movedOut) { renderTapLog(); return; }
-                applyTap(Date.now() - downAt >= 300, '(click補完)');
+                applyTap(pressedMs >= 300, '(click補完)');
                 el.classList.remove('touch-active', 'minus-mode');
             };
 
@@ -2574,7 +2590,9 @@
         });
 
         const expRate = normPcts.reduce((a, b, i) => a + (b * pm.payout[i]), 0);
-        const diff = (calcG * 3) * (expRate/100 - 1);
+        // 期待獲得枚数 = 総回転数（通常時＋ボーナス）× 0.03 ×（期待機械割 − 100）
+        // 機械割はボーナス中も含めた投入に対する割合なので、通常時だけに掛けるのは誤り（2026-09 修正）
+        const diff = totalG_disp * 0.03 * (expRate - 100);
 
         let usedBell = c.bell;
         if (personalG >= 500 && c.bell === 0) {
@@ -2805,6 +2823,12 @@
         const p = document.getElementById('hit-panel');
         if (p && p.classList.contains('active')) positionHitPanel();
     });
+
+    // 一番最近どのセルで押し始めたか（セル以外なら null）。セルの外から回ってきた click を見分けるのに使う（attachEvents）
+    let lastDownCell = null;
+    document.addEventListener('pointerdown', (e) => {
+        lastDownCell = (e.target && e.target.closest) ? e.target.closest('#main-ui .cell.t-btn, #main-ui .cell.t-lamp') : null;
+    }, true);
 
     // テンキー外をタップしたら自動で閉じる（入力値は保持される）
     document.addEventListener('pointerdown', (e) => {

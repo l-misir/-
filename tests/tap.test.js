@@ -100,6 +100,41 @@ test('タップの記録: 下限で途中までしか減らなかったら、実
   assert.equal(JSON.parse(app.ev('JSON.stringify(tapLog)'))[0].result, '-25');
 });
 
+test('セルで押し始めていない click（見出しを押して iOS が近くのセルに回した click）は打ち消す: 数えず、振動もしない', () => {
+  const app = setup();
+  const label = app.document.querySelector('[data-id="bell"] .haptic-tap');
+  const input = label.querySelector('input');
+  label.click(); // pointerdown はセルに来ていない（見出しの文字を押した）
+  assert.equal(bell(app), 10, '数えない');
+  assert.equal(input.checked, false, 'スイッチが切り替わらない＝振動しない');
+  const [entry] = JSON.parse(app.ev('JSON.stringify(tapLog)'));
+  assert.equal(entry.id, 'bell');
+  assert.equal(entry.result, '打ち消し(枠外のclick)');
+});
+
+test('前の押下で click が来なかった後に見出しを押しても、回ってきた click は打ち消す', async () => {
+  const app = setup();
+  await gesture(app, '[data-id="bell"]', ['down', 'cancel']); // click が来ないまま終わった押下
+  // 続けて「＜ベル＞」の見出しで押し始め、iOS がベルのラベルに click を回した
+  const title = [...app.document.querySelectorAll('#main-ui .section-title')].find((e) => e.textContent.includes('ベル'));
+  title.dispatchEvent(Object.assign(new app.window.Event('pointerdown', { bubbles: true }), { pointerId: 2, pointerType: 'touch' }));
+  const input = app.document.querySelector('[data-id="bell"] .haptic-tap input');
+  app.document.querySelector('[data-id="bell"] .haptic-tap').click();
+  assert.equal(bell(app), 10, '数えない（前の押下の長押し扱いで −1 にもしない）');
+  assert.equal(input.checked, false, '振動しない');
+});
+
+test('セルで押し始めたタップは、スイッチが切り替わる（振動する）', async () => {
+  const app = setup();
+  const input = app.document.querySelector('[data-id="bell"] .haptic-tap input');
+  await gesture(app, '[data-id="bell"]', ['down', 'up', 'click']);
+  assert.equal(bell(app), 11);
+  assert.equal(input.checked, true, 'スイッチが切り替わる＝振動する');
+  await gesture(app, '[data-id="bell"]', ['down', 'cancel', 'click']); // click 補完のときも振動する
+  assert.equal(bell(app), 12);
+  assert.equal(input.checked, false);
+});
+
 test('タップの記録: 直近のタップで届いたイベントと結果を残す（設定画面の調査用）', async () => {
   const app = setup();
   await gesture(app, '[data-id="bell"]', ['down', 'cancel', 'click']);

@@ -19,6 +19,30 @@ test('合算(gas)の重みが総合推測に反映される', () => {
   assert.notEqual(bars(app), w0);
 });
 
+test('期待獲得枚数 = 総回転数（通常時＋ボーナス）× 0.03 ×（期待機械割 − 100）', () => {
+  for (const m of ['newking', 'king']) {
+    const app = loadApp();
+    app.selectMachine(m);
+    app.ev(`
+      const d = getData(); d.start = {g:0,b:0,r:0}; d.hits = [];
+      d.cur.g = 4000; d.cur.b = 16; d.cur.r = 12; d.cur.bell = 540;
+      calc();
+    `);
+    const r = JSON.parse(app.ev('JSON.stringify(lastCalcResult)'));
+    const pm = JSON.parse(app.ev(`JSON.stringify({ bigG: ALL_PARAMS.${m}.bigG, regG: ALL_PARAMS.${m}.regG })`));
+    // 期待機械割: 1位の1/10未満の設定を除いて正規化した確率で機械割を加重平均（calc() と同じ）
+    const max = Math.max(...r.pcts);
+    const valid = r.pcts.map((p) => (p >= max / 10 ? p : 0));
+    const sum = valid.reduce((a, b) => a + b, 0);
+    const expRate = valid.reduce((a, p, i) => a + (p / sum) * r.payout[i], 0);
+    const totalG = 4000 + 16 * pm.bigG + 12 * pm.regG;
+    const expected = Math.round(totalG * 0.03 * (expRate - 100));
+    const row = [...app.document.querySelectorAll('#expect-info .expect-row')]
+      .find((e) => e.textContent.includes('期待獲得枚数'));
+    assert.equal(Number(row.querySelector('.expect-val').textContent.replace(/[^-\d]/g, '')), expected, m);
+  }
+});
+
 test('信頼度ランク: 虹は最高設定の確定示唆がある時だけ', () => {
   const app = loadApp();
   assert.equal(app.ev('reliabilityRank(0.99, false)'), 5); // 確定示唆なしなら最高止まり
