@@ -2400,8 +2400,8 @@
                       + sec(`REG：小役（${cs.betR}）`, mkD('rChe','チェリー') + mkT('suikaR','lrSui','スイカ'), 2)
                       + sec(`REG：欠損（${cs.betR}）`, mkD('lrChe','チェリー') + mkD('lrSui','スイカ'), 2);
             } else {
-                right = sec('通常時：小役（1）', mkD('oRep','リプレイ') + mkD('oBell','ベル'), 2)
-                      + sec('通常時：小役（1）', mkD('oChe','チェリー') + mkD('oSui','スイカ'), 2)
+                right = sec('通常時：小役（1・2）', mkD('oRep','リプレイ') + mkD('oBell','ベル'), 2)
+                      + sec('通常時：小役（1・2）', mkD('oChe','チェリー') + mkD('oSui','スイカ'), 2)
                       + sec('通常時：欠損（3）', mkD('lnChe','チェリー') + mkD('nCheM','中段チェリー') + mkD('lnSui','スイカ'), 3)
                       + sec('通常時：欠損（1）', mkD('lAlign','ボーナス'), 1);
             }
@@ -3171,49 +3171,61 @@
 
         document.getElementById(prefix+'expect-info').innerHTML = `
             <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${Math.round(totalG_disp)} G</div></div>
-            <div class="expect-row" style="margin-bottom:8px;"><div>現在獲得枚数</div><div class="expect-val" style="color:${diffRealColor}">${Math.round(diffReal) > 0 ? '+' : ''}${Math.round(diffReal)} 枚${st.loss > 0 ? ` <span class="loss-txt">(欠損 -${st.loss}枚)</span>` : ''}</div></div>
+            <div class="expect-row" style="margin-bottom:8px;"><div>現在獲得枚数</div><div class="expect-val" style="color:${diffRealColor}">${Math.round(diffReal) > 0 ? '+' : ''}${Math.round(diffReal)} 枚${st.loss > 0 ? ` <span class="loss-txt">(-${st.loss}枚)</span>` : ''}</div></div>
             <div class="expect-row"><div>高設定(4以上)期待度</div><div class="expect-val" style="color:${highSetRate >= 0.5 ? '#0f0' : '#fff'}">${(highSetRate*100).toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待機械割</div><div class="expect-val" style="color:${colorStyle}">${expRate.toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val" style="color:${colorStyle}">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
-        // 詳細記録の値（欠損は赤字の「(○回)」）
+        // 詳細データの行（ユーザー指定の並び。2026-10）: 「出現回数 (出現確率) (欠損回数)」。欠損は赤字で、0回なら出さない。
+        // 出現回数が0の小役と、その機種に無い欄は出さない。1・2枚掛けは回数だけ。筐体ランプの白(不明)は出さない
         const dx = Object.assign({}, DETAIL_DEFAULT, d.detail || {});
         const dn = (k) => Math.max(0, Number(dx[k]) || 0);
-        const lossTag = (v, pre = '') => v > 0 ? ` <span class="loss-txt">(${pre}${v}回)</span>` : '';
         const effGTxt = st.oneBetGames > 0 ? ` <span class="white-txt">(1枚掛け補正 ${Math.round(effG * 10) / 10})</span>` : '';
 
         let rows = [
             { id:'g', lab:'通常時回転数', val:`${calcG}回転${effGTxt}`, l:null, str:null },
             { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, effG, 2)})</span>`, l:rawB, str:pm.b_str },
             { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, effG, 2)})</span>`, l:rawR, str:pm.r_str },
-            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, effG, 2)})</span>`, l:rawG, str:pm.gas_str },
-            { id:'bel', lab: labels.bell, val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, effG, 3)})</span>`, l:rawBell, str:pm.bell_str },
-            { id:'sui', lab: labels.sui, val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, st.suiDenom, 2)})</span>${lossTag(dn('lbSui'))}`, l:rawSui, str:pm.suika_str }
+            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, effG, 2)})</span>`, l:rawG, str:pm.gas_str }
         ];
-        
-        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, st.suiRDenom, 2)})</span>${lossTag(dn('lrSui'))}`, l:rawSuiR, str:pm.suikaR_str });
-
-        // 詳細記録の小役（推測には使わない。記録している日だけ出す。筐体ランプの白(不明)は出さない）
-        if (detailRecorded(d)) {
-            const pNormal = (v) => `${v}回 <span class="white-txt">(${getP(v, effG, 2)})</span>`;
-            const add = (id, lab, val) => rows.push({ id, lab, val, l:null, str:null });
-            add('nrep', '通常時：リプレイ', pNormal(dn('nRep')));
-            add('nche', '通常時：チェリー', pNormal(dn('nChe') + dn('nCheM') + dn('lnChe')) + lossTag(dn('lnChe')) + lossTag(dn('nCheM'), '中段'));
-            add('nsui', '通常時：スイカ', pNormal(dn('nSui') + dn('lnSui')) + lossTag(dn('lnSui')));
-            if (isNew) {
-                add('bche', 'BIG(前半)：チェリー', `${dn('bChe') + dn('lbChe')}回${lossTag(dn('lbChe'))}`);
-                add('rche', 'REG：チェリー', `${dn('rChe') + dn('lrChe')}回${lossTag(dn('lrChe'))}`);
-                add('bt', 'BT中', `リプレイ${dn('btRep')}回・ベル${dn('btBell')}回`);
-                add('blloss', 'BIG(後半)：欠損', `<span class="loss-txt">スイカ${dn('lblSui')}回・ベル${dn('lblBell')}回</span>`);
-                add('align', '通常時：ボーナス揃えミス', `<span class="loss-txt">${dn('lAlign')}回</span>`);
-            } else {
-                add('onebet', '1枚掛け', `リプレイ${dn('oRep')}・ベル${dn('oBell')}・チェリー${dn('oChe')}・スイカ${dn('oSui')}`);
-                add('align', 'ボーナス揃えミス', `<span class="loss-txt">${dn('lAlign')}回</span>`);
-                add('bche', 'BIG：チェリー', `${dn('bChe') + dn('lbChe')}回${lossTag(dn('lbChe'))}`);
-                add('miss', 'ボーナス中：純ハズレ', `BIG${dn('bMiss')}回・REG${dn('rMiss')}回`);
-                add('rsui', 'REG：スイカ(欠損)', `<span class="loss-txt">${dn('lrSui')}回</span>`);
-            }
+        // 小役の行。n = 出現回数（取得 + 欠損）、denom = 分母のゲーム数（null なら回数だけ）、loss = 欠損回数（その欄が無ければ 0）
+        // graph = 個別設定推測のグラフ（推測に使う要素だけ）
+        const role = (id, lab, n, denom, loss = 0, graph = null, digits = 2) => {
+            if (n <= 0) return;
+            let val = `${n}回`;
+            if (denom !== null) val += ` <span class="white-txt">(${getP(n, denom, digits)})</span>`;
+            if (loss > 0) val += ` <span class="loss-txt">(${loss}回)</span>`;
+            rows.push({ id, lab, val, l: graph ? graph.l : null, str: graph ? graph.str : null });
+        };
+        // 通常時の分母は通常時の回転数（1枚掛けの補正込み）。ボーナス中はその区間のゲーム数（欠損・純ハズレの +1 込み）
+        const cheAll = dn('nChe') + dn('nCheM') + dn('lnChe'), cheLoss = dn('lnChe') + dn('nCheM'); // 中段チェリーも欠損の欄
+        if (isNew) {
+            role('nrep', '通常時：リプレイ', dn('nRep'), effG);
+            role('bel', '通常時：ベル', c.bell, effG, 0, { l: rawBell, str: pm.bell_str }, 3);
+            role('nche', '通常時：チェリー', cheAll, effG, cheLoss);
+            role('nsui', '通常時：スイカ', dn('nSui') + dn('lnSui'), effG, dn('lnSui'));
+            role('bche', 'BIG(前半)：チェリー', dn('bChe') + dn('lbChe'), st.suiDenom, dn('lbChe'));
+            role('sui', 'BIG(前半)：スイカ', c.suika, st.suiDenom, dn('lbSui'), { l: rawSui, str: pm.suika_str });
+            // BT は中段リプレイで終わるので、BT のゲーム数 = BT中リプレイ + BT中ベル + BIG 回数
+            const btG = dn('btRep') + dn('btBell') + calcB;
+            role('btrep', 'BT：リプレイ', dn('btRep'), btG);
+            role('btbell', 'BT：ベル', dn('btBell'), btG);
+            role('rche', 'REG：チェリー', dn('rChe') + dn('lrChe'), st.suiRDenom, dn('lrChe'));
+            role('suiR', 'REG：スイカ', c.suikaR, st.suiRDenom, dn('lrSui'), { l: rawSuiR, str: pm.suikaR_str });
+        } else {
+            role('nrep', '通常時：リプレイ（3）', dn('nRep'), effG);
+            role('bel', '通常時：ベル（3）', c.bell, effG, 0, { l: rawBell, str: pm.bell_str }, 3);
+            role('nche', '通常時：チェリー（3）', cheAll, effG, cheLoss);
+            role('nsui', '通常時：スイカ（3）', dn('nSui') + dn('lnSui'), effG, dn('lnSui'));
+            role('orep', '通常時：リプレイ（1・2）', dn('oRep'), null);
+            role('obell', '通常時：ベル（1・2）', dn('oBell'), null);
+            role('oche', '通常時：チェリー（1・2）', dn('oChe'), null);
+            role('osui', '通常時：スイカ（1・2）', dn('oSui'), null);
+            role('bche', 'BIG：チェリー', dn('bChe') + dn('lbChe'), st.suiDenom, dn('lbChe'));
+            role('sui', 'BIG：スイカ', c.suika, st.suiDenom, dn('lbSui'), { l: rawSui, str: pm.suika_str });
+            role('bmiss', 'BIG：純ハズレ', dn('bMiss'), st.suiDenom);
+            role('rmiss', 'REG：純ハズレ', dn('rMiss'), st.suiRDenom);
         }
 
         rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });

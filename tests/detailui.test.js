@@ -58,7 +58,7 @@ test('ニューキング: 画面1・画面2 の並び（前半4段・後半4段�
 test('ニューキング以外: 画面1・画面2 の並び。見出しの掛け枚数は機種ごと（キング BIG1・REG2、ホウオウ BIG2）', () => {
   const app = setup('king');
   assert.deepEqual(titles(app), ['＜打ち始め＞', '＜現在＞', '＜通常時：小役（3）＞', '＜通常時：小役（3）＞',
-    '＜通常時：小役（1）＞', '＜通常時：小役（1）＞', '＜通常時：欠損（3）＞', '＜通常時：欠損（1）＞']);
+    '＜通常時：小役（1・2）＞', '＜通常時：小役（1・2）＞', '＜通常時：欠損（3）＞', '＜通常時：欠損（1）＞']);
   assert.deepEqual(cells(app), ['s:g', 's:b', 's:r', 'c:g', 'c:b', 'c:r', 'd:nRep', 'c:bell', 'd:nChe', 'd:nSui',
     'd:oRep', 'd:oBell', 'd:oChe', 'd:oSui', 'd:lnChe', 'd:nCheM', 'd:lnSui', 'd:lAlign']);
   app.window.switchDetailScreen();

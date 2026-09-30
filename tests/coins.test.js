@@ -47,7 +47,8 @@ test('キング（1枚掛けの計算: 予測値）: 詳細の式で持ちコイ
   const t = expectText(app);
   assert.match(t, /総回転数 1089 G/);
   assert.match(t, /現在獲得枚数 -176 枚/);
-  assert.match(t, /欠損 -26枚/);
+  assert.match(t, /現在獲得枚数 -176 枚 \(-26枚\)/, '欠損枚数を横に（「欠損」の文字は付けない）');
+  assert.doesNotMatch(t, /欠損/);
   assert.match(rowText(app, 'b'), /\(1\/334\.22\)/, 'BIG の分母も1枚掛けの補正込み（1002.67 / 3）');
   assert.match(rowText(app, 'sui'), /5回.*\(1\/12\.80\).*\(1回\)/, 'スイカ 5/64、欠損1回は赤字');
 });
@@ -79,7 +80,7 @@ test('ニューキング: BT中ベル +12、ボーナス中の欠損はその区
   const t = expectText(app);
   assert.match(t, /総回転数 1075 G/);
   assert.match(t, /現在獲得枚数 -567 枚/);
-  assert.match(t, /欠損 -16枚/);
+  assert.match(t, /\(-16枚\)/);
   assert.match(rowText(app, 'sui'), /4回.*\(1\/7\.50\).*\(1回\)/);
   assert.match(rowText(app, 'suiR'), /1回.*\(1\/11\.00\).*\(1回\)/);
   assert.match(rowText(app, 'nrep'), /140回.*\(1\/7\.14\)/, '通常時リプレイの確率');
@@ -93,7 +94,7 @@ test('通常時リプレイが0なら今までの式（欠損は横に出すだ�
   const old = Math.round(app.ev('ALL_PARAMS.king.calcDiffReal(3, 2, 140, 1000)'));
   const t = expectText(app);
   assert.match(t, new RegExp(`現在獲得枚数 ${old} 枚`));
-  assert.match(t, /欠損 -9枚/, 'チェリー2×4 + BIGスイカ1×1');
+  assert.match(t, /\(-9枚\)/, 'チェリー2×4 + BIGスイカ1×1');
   assert.match(t, /総回転数 1081 G/, '1000 + 20×3 + 1 + 10×2');
 });
 
@@ -106,7 +107,7 @@ test('詳細の式ではベル0の理論値補完をしない（今までの式�
 test('詳細を記録していなければ、今までと同じ（行も増えない）', () => {
   const app = setupMachine('king', KING, {});
   assert.equal(app.document.getElementById('row-nrep'), null);
-  assert.doesNotMatch(expectText(app), /欠損/);
+  assert.doesNotMatch(expectText(app), /\(-\d+枚\)/);
   const old = Math.round(app.ev('ALL_PARAMS.king.calcDiffReal(3, 2, 140, 1000)'));
   assert.match(expectText(app), new RegExp(`現在獲得枚数 ${old} 枚`));
   assert.match(expectText(app), /総回転数 1080 G/);
@@ -196,4 +197,42 @@ test('実戦履歴の復元: AE 列の無い行（詳細記録より前）は1�
   app.window.restoreHistory(0);
   assert.equal(app.ev('data.oneBet'), 'actual');
   assert.equal(app.ev('getData().cur.g'), 1000);
+});
+
+// 詳細データの行（ユーザー指定の並び。2026-10）: 出現回数・出現確率・欠損回数（赤）を「◯回 (1/◯) (◯回)」で。
+// 出現回数が0の小役と、その機種に無い欄は出さない。1・2枚掛けは回数だけ
+const rowLabels = (app) => [...app.document.querySelectorAll('#detail-rows tr[id^="row-"] > th')].map((e) => e.textContent);
+const rowVal = (app, id) => app.document.querySelector(`#row-${id} > td`).textContent.replace(/\s+/g, ' ').trim();
+
+test('詳細データ（ニューキング）: 指定の並びで、回数・確率・欠損を出す', () => {
+  const app = setupMachine('newking', NEWKING, NEWKING_DETAIL);
+  assert.deepEqual(rowLabels(app), ['通常時回転数', 'BIG', 'REG', '合算',
+    '通常時：リプレイ', '通常時：ベル', '通常時：チェリー', '通常時：スイカ',
+    'BIG(前半)：チェリー', 'BIG(前半)：スイカ', 'BT：リプレイ', 'BT：ベル', 'REG：チェリー', 'REG：スイカ',
+    'BIG(後半)：サイドランプ', 'BIG：筐体ランプ', 'REG：筐体ランプ', 'レトロサウンド']);
+  assert.equal(rowVal(app, 'nche'), '16回 (1/62.50) (1回)', 'チェリー 15 + 欠損1、分母は通常時G 1000');
+  assert.equal(rowVal(app, 'bche'), '3回 (1/10.00) (1回)', '分母は BIG前半の G数 30');
+  assert.equal(rowVal(app, 'btrep'), '3回 (1/3.00)', 'BT のゲーム数 = リプレイ3 + ベル4 + BIG2（中段リプレイ）');
+  assert.equal(rowVal(app, 'btbell'), '4回 (1/2.25)');
+  assert.equal(rowVal(app, 'rche'), '1回 (1/11.00)', '欠損0回は出さない');
+  assert.equal(app.document.querySelector('#row-nche .loss-txt').textContent, '(1回)', '欠損は赤字');
+});
+
+test('詳細データ（ニューキング以外）: 3枚掛けと1・2枚掛けを分け、1・2枚掛けは回数だけ。0回の小役は出さない', () => {
+  const app = setupMachine('king', KING, KING_DETAIL);
+  assert.deepEqual(rowLabels(app), ['通常時回転数', 'BIG', 'REG', '合算',
+    '通常時：リプレイ（3）', '通常時：ベル（3）', '通常時：チェリー（3）', '通常時：スイカ（3）',
+    '通常時：リプレイ（1・2）', '通常時：ベル（1・2）',
+    'BIG：チェリー', 'BIG：スイカ', 'BIG：純ハズレ', 'REG：純ハズレ',
+    'REG：サイドランプ', 'BIG：筐体ランプ', 'REG：筐体ランプ', 'レトロサウンド']);
+  assert.equal(rowVal(app, 'orep'), '1回');
+  assert.equal(rowVal(app, 'nche'), '19回 (1/52.77) (3回)', 'チェリー16 + 中段1 + 欠損2、欠損は欠損と中段の合計');
+  assert.equal(rowVal(app, 'bmiss'), '2回 (1/32.00)', '分母は BIG のゲーム数 64');
+  assert.equal(rowVal(app, 'rmiss'), '1回 (1/22.00)', '分母は REG のゲーム数 22');
+});
+
+test('詳細データ: 詳細を記録していない日は今の小役の行だけ（0回の小役は出さない）', () => {
+  const app = setupMachine('king', { g: 1000, b: 3, r: 2, bell: 0, suika: 5 }, {});
+  assert.deepEqual(rowLabels(app), ['通常時回転数', 'BIG', 'REG', '合算', 'BIG：スイカ',
+    'REG：サイドランプ', 'BIG：筐体ランプ', 'REG：筐体ランプ', 'レトロサウンド']);
 });
