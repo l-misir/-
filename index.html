@@ -293,6 +293,7 @@
         .hm-row { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:8px 6px; border-bottom:1px solid #282828; }
         .hm-tags { flex-basis:100%; padding-left:22px; font-size:10px; color:#aaa; }
         .hm-tags .freeze { color:#f80; }
+        .loss-txt { color:#ff4444; } /* 欠損（回数・枚数） */
         .hm-row:nth-child(odd) { background:#181818; }
         .hm-no { width:18px; font-size:10px; color:#666; flex-shrink:0; }
         .hm-g { width:66px; flex-shrink:0; font-size:18px; font-weight:bold; text-align:right; padding-right:4px; white-space:nowrap; }
@@ -487,7 +488,13 @@
                     <div class="cell" id="btn-starttap-off" onclick="setStartTap(false)"><div class="label-large">OFF</div></div>
                 </div>
             </div>
-            <div class="setting-item"></div>
+            <div class="setting-item">
+                <p class="section-title">＜1枚掛けの計算＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-onebet-predict" onclick="setOneBet('predict')"><div class="label-large">予測値</div></div>
+                    <div class="cell" id="btn-onebet-actual" onclick="setOneBet('actual')"><div class="label-large">実測値</div></div>
+                </div>
+            </div>
         </div>
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
@@ -725,6 +732,7 @@
         bellTap: true,       // false = ベルのセルをタップしても増減しない（ショートカット送信・まとめて加算だけで入れる）
         startTap: false,     // true = メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる
         detailMode: false,   // 詳細記録 ON/OFF（全機種共通。画面は段階5）
+        oneBet: 'predict',   // 1枚掛けの計算: 'predict' 予測値（カウンターは3枚で1回転）/ 'actual' 実測値（1枚掛けは数えられない）
         weights: {
             houou: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
             king: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
@@ -965,6 +973,81 @@
             }
         }
     };
+
+    // ============================================================
+    // 詳細記録を使った計算（docs/DETAIL_MODE_PLAN.md「計算」「1枚掛けとデータカウンター」）
+    // 払い出し・掛け枚数はユーザー提供（同「機種ごとの数値」）
+    //   bell / sui: 通常時の払い出し、big / reg: ボーナスの純増、betB / betR: ボーナス中の掛け枚数（欠損・純ハズレ1回の損失）、
+    //   one: 1枚掛けの払い出し（リプレイは実質1）、align: ボーナス揃えミス1回の欠損枚数。
+    //   ニューキング: BIG は前半1枚掛け（betBF）・BT と後半は2枚掛け（betBL）、BT中ベル +12、通常時は3枚掛け固定（1枚掛けなし）
+    // ============================================================
+    const COIN_SPEC = {
+        houou:   { bell:10, sui:6,  big:240, reg:120, betB:2, betR:2, one:{ rep:1, bell:6,  che:6, sui:6  }, align:1 },
+        king:    { bell:9,  sui:6,  big:260, reg:120, betB:1, betR:2, one:{ rep:1, bell:14, che:7, sui:14 }, align:1 },
+        dragon:  { bell:9,  sui:6,  big:252, reg:96,  betB:2, betR:2, one:{ rep:1, bell:14, che:7, sui:14 }, align:1 },
+        star:    { bell:8,  sui:6,  big:240, reg:96,  betB:2, betR:2, one:{ rep:1, bell:14, che:7, sui:14 }, align:1 },
+        newking: { bell:8,  sui:10, big:312, reg:130, betBF:1, betBL:2, betR:1, btBell:12, align:3 }
+    };
+    const REP_PAY = 3, CHE_PAY = 4, CHE_M_PAY = 2; // 通常時のリプレイ（実質3）・チェリー・中段チェリー
+
+    // 詳細を記録しているか（どれか1つでも 1 以上）。シートの詳細の列を空欄（記録なし）にするか、詳細データの行を出すかに使う
+    function detailRecorded(md) {
+        return !!(md && md.detail) && Object.keys(DETAIL_DEFAULT).some(k => (Number(md.detail[k]) || 0) > 0);
+    }
+
+    // 回転数・持ちコイン・欠損枚数。md: 機種データ、m: 機種、oneBet: 'predict' | 'actual'
+    //   effG（分母に使う通常時G）: 予測値 = カウンター + 1枚掛けのゲーム数 × 2/3、実測値 = カウンター + 1枚掛けのゲーム数
+    //   ボーナス中の欠損・純ハズレ（ニューキングは BT中のゲームも）は1回ごとにボーナスの G数 +1（その区間のスイカの分母にも）
+    //   coins（詳細の式）: 通常時リプレイが1以上のときに使う（useDetail）。0 なら今までの式（calcDiffReal。calc() 側）
+    //   通常時の欠損（こぼし・3枚掛けの揃えミス）は投入が通常時G に入っているので coins からは引かず、欠損枚数の表示にだけ出す
+    function coinStats(md, m, oneBet) {
+        const pm = ALL_PARAMS[m], cs = COIN_SPEC[m], isNew = m === 'newking';
+        const c = md.cur, s = md.start;
+        const x = Object.assign({}, DETAIL_DEFAULT, md.detail || {});
+        const n = (k) => Math.max(0, Number(x[k]) || 0);
+        const G = Math.max(0, (Number(c.g) || 0) - (Number(s.g) || 0));
+        const B = Math.max(0, (Number(c.b) || 0) - (Number(s.b) || 0));
+        const R = Math.max(0, (Number(c.r) || 0) - (Number(s.r) || 0));
+        const bell = Math.max(0, Number(c.bell) || 0);
+        const actual = oneBet === 'actual';
+        // 1枚掛けのゲーム数 = ボーナス揃えミス + 1枚掛けで取れた小役（後告知の数は使わない）
+        const oneBetGames = isNew ? 0 : n('lAlign') + n('oRep') + n('oBell') + n('oChe') + n('oSui');
+        const effG = G + oneBetGames * (actual ? 1 : 2 / 3);
+        let bigGames, regGames, lossBonus, suiDenom, suiRDenom;
+        if (isNew) {
+            const bf = n('lbChe') + n('lbSui');   // BIG前半（1枚掛け）の欠損
+            const bl = n('lblSui') + n('lblBell'); // BIG後半（2枚掛け）の欠損
+            const rl = n('lrChe') + n('lrSui');   // REG（1枚掛け）の欠損
+            // 26G（前半14 + BT の中段リプレイ1 + 後半11）+ BT中ベル・リプレイ + 欠損
+            bigGames = pm.bigG * B + n('btBell') + n('btRep') + bf + bl;
+            regGames = pm.regG * R + rl;
+            lossBonus = cs.betBF * bf + cs.betBL * bl + cs.betR * rl;
+            suiDenom = pm.suikaDenom * B + bf; // BIG(前半)スイカ = 14 × BIG + BIG前半の欠損
+            suiRDenom = pm.regG * R + rl;      // REGスイカ = 10 × REG + REGの欠損
+        } else {
+            const bLoss = n('lbChe') + n('lbSui') + n('bMiss'); // BIG中の欠損 + 純ハズレ
+            const rLoss = n('lrSui') + n('rMiss');              // REG中の欠損 + 純ハズレ
+            bigGames = pm.bigG * B + bLoss;
+            regGames = pm.regG * R + rLoss;
+            lossBonus = cs.betB * bLoss + cs.betR * rLoss;
+            suiDenom = pm.suikaDenom * B + bLoss; // BIGスイカ = BIGのG数 × BIG + BIGの欠損 + BIG純ハズレ
+            suiRDenom = pm.regG * R + rLoss;
+        }
+        const lossNormal = CHE_PAY * n('lnChe') + (CHE_PAY - CHE_M_PAY) * n('nCheM') + cs.sui * n('lnSui') + cs.align * n('lAlign');
+        let coins = -3 * G
+            + REP_PAY * n('nRep') + cs.bell * bell + CHE_PAY * n('nChe') + CHE_M_PAY * n('nCheM') + cs.sui * n('nSui')
+            + cs.big * B + cs.reg * R - lossBonus;
+        if (isNew) {
+            coins += cs.btBell * n('btBell');
+        } else {
+            coins += cs.one.rep * n('oRep') + cs.one.bell * n('oBell') + cs.one.che * n('oChe') + cs.one.sui * n('oSui');
+            if (actual) coins -= oneBetGames; // 実測値: 1枚掛けの投入はカウンターの回転数に入っていない
+        }
+        return {
+            G, B, R, oneBetGames, effG, bigGames, regGames, bonusG: bigGames + regGames, totalG: effG + bigGames + regGames,
+            suiDenom, suiRDenom, useDetail: n('nRep') >= 1, coins, loss: lossNormal + lossBonus, lossNormal, lossBonus
+        };
+    }
 
     let data = loadData();
     let lastCalcResult = null; // 最新の推測結果を保持(シート保存用)
@@ -1929,6 +2012,7 @@
             if (typeof d.bellTap !== 'boolean') d.bellTap = DEFAULTS.bellTap;
             if (typeof d.startTap !== 'boolean') d.startTap = DEFAULTS.startTap;
             if (typeof d.detailMode !== 'boolean') d.detailMode = DEFAULTS.detailMode;
+            if (d.oneBet !== 'predict' && d.oneBet !== 'actual') d.oneBet = DEFAULTS.oneBet;
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
             if (!d.gasUrl) d.gasUrl = '';
             if (!d.gasToken) d.gasToken = 'hanahana2026';
@@ -2134,6 +2218,7 @@
         save(); // 描き直して表示を切り替える
     }
     function setStartTap(v) { data.startTap = v; save(); } // ＜打ち始め＞のセルを操作 ON／OFF で描き直す
+    function setOneBet(v) { if (v === 'predict' || v === 'actual') { data.oneBet = v; save(); } } // 1枚掛けの計算（描き直して再計算）
     function setHaptic(v) { data.haptic = v; save(); } // セルの振動用ラベルを付け外しするので描き直す
     function setBellTap(v) { data.bellTap = v; save(); }
 
@@ -2333,6 +2418,8 @@
         document.getElementById('btn-belltap-off').className = `cell ${data.bellTap===false?'active-mode':''}`;
         document.getElementById('btn-starttap-on').className = `cell ${data.startTap?'active-mode':''}`;
         document.getElementById('btn-starttap-off').className = `cell ${!data.startTap?'active-mode':''}`;
+        document.getElementById('btn-onebet-predict').className = `cell ${data.oneBet!=='actual'?'active-mode':''}`;
+        document.getElementById('btn-onebet-actual').className = `cell ${data.oneBet==='actual'?'active-mode':''}`;
     }
 
     // タップの記録に残すセルの名前（bell / regS0 / 打ち始めは start-g など）
@@ -2686,21 +2773,24 @@
         const actB = personalB;
         const actR = personalR;
 
-        const totalG_disp = calcG + (calcB * pm.bigG) + (calcR * pm.regG);
+        // 回転数・持ちコイン・欠損（詳細記録。記録していなければ今までと同じ値）
+        const st = coinStats(d, data.machine, data.oneBet);
+        const effG = st.effG; // BIG・REG・合算・ベルの分母（1枚掛けの補正込み）
+        const totalG_disp = st.totalG;
 
-        const rawB = calcLikelihoodInverse(calcG, calcB, pm.b);
+        const rawB = calcLikelihoodInverse(effG, calcB, pm.b);
         const lB = rawB.map(v => Math.pow(v, w.b / 100));
 
-        const rawR = calcLikelihoodInverse(calcG, calcR, pm.r);
+        const rawR = calcLikelihoodInverse(effG, calcR, pm.r);
         const lR = rawR.map(v => Math.pow(v, w.r / 100));
 
-        const rawG = calcLikelihoodInverse(calcG, calcB + calcR, pm.gassan);
+        const rawG = calcLikelihoodInverse(effG, calcB + calcR, pm.gassan);
         const lG = rawG.map(v => Math.pow(v, w.gas / 100));
 
-        const rawBell = calcLikelihoodInverse(actG, c.bell, pm.bell);
+        const rawBell = calcLikelihoodInverse(effG, c.bell, pm.bell);
         const lBell = rawBell.map(v => Math.pow(v, w.bell / 100));
         
-        const rawSui = calcLikelihoodInverse(actB * pm.suikaDenom, c.suika, pm.suika);
+        const rawSui = calcLikelihoodInverse(st.suiDenom, c.suika, pm.suika); // 区間の G数（欠損・純ハズレの +1 込み）
         const lSui = rawSui.map(v => Math.pow(v, w.sui / 100)); 
         
         const rawRet = (c.retro_d > 0) ? calcLikelihoodInverse(c.retro_d, c.retro, pm.retro) : pm.settings.map(()=>1);
@@ -2710,7 +2800,7 @@
         let rawSuiR = null;
         if(isNew) {
             // 0回でも「出ていない」こと自体が推測材料になるため常に計算する
-            rawSuiR = calcLikelihoodInverse(actR * pm.regG, c.suikaR, pm.suikaR);
+            rawSuiR = calcLikelihoodInverse(st.suiRDenom, c.suikaR, pm.suikaR);
             lSuiR = rawSuiR.map(v => Math.pow(v, (w.suiR || 0) / 100));
         }
 
@@ -2801,12 +2891,18 @@
         // 機械割はボーナス中も含めた投入に対する割合なので、通常時だけに掛けるのは誤り（2026-09 修正）
         const diff = totalG_disp * 0.03 * (expRate - 100);
 
-        let usedBell = c.bell;
-        if (personalG >= 500 && c.bell === 0) {
-            usedBell = personalG / pm.bell[bestIdx];
+        // 現在獲得枚数: 通常時リプレイが1以上なら詳細の式（実測のベルを使う）、0 なら今までの式
+        let diffReal;
+        if (st.useDetail) {
+            diffReal = st.coins;
+        } else {
+            let usedBell = c.bell;
+            if (personalG >= 500 && c.bell === 0) {
+                usedBell = personalG / pm.bell[bestIdx];
+            }
+            diffReal = pm.calcDiffReal(calcB, calcR, usedBell, calcG);
         }
-
-        let diffReal = pm.calcDiffReal(calcB, calcR, usedBell, calcG);
+        if (!targetId && lastCalcResult) lastCalcResult.coins = diffReal; // 実戦履歴の差枚も同じ値を使う
 
         let diffRealColor = '#0f0';
         if (Math.round(diffReal) < 0) diffRealColor = '#ff4444';
@@ -2817,23 +2913,51 @@
         else if (Math.abs(expRate - 100) < 0.01 && Math.round(diff) === 0) colorStyle = '#ffffff';
 
         document.getElementById(prefix+'expect-info').innerHTML = `
-            <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${totalG_disp} G</div></div>
-            <div class="expect-row" style="margin-bottom:8px;"><div>現在獲得枚数</div><div class="expect-val" style="color:${diffRealColor}">${Math.round(diffReal) > 0 ? '+' : ''}${Math.round(diffReal)} 枚</div></div>
+            <div class="expect-row"><div>総回転数</div><div class="expect-val" style="color:#fff">${Math.round(totalG_disp)} G</div></div>
+            <div class="expect-row" style="margin-bottom:8px;"><div>現在獲得枚数</div><div class="expect-val" style="color:${diffRealColor}">${Math.round(diffReal) > 0 ? '+' : ''}${Math.round(diffReal)} 枚${st.loss > 0 ? ` <span class="loss-txt">(欠損 -${st.loss}枚)</span>` : ''}</div></div>
             <div class="expect-row"><div>高設定(4以上)期待度</div><div class="expect-val" style="color:${highSetRate >= 0.5 ? '#0f0' : '#fff'}">${(highSetRate*100).toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待機械割</div><div class="expect-val" style="color:${colorStyle}">${expRate.toFixed(2)}%</div></div>
             <div class="expect-row"><div>期待獲得枚数</div><div class="expect-val" style="color:${colorStyle}">${diff >= 0 ? '+' : ''}${Math.round(diff)} 枚</div></div>
         `;
 
+        // 詳細記録の値（欠損は赤字の「(○回)」）
+        const dx = Object.assign({}, DETAIL_DEFAULT, d.detail || {});
+        const dn = (k) => Math.max(0, Number(dx[k]) || 0);
+        const lossTag = (v, pre = '') => v > 0 ? ` <span class="loss-txt">(${pre}${v}回)</span>` : '';
+        const effGTxt = st.oneBetGames > 0 ? ` <span class="white-txt">(1枚掛け補正 ${Math.round(effG * 10) / 10})</span>` : '';
+
         let rows = [
-            { id:'g', lab:'通常時回転数', val:`${calcG}回転`, l:null, str:null },
-            { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, calcG, 2)})</span>`, l:rawB, str:pm.b_str },
-            { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, calcG, 2)})</span>`, l:rawR, str:pm.r_str },
-            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, calcG, 2)})</span>`, l:rawG, str:pm.gas_str },
-            { id:'bel', lab: labels.bell, val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, actG, 3)})</span>`, l:rawBell, str:pm.bell_str },
-            { id:'sui', lab: labels.sui, val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, actB * pm.suikaDenom, 2)})</span>`, l:rawSui, str:pm.suika_str }
+            { id:'g', lab:'通常時回転数', val:`${calcG}回転${effGTxt}`, l:null, str:null },
+            { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, effG, 2)})</span>`, l:rawB, str:pm.b_str },
+            { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, effG, 2)})</span>`, l:rawR, str:pm.r_str },
+            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, effG, 2)})</span>`, l:rawG, str:pm.gas_str },
+            { id:'bel', lab: labels.bell, val:`${c.bell}回 <span class="white-txt">(${getP(c.bell, effG, 3)})</span>`, l:rawBell, str:pm.bell_str },
+            { id:'sui', lab: labels.sui, val:`${c.suika}回 <span class="white-txt">(${getP(c.suika, st.suiDenom, 2)})</span>${lossTag(dn('lbSui'))}`, l:rawSui, str:pm.suika_str }
         ];
         
-        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, actR * pm.regG, 2)})</span>`, l:rawSuiR, str:pm.suikaR_str });
+        if(isNew) rows.push({ id:'suiR', lab: labels.suiR, val:`${c.suikaR}回 <span class="white-txt">(${getP(c.suikaR, st.suiRDenom, 2)})</span>${lossTag(dn('lrSui'))}`, l:rawSuiR, str:pm.suikaR_str });
+
+        // 詳細記録の小役（推測には使わない。記録している日だけ出す。筐体ランプの白(不明)は出さない）
+        if (detailRecorded(d)) {
+            const pNormal = (v) => `${v}回 <span class="white-txt">(${getP(v, effG, 2)})</span>`;
+            const add = (id, lab, val) => rows.push({ id, lab, val, l:null, str:null });
+            add('nrep', '通常時：リプレイ', pNormal(dn('nRep')));
+            add('nche', '通常時：チェリー', pNormal(dn('nChe') + dn('nCheM') + dn('lnChe')) + lossTag(dn('lnChe')) + lossTag(dn('nCheM'), '中段'));
+            add('nsui', '通常時：スイカ', pNormal(dn('nSui') + dn('lnSui')) + lossTag(dn('lnSui')));
+            if (isNew) {
+                add('bche', 'BIG(前半)：チェリー', `${dn('bChe') + dn('lbChe')}回${lossTag(dn('lbChe'))}`);
+                add('rche', 'REG：チェリー', `${dn('rChe') + dn('lrChe')}回${lossTag(dn('lrChe'))}`);
+                add('bt', 'BT中', `リプレイ${dn('btRep')}回・ベル${dn('btBell')}回`);
+                add('blloss', 'BIG(後半)：欠損', `<span class="loss-txt">スイカ${dn('lblSui')}回・ベル${dn('lblBell')}回</span>`);
+                add('align', '通常時：ボーナス揃えミス', `<span class="loss-txt">${dn('lAlign')}回</span>`);
+            } else {
+                add('onebet', '1枚掛け', `リプレイ${dn('oRep')}・ベル${dn('oBell')}・チェリー${dn('oChe')}・スイカ${dn('oSui')}`);
+                add('align', 'ボーナス揃えミス', `<span class="loss-txt">${dn('lAlign')}回</span>`);
+                add('bche', 'BIG：チェリー', `${dn('bChe') + dn('lbChe')}回${lossTag(dn('lbChe'))}`);
+                add('miss', 'ボーナス中：純ハズレ', `BIG${dn('bMiss')}回・REG${dn('rMiss')}回`);
+                add('rsui', 'REG：スイカ(欠損)', `<span class="loss-txt">${dn('lrSui')}回</span>`);
+            }
+        }
 
         rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });
         
@@ -2966,11 +3090,11 @@
         const c = dat.cur, s = dat.start;
         const pm = ALL_PARAMS[data.machine];
 
-        const calcG = Math.max(0, c.g - s.g);
-        const calcB = Math.max(0, c.b - s.b);
-        const calcR = Math.max(0, c.r - s.r);
-        const bonusG = (calcB * pm.bigG) + (calcR * pm.regG);
-        const head = [dateStr, calcG + bonusG, calcG, bonusG, calcB, calcR, c.bell];
+        // 総回転数・ボーナス回転数は設定推測と同じ計算（詳細記録の +1・1枚掛けの補正込み。記録していなければ今までと同じ）
+        const st = coinStats(dat, data.machine, data.oneBet);
+        const calcG = st.G, calcB = st.B, calcR = st.R;
+        const bonusG = st.bonusG;
+        const head = [dateStr, Math.round(st.effG + bonusG), calcG, bonusG, calcB, calcR, c.bell];
 
         let mid;
         if (data.machine === 'newking') {
@@ -2983,8 +3107,27 @@
         return [...head, ...mid, c.retro_d, c.retro];
     }
 
+    // シートの AA 列以降: AA〜AD は空欄4列（推測設定など。読み込み時に再計算）、AE = 1枚掛けの計算、
+    // AF 以降 = 詳細の項目（DETAIL_ITEMS の順）。詳細を記録していない日は空欄（＝記録なし。0 は「記録して0回」）
+    function sheetRowTail() {
+        const dat = getData();
+        const rec = detailRecorded(dat);
+        return ['', '', '', '', data.oneBet === 'actual' ? '実測値' : '予測値',
+            ...detailItems(data.machine).map(x => rec ? (Number(dat.detail[x.k]) || 0) : '')];
+    }
+    // AE 列以降の見出し（新しくシートを作るとき。既存のシートには docs/DATA_MODEL.md の見出しを貼る）
+    function sheetDetailHeaders(m) {
+        return ['1枚掛けの計算', ...detailItems(m).map(x => `${x.g}：${x.label}`)];
+    }
+    const SHEET_DETAIL_COL = 30; // AE 列（A=0）
+    // シートの行の AE 列（1枚掛けの計算）。無い行（詳細記録より前）は null
+    function oneBetFromRow(v) {
+        const x = v[SHEET_DETAIL_COL];
+        return x === '実測値' ? 'actual' : (x === '予測値' ? 'predict' : null);
+    }
+
     function exportData() {
-        const txt = sheetRowValues().join('\t');
+        const txt = [...sheetRowValues(), ...sheetRowTail()].join('\t');
 
         // クリップボードにコピー
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -3062,12 +3205,12 @@
 
         // A列は空欄。末尾4列(推測設定/高設定期待度/差枚数/復元用JSON)も空欄。
         // 履歴表示時に最新の weights / ロジックで再計算する方針のため、保存時は計算しない。
-        const rowData = ['', ...sheetRowValues(), '', '', '', ''];
+        const rowData = ['', ...sheetRowValues(), ...sheetRowTail()];
 
         const payload = {
             token: data.gasToken,
             sheetName: cfg.sheetName,
-            headers: cfg.headers,
+            headers: [...cfg.headers, ...sheetDetailHeaders(data.machine)],
             rowData: rowData
         };
 
@@ -3150,6 +3293,9 @@
         }
         dat.cur.retro_d = Number(v[24]) || 0;
         dat.cur.retro   = Number(v[25]) || 0;
+        // AF 列以降の詳細の項目（空欄＝記録なしは 0）
+        detailItems(m).forEach((x, i) => { dat.detail[x.k] = Number(v[SHEET_DETAIL_COL + 1 + i]) || 0; });
+        normalizeDetail(dat, m);
         return dat;
     }
 
@@ -3182,7 +3328,7 @@
             // 差し替えは同期区間だけに限定し、await 中（タップ操作が入りうる）には必ず元に戻っている
             const dat = machineDataFromRow(m, v);
             const real = data;
-            data = Object.assign({}, real, { machine: m, [m]: dat });
+            data = Object.assign({}, real, { machine: m, [m]: dat, oneBet: oneBetFromRow(v) || 'predict' });
             try { calc(); } catch(e) { console.error('calc error row', r.row, e); continue; }
             finally { data = real; }
             const lcr = lastCalcResult;
@@ -3194,10 +3340,7 @@
             lcr.highSetRateIdx.forEach(idx => { highProb += lcr.pcts[idx]; });
             const lowProb = lcr.pcts.reduce((a, p, idx) => lcr.highSetRateIdx.includes(idx) ? a : a + p, 0);
 
-            const bIdx = lcr.bestIdx;
-            let usedBell = dat.cur.bell;
-            if (dat.cur.g >= 500 && dat.cur.bell === 0) usedBell = dat.cur.g / pm.bell[bIdx];
-            const diffReal = Math.round(pm.calcDiffReal(dat.cur.b, dat.cur.r, usedBell, dat.cur.g));
+            const diffReal = Math.round(lcr.coins); // 設定推測と同じ計算（詳細の式／今までの式）
 
             calculated.push({
                 sheet: r.sheet, rowNum: r.row, machineId: m,
@@ -3424,6 +3567,8 @@
         // スプレッドシートの生データから機種データを作り直す（当選履歴は引き継がない）
         data.machine = m;
         data[m] = machineDataFromRow(m, r.rawValues || []);
+        const ob = oneBetFromRow(r.rawValues || []);
+        if (ob) data.oneBet = ob; // その日の1枚掛けの計算で見る
         hitTailG = 0;
 
         save(true);

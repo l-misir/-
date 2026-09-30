@@ -73,14 +73,15 @@ test('ニューキング: 入力モードで BIG(前半)スイカ・REGスイカ
   assert.equal(app.ev('getData().detail.lbSui'), 3, '合計 3 = 欠損 3 なのでそのまま');
 });
 
-test('詳細の値があっても、今の設定推測・現在獲得枚数は変わらない（段階2はデータだけ）', () => {
+// 段階4 から詳細の値を計算に使う（tests/coins.test.js）。通常時リプレイが0で、回転数・欠損に効く値が無ければ今までと同じ
+test('通常時リプレイが0で、通常時の小役・白(不明)だけの記録なら、推測・現在獲得枚数・総回転数は今までと同じ', () => {
   const app = loadApp();
   app.selectMachine('newking');
   app.ev('const d = getData(); d.cur.g = 3000; d.cur.b = 12; d.cur.r = 9; d.cur.bell = 400; d.cur.suika = 5; d.cur.suikaR = 2; calc();');
-  const before = app.document.getElementById('detail-rows').textContent + app.document.getElementById('expect-info').textContent;
-  app.ev('const d = getData(); Object.assign(d.detail, { nRep: 400, nChe: 60, lbSui: 2, lrSui: 1, btBell: 5, wBig: 3 }); calc();');
-  const after = app.document.getElementById('detail-rows').textContent + app.document.getElementById('expect-info').textContent;
-  assert.equal(after, before);
+  const view = () => app.document.getElementById('predict-bars').innerHTML + app.document.getElementById('expect-info').textContent;
+  const before = view();
+  app.ev('const d = getData(); Object.assign(d.detail, { nChe: 60, nSui: 20, wBig: 3, wReg: 1 }); calc();');
+  assert.equal(view(), before);
 });
 
 test('詳細の値は保存・再読込で残り、リセット・シートからの復元では 0 になる', () => {

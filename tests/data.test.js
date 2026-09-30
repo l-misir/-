@@ -114,8 +114,11 @@ test('シート保存: 「全て」表示でも自分が打った分（個人）
   app.window.saveToSheet();
   // rowData: ['', 日付, 総回転, 通常時, ボーナス, BIG, REG, ベル, ...]
   assert.deepEqual(body.rowData.slice(2, 8), PERSONAL);
-  assert.equal(body.rowData.length, 30);
-  assert.deepEqual(body.rowData.slice(26), ['', '', '', '']);
+  // AA〜AD は空欄4列、AE = 1枚掛けの計算、AF 以降 = 詳細の項目（記録していない日は空欄）。docs/DETAIL_MODE_PLAN.md「スプレッドシート」
+  assert.equal(body.rowData.length, 31 + app.ev("detailItems('newking').length"));
+  assert.deepEqual(body.rowData.slice(26, 30), ['', '', '', '']);
+  assert.equal(body.rowData[30], '予測値');
+  assert.ok(body.rowData.slice(31).every((v) => v === ''));
 });
 
 test('データコピー(TSV): 「全て」表示でも個人の値を出力する', async () => {
