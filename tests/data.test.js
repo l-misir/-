@@ -89,7 +89,7 @@ test('入力モード: G/BIG/REG は打ち始め値を下回らない', () => {
   assert.deepEqual([s.newking.cur.g, s.newking.cur.b, s.newking.cur.r], [1000, 5, 3]);
 });
 
-// 「全て」表示: 打ち始め 1000G/B5/R3、現在 2000G/B9/R5、ベル133（ベルは常に自分が打った分）
+// 「全て」表示（2026-09 に廃止。古い保存データに viewMode:'total' が残っていても個人で扱う）: 打ち始め 1000G/B5/R3、現在 2000G/B9/R5、ベル133
 function setupTotalView(app) {
   app.selectMachine('newking');
   app.ev(`

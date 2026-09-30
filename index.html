@@ -217,7 +217,7 @@
         #hit-panel .hit-key.del { font-size:19px; }
         #hit-panel .hit-hint { font-size:10px; }
 
-        /* --- 一括加算パネル（機種名タップ） --- */
+        /* --- 一括加算パネル（機種名長押し） --- */
         #bulk-panel {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
             z-index:1200; background:#111; flex-direction:column;
@@ -378,6 +378,11 @@
             color:#000; border-color:#fff; font-weight:bold;
         }
 
+        /* 設定画面: 1行に設定を2つ並べる */
+        .setting-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .setting-item .cell { min-height:34px; }
+        .setting-item .label-large { font-size:13px !important; }
+
         /* タップの記録（設定画面の一番下、調査用） */
         .tap-log { font-size:10px; color:#aaa; background:#111; border:1px solid #333; border-radius:5px; padding:6px 8px; margin:4px 0 0; white-space:pre-wrap; word-break:break-all; font-family:monospace; line-height:1.5; user-select:text; -webkit-user-select:text; }
 
@@ -428,36 +433,48 @@
                 <option value="newking">ニューキングハナハナⅤ</option>
             </select>
         </div>
-        <p class="section-title">＜表示・出力データ＞</p>
-        <div class="grid grid-2">
-            <div class="cell" id="btn-view-personal" onclick="setViewMode('personal')"><div class="label-large">個人</div></div>
-            <div class="cell" id="btn-view-total" onclick="setViewMode('total')"><div class="label-large">全て</div></div>
+        <!-- 設定は1行に2つ並べる（2026-09 コンパクト化）。「個人／全て」は廃止、打ち始めはメイン画面で操作 -->
+        <div class="setting-pair">
+            <div class="setting-item">
+                <p class="section-title">＜入力モード＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label-large">タップ</div></div>
+                    <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label-large">入力</div></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <p class="section-title">＜数値表示＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-dummy-real" onclick="setDummyDefault(false)"><div class="label-large">本当の数値</div></div>
+                    <div class="cell" id="btn-dummy-hide" onclick="setDummyDefault(true)"><div class="label-large">隠す</div></div>
+                </div>
+            </div>
         </div>
-        <p class="section-title">＜入力モード＞</p>
-        <div class="grid grid-2">
-            <div class="cell" id="btn-mode-tap" onclick="setInputMode('tap')"><div class="label-large">タップ</div></div>
-            <div class="cell" id="btn-mode-input" onclick="setInputMode('input')"><div class="label-large">入力</div></div>
+        <div class="setting-pair">
+            <div class="setting-item">
+                <p class="section-title">＜タップ時の振動＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-haptic-on" onclick="setHaptic(true)"><div class="label-large">ON</div></div>
+                    <div class="cell" id="btn-haptic-off" onclick="setHaptic(false)"><div class="label-large">OFF</div></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <p class="section-title">＜ベルのタップ＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-belltap-on" onclick="setBellTap(true)"><div class="label-large">数える</div></div>
+                    <div class="cell" id="btn-belltap-off" onclick="setBellTap(false)"><div class="label-large">数えない</div><div class="label" style="margin-top:1px;">送信・まとめて加算のみ</div></div>
+                </div>
+            </div>
         </div>
-        <p class="section-title">＜起動時の数値表示＞</p>
-        <div class="grid grid-2">
-            <div class="cell" id="btn-dummy-real" onclick="setDummyDefault(false)"><div class="label-large">本当の数値</div></div>
-            <div class="cell" id="btn-dummy-hide" onclick="setDummyDefault(true)"><div class="label-large">隠す</div></div>
-        </div>
-        <p class="section-title">＜タップ時の振動＞</p>
-        <div class="grid grid-2">
-            <div class="cell" id="btn-haptic-on" onclick="setHaptic(true)"><div class="label-large">ON</div></div>
-            <div class="cell" id="btn-haptic-off" onclick="setHaptic(false)"><div class="label-large">OFF</div></div>
-        </div>
-        <p class="section-title">＜ベルのタップ＞</p>
-        <div class="grid grid-2">
-            <div class="cell" id="btn-belltap-on" onclick="setBellTap(true)"><div class="label-large">数える</div></div>
-            <div class="cell" id="btn-belltap-off" onclick="setBellTap(false)"><div class="label-large">数えない</div><div class="label" style="margin-top:1px;">送信・まとめて加算のみ</div></div>
-        </div>
-        <p class="section-title">＜打ち始めデータ＞</p>
-        <div class="grid grid-3">
-            <div class="cell"><div class="label">ゲーム数</div><input type="number" class="val-input" id="start-g" onchange="saveStart()" onfocus="this.select()"></div>
-            <div class="cell"><div class="label">BIG</div><input type="number" class="val-input" id="start-b" onchange="saveStart()" onfocus="this.select()"></div>
-            <div class="cell"><div class="label">REG</div><input type="number" class="val-input" id="start-r" onchange="saveStart()" onfocus="this.select()"></div>
+        <div class="setting-pair">
+            <div class="setting-item">
+                <p class="section-title">＜打ち始めの操作＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-starttap-on" onclick="setStartTap(true)"><div class="label-large">できる</div></div>
+                    <div class="cell" id="btn-starttap-off" onclick="setStartTap(false)"><div class="label-large">できない</div></div>
+                </div>
+            </div>
+            <div class="setting-item"></div>
         </div>
         <p class="section-title">＜BIG：筐体ランプ(朝一)＞</p>
         <div class="grid grid-5" id="morning-lamp-selector"></div>
@@ -543,7 +560,7 @@
     <div id="hit-panel-body"></div>
 </div>
 
-<!-- 一括加算パネル（機種名タップ） -->
+<!-- 一括加算パネル（機種名長押し） -->
 <div id="bulk-panel">
     <div class="modal-header">
         <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
@@ -596,10 +613,11 @@
     };
 
     const DEFAULTS = {
-        machine: 'houou', mode: 'tap', viewMode: 'personal',
-        dummyDefault: false, // 起動時の数値表示 true=隠す（ダミー表示）
+        machine: 'houou', mode: 'tap',  // 「個人／全て」(viewMode) は 2026-09 に廃止（常に個人）
+        dummyDefault: false, // 数値表示 true=隠す（ダミー表示。変えたらすぐ反映・起動時もこれ）
         haptic: true,        // タップ時の振動
         bellTap: true,       // false = ベルのセルをタップしても増減しない（ショートカット送信・まとめて加算だけで入れる）
+        startTap: false,     // true = メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる
         weights: {
             houou: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
             king: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
@@ -844,7 +862,7 @@
     let data = loadData();
     let lastCalcResult = null; // 最新の推測結果を保持(シート保存用)
 
-    // --- ダミー表示モード（機種名長押しでON/OFF。起動時は設定の dummyDefault に従う） ---
+    // --- ダミー表示モード（設定の「数値表示」dummyDefault に従う。機種名長押しの切替は 2026-09 に廃止） ---
     let dummyMode = data.dummyDefault === true;
     let dummySeed = Math.floor(Math.random() * 1000000);
 
@@ -886,7 +904,7 @@
     }
 
     // ============================================================
-    // 機種名の長押し判定（タップ=一括加算 / 長押し=ダミー）
+    // 機種名の長押し判定（長押し=まとめて加算 / タップ=詳細記録画面との切替〔段階5〕。2026-09 に変更）
     // ============================================================
     let machinePressTimer = null;
     let machineLongPressed = false;
@@ -895,12 +913,12 @@
         machineLongPressed = false;
         machinePressTimer = setTimeout(() => {
             machineLongPressed = true;
-            toggleDummy();
+            openBulkPanel();
         }, 550);
     }
     function endMachinePress() {
         clearTimeout(machinePressTimer);
-        if (!machineLongPressed) openBulkPanel();
+        // タップは詳細記録画面との切替（段階5で実装）。詳細記録 OFF の間は何もしない
         machineLongPressed = false;
     }
     function cancelMachinePress() {
@@ -1727,10 +1745,11 @@
                 if (typeof md.retroAuto !== 'number') md.retroAuto = retroAutoCount(md.hits);
             });
             if (d.mode !== 'tap' && d.mode !== 'input') d.mode = DEFAULTS.mode;
-            if (d.viewMode !== 'personal' && d.viewMode !== 'total') d.viewMode = DEFAULTS.viewMode;
+            delete d.viewMode; // 「全て」表示は廃止。古い保存データの viewMode:'total' も個人で計算する
             if (typeof d.dummyDefault !== 'boolean') d.dummyDefault = DEFAULTS.dummyDefault;
             if (typeof d.haptic !== 'boolean') d.haptic = DEFAULTS.haptic;
             if (typeof d.bellTap !== 'boolean') d.bellTap = DEFAULTS.bellTap;
+            if (typeof d.startTap !== 'boolean') d.startTap = DEFAULTS.startTap;
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
             if (!d.gasUrl) d.gasUrl = '';
             if (!d.gasToken) d.gasToken = 'hanahana2026';
@@ -1861,19 +1880,12 @@
         document.getElementById('machine-select').value = data.machine || 'houou';
         document.getElementById('gas-url').value = data.gasUrl || '';
         document.getElementById('gas-token').value = data.gasToken || 'hanahana2026';
-        syncInputs();
         renderMorningSelector();
         renderWeightSettings();
         renderMain();
         renderHistFilters();
     }
 
-    function syncInputs() {
-        const d = getData();
-        document.getElementById('start-g').value = d.start.g;
-        document.getElementById('start-b').value = d.start.b;
-        document.getElementById('start-r').value = d.start.r;
-    }
 
     // 0/0表記を0/分母にする、かつ桁数指定
     function getP(k, n, digits = 2) { 
@@ -1933,10 +1945,15 @@
         save();
     }
 
-    function setViewMode(m) { data.viewMode = m; save(); updateHeader(); }
     function setInputMode(m) { data.mode = m; save(); updateHeader(); }
-    // 起動時の数値表示（今のダミー表示の ON/OFF は変えない。機種名長押しで切り替える）
-    function setDummyDefault(v) { data.dummyDefault = v; save(true); updateHeader(); }
+    // 数値表示（本当の数値／隠す）。設定どおり常に表示する（2026-09 に「起動時だけ」から変更。機種名長押しの切替は廃止）
+    function setDummyDefault(v) {
+        data.dummyDefault = v;
+        dummyMode = v;
+        dummySeed = Math.floor(Math.random() * 1000000);
+        save(); // 描き直して表示を切り替える
+    }
+    function setStartTap(v) { data.startTap = v; save(); } // ＜打ち始め＞のセルを操作できる／できないで描き直す
     function setHaptic(v) { data.haptic = v; save(); } // セルの振動用ラベルを付け外しするので描き直す
     function setBellTap(v) { data.bellTap = v; save(); }
 
@@ -1958,25 +1975,23 @@
     }
     function updateMachine() { 
         data.machine = document.getElementById('machine-select').value; 
-        syncInputs();
         save(); updateHeader(); renderMorningSelector(); renderWeightSettings();
     }
     
-    function saveStart() {
+    // 打ち始め（g/b/r）を value にし、現在も同じだけずらす（打ち始めからの差分＝個人の数値は変わらない）。
+    // 打ち始めは 0 未満にしない。現在は打ち始め未満にしない。戻り値は実際の変化量
+    function shiftStart(key, value) {
         const d = getData();
-        const old_sg = d.start.g || 0;
-        const old_sb = d.start.b || 0;
-        const old_sr = d.start.r || 0;
-
-        d.start.g = Number(document.getElementById('start-g').value) || 0;
-        d.start.b = Number(document.getElementById('start-b').value) || 0;
-        d.start.r = Number(document.getElementById('start-r').value) || 0;
-        
-        d.cur.g = Math.max(0, d.cur.g + (d.start.g - old_sg));
-        d.cur.b = Math.max(0, d.cur.b + (d.start.b - old_sb));
-        d.cur.r = Math.max(0, d.cur.r + (d.start.r - old_sr));
-        
-        save();
+        const before = Number(d.start[key]) || 0;
+        const after = Math.max(0, Number(value) || 0);
+        const delta = after - before;
+        d.start[key] = after;
+        d.cur[key] = Math.max(after, (Number(d.cur[key]) || 0) + delta);
+        return delta;
+    }
+    function setStartFromInput(key, el) {
+        shiftStart(key, el.value);
+        save(); // 現在の欄も描き直す
     }
 
     function renderMain() {
@@ -1994,11 +2009,7 @@
             <div class="main-layout">
                 <div class="col-left">
                     <p class="section-title">＜打ち始め＞</p>
-                    <div class="grid grid-3">
-                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
-                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
-                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-                    </div>
+                    <div class="grid grid-3">${mkS('g','ゲーム数',s.g,50)}${mkS('b','BIG',s.b)}${mkS('r','REG',s.r)}</div>
                     <p class="section-title">＜現在＞</p>
                     <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜${labels.bell}＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
@@ -2018,11 +2029,7 @@
             <div class="main-layout">
                 <div class="col-left">
                     <p class="section-title">＜打ち始め＞</p>
-                    <div class="grid grid-3">
-                        <div class="cell"><div class="label">ゲーム数</div><div class="value">${s.g}</div></div>
-                        <div class="cell"><div class="label">BIG</div><div class="value">${s.b}</div></div>
-                        <div class="cell"><div class="label">REG</div><div class="value">${s.r}</div></div>
-                    </div>
+                    <div class="grid grid-3">${mkS('g','ゲーム数',s.g,50)}${mkS('b','BIG',s.b)}${mkS('r','REG',s.r)}</div>
                     <p class="section-title">＜現在＞</p>
                     <div class="grid grid-3">${mkC('g','ゲーム数',vG,50)}${mkC('b','BIG',vB)}${mkC('r','REG',vR)}</div>
                     <p class="section-title">＜${labels.bell}＞</p><div class="grid">${mkC('bell','&nbsp;',c.bell)}</div>
@@ -2051,7 +2058,10 @@
     function refreshMainValues() {
         if (data.mode !== 'tap') { renderMain(); return; }
         const d = getData();
-        document.querySelectorAll('#main-ui .cell.t-btn, #main-ui .cell.bell-locked').forEach(el => {
+        document.querySelectorAll('#main-ui .cell[data-start]').forEach(el => {
+            el.querySelector('.value').textContent = d.start[el.dataset.start];
+        });
+        document.querySelectorAll('#main-ui .cell.t-btn[data-id], #main-ui .cell.bell-locked').forEach(el => {
             const id = el.dataset.id;
             el.querySelector('.value').textContent = dummyNum(d.cur[id], parseInt(el.dataset.didx) || 0, dummyKind(id));
         });
@@ -2075,6 +2085,18 @@
             return `<div class="cell bell-locked" data-id="${id}" data-didx="${idx}"><div class="label" style="color:#888;">タップ無効</div><div class="value">${dv}</div></div>`;
         }
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div>${hapticTapHtml()}</div>`;
+    }
+
+    // ＜打ち始め＞のセル。「打ち始めの操作: できる」なら＜現在＞と同じ操作（タップ +1・長押し −1。G は ±50。入力モードは入力）。
+    // 変えると現在も同じだけずれる（shiftStart）。g/b/r はダミー表示でも本当の数値なのでダミー用の連番は使わない
+    function mkS(key, label, val, step=1) {
+        if (!data.startTap || (data.mode === 'input' && dummyMode)) {
+            return `<div class="cell" data-start="${key}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+        }
+        if (data.mode === 'input') {
+            return `<div class="cell" data-start="${key}"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="setStartFromInput('${key}', this)" onfocus="this.select()"></div>`;
+        }
+        return `<div class="cell t-btn" data-start="${key}" data-step="${step}"><div class="label">${label}</div><div class="value">${val}</div>${hapticTapHtml()}</div>`;
     }
 
     // 入力モードの値確定。g/b/r はタップ時と同じく打ち始め値を下回らせない
@@ -2121,8 +2143,6 @@
         const nameEl = document.getElementById('disp-machine');
         nameEl.innerText = ALL_PARAMS[data.machine].name;
         nameEl.style.opacity = dummyMode ? '0.5' : '1';
-        document.getElementById('btn-view-personal').className = `cell ${data.viewMode==='personal'?'active-mode':''}`;
-        document.getElementById('btn-view-total').className = `cell ${data.viewMode==='total'?'active-mode':''}`;
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
         document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
         document.getElementById('btn-dummy-real').className = `cell ${!data.dummyDefault?'active-mode':''}`;
@@ -2131,6 +2151,15 @@
         document.getElementById('btn-haptic-off').className = `cell ${!data.haptic?'active-mode':''}`;
         document.getElementById('btn-belltap-on').className = `cell ${data.bellTap!==false?'active-mode':''}`;
         document.getElementById('btn-belltap-off').className = `cell ${data.bellTap===false?'active-mode':''}`;
+        document.getElementById('btn-starttap-on').className = `cell ${data.startTap?'active-mode':''}`;
+        document.getElementById('btn-starttap-off').className = `cell ${!data.startTap?'active-mode':''}`;
+    }
+
+    // タップの記録に残すセルの名前（bell / regS0 / 打ち始めは start-g など）
+    function tapLogId(el) {
+        if (el.dataset.id) return el.dataset.id;
+        if (el.dataset.start) return `start-${el.dataset.start}`;
+        return `${el.dataset.type}${el.dataset.idx}`;
     }
 
     function attachEvents() {
@@ -2152,7 +2181,7 @@
                 sy = y; sx = x; isC = false;
                 lastDownCell = el;
                 pending = true; movedOut = false; downAt = Date.now();
-                log = { t: new Date().toTimeString().slice(0, 8), id: el.dataset.id || `${el.dataset.type}${el.dataset.idx}`, ev: 'down', ms: 0, result: '' };
+                log = { t: new Date().toTimeString().slice(0, 8), id: tapLogId(el), ev: 'down', ms: 0, result: '' };
                 pushTapLog(log);
                 
                 // ① 水色への変化を「70ミリ秒」遅らせる（スクロール時の誤発光防止）
@@ -2199,9 +2228,15 @@
                 let newVal = 0;
                 let _changed = true;
                 let _delta = 0; // 実際の増減（下限で途中までしか減らないことがある）
-                if(el.dataset.id) {
+                if (el.dataset.start) {
+                    // 打ち始め（「打ち始めの操作: できる」のとき）。現在も同じだけずらす。当選履歴は作らない
+                    const _k = el.dataset.start;
+                    _delta = shiftStart(_k, (Number(d.start[_k]) || 0) + step);
+                    _changed = (_delta !== 0);
+                    newVal = d.start[_k];
+                } else if(el.dataset.id) {
                     const _id = el.dataset.id;
-                    // g / b / r は打ち始めの値を下回らせない（全体表示との矛盾防止）
+                    // g / b / r は打ち始めの値を下回らせない（自分が打った分がマイナスにならないように）
                     const _floor = (_id === 'g' || _id === 'b' || _id === 'r')
                         ? (Number(d.start[_id]) || 0) : 0;
                     const _before = Number(d.cur[_id]) || 0;
@@ -2220,7 +2255,9 @@
                 if (log) log.result = (_changed ? (_delta > 0 ? '+' : '') + _delta : (isMinus ? '変化なし(長押し・下限)' : '変化なし')) + note;
                 renderTapLog();
                 
-                if (dummyMode) {
+                if (el.dataset.start) {
+                    refreshMainValues(); // 打ち始めと一緒にずれた＜現在＞も書き換える
+                } else if (dummyMode) {
                     const didx = parseInt(el.dataset.didx) || 0;
                     const kind = el.dataset.id ? dummyKind(el.dataset.id) : 'one';
                     el.querySelector('.value').textContent = dummyNum(newVal, didx, kind);
@@ -2279,7 +2316,7 @@
                 const touchedHere = lastDownCell === el && downAt > 0 && Date.now() - downAt < 2000;
                 if (!touchedHere) {
                     if (e) e.preventDefault();
-                    pushTapLog({ t: new Date().toTimeString().slice(0, 8), id: el.dataset.id || `${el.dataset.type}${el.dataset.idx}`, ev: 'click', ms: 0, result: '打ち消し(枠外のclick)' });
+                    pushTapLog({ t: new Date().toTimeString().slice(0, 8), id: tapLogId(el), ev: 'click', ms: 0, result: '打ち消し(枠外のclick)' });
                     renderTapLog();
                     return;
                 }
@@ -2457,23 +2494,13 @@
         const w = data.weights[data.machine];
         const labels = pm.w_labels;
         
-        const modeStr = data.viewMode === 'total' ? '(全て)' : '(個人)';
-        if(document.getElementById(prefix+'title-predict')) {
-            document.getElementById(prefix+'title-predict').innerText = `＜推測設定 ${modeStr}＞`;
-            document.getElementById(prefix+'title-expect').innerText = `＜実践値 ${modeStr}＞`;
-            document.getElementById(prefix+'title-detail').innerText = `＜詳細データ ${modeStr}＞`;
-        }
 
         const personalG = Math.max(0, c.g - s.g);
         const personalB = Math.max(0, c.b - s.b);
         const personalR = Math.max(0, c.r - s.r);
 
-        let calcG, calcB, calcR;
-        if (data.viewMode === 'personal') {
-            calcG = personalG; calcB = personalB; calcR = personalR;
-        } else {
-            calcG = c.g; calcB = c.b; calcR = c.r;
-        }
+        // 常に個人（打ち始めからの差分）で計算する（「全て」表示は 2026-09 に廃止）
+        const calcG = personalG, calcB = personalB, calcR = personalR;
         
         const actG = personalG;
         const actB = personalB;
@@ -2597,9 +2624,6 @@
         let usedBell = c.bell;
         if (personalG >= 500 && c.bell === 0) {
             usedBell = personalG / pm.bell[bestIdx];
-        }
-        if (data.viewMode === 'total' && s.g > 0) {
-            usedBell += (s.g / pm.bell[bestIdx]);
         }
 
         let diffReal = pm.calcDiffReal(calcB, calcR, usedBell, calcG);
@@ -2978,7 +3002,7 @@
             // 差し替えは同期区間だけに限定し、await 中（タップ操作が入りうる）には必ず元に戻っている
             const dat = machineDataFromRow(m, v);
             const real = data;
-            data = Object.assign({}, real, { machine: m, viewMode: 'personal', [m]: dat });
+            data = Object.assign({}, real, { machine: m, [m]: dat });
             try { calc(); } catch(e) { console.error('calc error row', r.row, e); continue; }
             finally { data = real; }
             const lcr = lastCalcResult;
@@ -3220,7 +3244,6 @@
         // スプレッドシートの生データから機種データを作り直す（当選履歴は引き継がない）
         data.machine = m;
         data[m] = machineDataFromRow(m, r.rawValues || []);
-        data.viewMode = 'personal';
         hitTailG = 0;
 
         save(true);

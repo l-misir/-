@@ -10,8 +10,9 @@
 {
   "machine": "newking",          // 選択中の機種 ID
   "mode": "tap",                 // 'tap' | 'input'（入力モード）
-  "viewMode": "personal",        // 'personal'（打ち始めからの差分）| 'total'（台の累計）
-  "dummyDefault": false,         // 起動時の数値表示 true=隠す（ダミー表示で起動）
+  // viewMode（個人/全て）は 2026-09-30 に廃止。古い保存データにあっても読み込み時に消す（常に個人）
+  "dummyDefault": false,         // 数値表示 true=隠す（ダミー表示。変えたらすぐ反映・起動時もこれ）
+  "startTap": false,             // 打ち始めの操作 true=メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる
   "haptic": true,                // タップ時の振動
   "bellTap": true,               // false = ベルのセルをタップしても増減しない（送信・まとめて加算のみ）
   "lastBellSyncT": "20260927153012", // 最後に適用したショートカット送信の日時（これ以前の送信は無視）。未送信なら無し

@@ -22,7 +22,7 @@ for (const c of CASES) {
       d.cur.g = ${c.G}; d.cur.b = ${c.B}; d.cur.r = ${c.R}; d.cur.bell = ${c.BELL};
       d.cur.suika = 0; d.cur.suikaR = 0; d.cur.retro_d = 0; d.cur.retro = 0;
       d.lamps = { big:[0,0,0,0,0], regS:[0,0,0,0,0], regT:[0,0,0,0,0] };
-      d.morning = -1; data.viewMode = 'personal';
+      d.morning = -1;
       calc();
     `);
     const text = app.document.getElementById('expect-info').textContent;

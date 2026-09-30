@@ -1,26 +1,13 @@
-// 画面操作まわり: 機種名タップ/長押し・起動時の数値表示・振動・画面遷移・テンキー桁数・ハマりG数
+// 画面操作まわり: 数値表示・振動・画面遷移・テンキー桁数・ハマりG数
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadApp } = require('./helpers');
 
 const isActive = (app, id) => app.document.getElementById(id).classList.contains('active');
 
-test('機種名: タップでまとめて加算、長押しでダミー表示の切替', async () => {
-  const app = loadApp();
-  app.window.startMachinePress();
-  app.window.endMachinePress();
-  assert.ok(isActive(app, 'bulk-panel'), 'タップでまとめて加算が開く');
-  assert.equal(app.ev('dummyMode'), false, 'タップではダミー表示は変わらない');
-  app.window.closeBulkPanel();
+// 機種名の長押し（まとめて加算）と、数値表示の設定をすぐ反映することは settings.test.js（2026-09 に仕様変更）
 
-  app.window.startMachinePress();
-  await new Promise((r) => setTimeout(r, 600)); // 550ms で長押し判定
-  app.window.endMachinePress();
-  assert.equal(app.ev('dummyMode'), true, '長押しでダミー表示になる');
-  assert.ok(!isActive(app, 'bulk-panel'), '長押しではまとめて加算は開かない');
-});
-
-test('起動時の数値表示: 設定が「隠す」なら起動直後からダミー表示', () => {
+test('数値表示: 設定が「隠す」なら起動直後からダミー表示', () => {
   const hidden = loadApp({ storage: { machine: 'newking', dummyDefault: true } });
   assert.equal(hidden.ev('dummyMode'), true);
   assert.equal(hidden.document.getElementById('disp-machine').style.opacity, '0.5');
@@ -31,14 +18,6 @@ test('起動時の数値表示: 設定が「隠す」なら起動直後からダ
   const old = loadApp({ storage: { machine: 'newking' } }); // 設定追加前の保存データ
   assert.equal(old.ev('dummyMode'), false);
   assert.equal(old.ev('data.haptic'), true, '振動の初期値は ON');
-});
-
-test('起動時の数値表示: 設定を変えても今の表示は切り替わらない', () => {
-  const app = loadApp();
-  app.window.setDummyDefault(true);
-  assert.equal(app.ev('data.dummyDefault'), true);
-  assert.equal(app.ev('dummyMode'), false);
-  assert.ok(app.document.getElementById('btn-dummy-hide').classList.contains('active-mode'));
 });
 
 test('振動(iPhone): ON なら各セルにスイッチ用の透明ラベルをかぶせ、OFF なら外す', () => {
