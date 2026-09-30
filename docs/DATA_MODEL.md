@@ -40,7 +40,11 @@
     },
     "morning": -1,           // 朝一BIG筐体ランプ: -1=未選択 0=白 1=青 2=黄 3=緑 4=赤/紫
     "hits": [                // 大当たり履歴。先頭が最新
-      { "g": 230, "k": "b", "pre": 180 }, // pre = BIG/REG を押す前のハマり（この記録を消したときに戻す値）
+      { "g": 230, "k": "b", "pre": 180, // pre = BIG/REG を押す前のハマり（この記録を消したときに戻す値）
+        "trig": "solo1",     // 契機: solo1 単独(先) / solo2 単独(後) / che / sui / rep / bell（初期値 solo1）
+        "notice": "normal",  // 告知: normal ノーマル点滅 / premium プレミア点滅 / freeze フリーズ（初期値 normal。freeze はレトロの自動加算の対象外）
+        "extras": [] },      // 付随（複数可）: tenpai 特殊テンパイ音 / vibe バイブ / ac アメイジングチャンス
+                             // trig/notice/extras の無い旧データ・壊れた値は読込時に初期値へ（normalizeHitInfo）
       { "g": null, "k": "r" } // g=null は回転数未入力。pre が無いのは旧データ
     ],
     "retroAuto": 1           // hits から自動で数えたレトロ条件達成の数（前回値）。hits が変わるたびに差分だけ cur.retro_d に足す。

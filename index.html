@@ -181,7 +181,7 @@
             box-sizing: border-box;
         }
         #hit-panel.active { display: flex; flex-direction: column; }
-        #hit-panel-body { flex: 1 1 auto; min-height: 0; display: flex; }
+        #hit-panel-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
         .hit-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
         .hit-kind { font-size:11px; font-weight:bold; }
         .hit-kind.big { color:#ff6b6b; } /* BIG は赤系（2026-09 に黄から変更） */
@@ -205,17 +205,34 @@
         .hit-key.del { background:#833; font-size:14px; }
         .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
         /* キーとG数表示の間はパネルの内側余白(8px)と揃える */
-        .hit-keys-wrap { display:flex; gap:8px; align-items:stretch; flex:1 1 auto; min-width:0; }
+        .hit-keys-wrap { display:flex; gap:8px; align-items:stretch; flex:1 1 auto; min-width:0; } /* キーの最低の高さより縮めない（契機・告知の欄と重ねない。足りなければパネルをスクロール） */
         .hit-keys-wrap .hit-keys { flex:1 1 auto; min-width:0; grid-template-rows: repeat(4, 1fr); }
         /* G数表示は「4桁＋G」ぴったりの幅（左右の余白は同じ10px）。残りはすべてテンキーへ */
         .hit-side { flex:0 0 auto; width:min-content; }
         .hit-side .hit-display { margin-bottom:6px; font-size:26px; min-height:38px; white-space:nowrap; }
         .hit-display .num { display:inline-block; min-width:4ch; text-align:right; }
         /* パネル内のキーを大きく（高さはパネルいっぱいまで伸びる） */
-        #hit-panel .hit-key { font-size:24px; padding:12px 0; }
+        /* BIG/REG 加算時（画面下まで伸ばす配置）は、キーが空いた高さに合わせて縮む（契機・告知の欄を入れても収める。最低34px）。
+           当選履歴からの編集（中央・高さは中身なり）は今までどおりの大きさ */
+        #hit-panel .hit-key { font-size:24px; padding:0; min-height:34px; }
+        #hit-panel .hit-keys-wrap .hit-keys { grid-template-rows: repeat(4, minmax(34px, 1fr)); }
+        #hit-panel.centered .hit-key { padding:12px 0; }
+        /* 画面より高くなるとき（高さの小さい横画面など）はパネルの中をスクロールして、キー・ボタン・✕ を全部使えるようにする */
+        #hit-panel { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
         #hit-panel .hit-key.ok { font-size:18px; }
         #hit-panel .hit-key.del { font-size:19px; }
         #hit-panel .hit-hint { font-size:10px; }
+        /* 当選の契機・告知（キーの下。見た目は UI 調整で詰める） */
+        .hit-opts { flex:0 0 auto; margin-top:4px; }
+        .hit-opt-title { font-size:10px; color:#888; margin:3px 0 2px; }
+        .hit-opt-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:3px; margin-bottom:3px; }
+        .hit-opt { padding:7px 2px; background:#222; color:#aaa; border:1px solid #333; border-radius:5px; font-size:11px; text-align:center; white-space:nowrap; overflow:hidden; cursor:pointer; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+        .hit-opt.on { background:#0066cc; color:#fff; border-color:#0088ff; }
+        /* 高さの小さい画面（横画面など）は契機・告知の欄を詰める（見出しを省き、ボタンを低く） */
+        @media (max-height: 500px) {
+            .hit-opt { padding:4px 2px; }
+            .hit-opt-title { display:none; }
+        }
 
         /* --- 一括加算パネル（機種名長押し） --- */
         #bulk-panel {
@@ -279,7 +296,9 @@
         .hm-now-g { font-size:26px; font-weight:bold; color:#6f6; }
         .hm-now-l { font-size:11px; color:#8a8; }
         .hm-list { }
-        .hm-row { display:flex; align-items:center; gap:4px; padding:8px 6px; border-bottom:1px solid #282828; }
+        .hm-row { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:8px 6px; border-bottom:1px solid #282828; }
+        .hm-tags { flex-basis:100%; padding-left:22px; font-size:10px; color:#aaa; }
+        .hm-tags .freeze { color:#f80; }
         .hm-row:nth-child(odd) { background:#181818; }
         .hm-no { width:18px; font-size:10px; color:#666; flex-shrink:0; }
         .hm-g { width:66px; flex-shrink:0; font-size:18px; font-weight:bold; text-align:right; padding-right:4px; white-space:nowrap; }
@@ -676,12 +695,31 @@
         clampDetailLoss(md, m);
     }
 
+    // 当選の契機・告知（詳細記録 OFF でも記録。docs/DETAIL_MODE_PLAN.md「当選の契機・告知」）。当選履歴の各記録に持つ
+    //   trig: 契機を1つ（初期値 単独(先)。小役重複は後告知に該当）
+    //   notice: 点滅／フリーズを1つ（初期値 ノーマル点滅。同時には起きない）
+    //   extras: 特殊テンパイ音・バイブ・アメイジングチャンス（複数可）
+    // 回数や割合の集計は出さない。フリーズはレトロ条件達成の自動加算から外す（retroAutoCount）
+    const HIT_TRIGS = [
+        { v:'solo1', l:'単独(先)' }, { v:'solo2', l:'単独(後)' }, { v:'che', l:'チェリー' },
+        { v:'sui', l:'スイカ' }, { v:'rep', l:'リプレイ' }, { v:'bell', l:'ベル' }
+    ];
+    const HIT_NOTICES = [ { v:'normal', l:'ノーマル点滅' }, { v:'premium', l:'プレミア点滅' }, { v:'freeze', l:'フリーズ' } ];
+    const HIT_EXTRAS = [ { v:'tenpai', l:'特殊テンパイ音' }, { v:'vibe', l:'バイブ' }, { v:'ac', l:'アメイジングチャンス', s:'アメイジング' } ];
+    // 契機・告知の無い記録（この機能より前のデータ）や壊れた値は初期値にする
+    function normalizeHitInfo(h) {
+        if (!HIT_TRIGS.some(o => o.v === h.trig)) h.trig = HIT_TRIGS[0].v;
+        if (!HIT_NOTICES.some(o => o.v === h.notice)) h.notice = HIT_NOTICES[0].v;
+        const ex = Array.isArray(h.extras) ? h.extras : [];
+        h.extras = HIT_EXTRAS.map(o => o.v).filter(v => ex.includes(v));
+    }
+
     const SINGLE_DEFAULT = {
         start: { g:0, b:0, r:0 },
         cur: { g:0, b:0, r:0, bell:0, suika:0, suikaR:0, retro_d:0, retro:0 },
         lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
         morning: -1,
-        hits: [],  // 大当たり回転数の記録 [{g:回転数, k:'b'|'r', pre}] 先頭が最新
+        hits: [],  // 大当たり回転数の記録 [{g:回転数, k:'b'|'r', pre, trig, notice, extras}] 先頭が最新
         retroAuto: 0, // hits から自動で数えたレトロ条件達成の数（前回値。差分だけ cur.retro_d に反映する）
         detail: Object.assign({}, DETAIL_DEFAULT) // 詳細小役記録の値（DETAIL_ITEMS。詳細記録 OFF の間も持つ）
     };
@@ -1060,6 +1098,7 @@
     //   連チャン = 前の当たりから100G以内（100G ちょうどを含む）。REG 始まりでも連チャンに数える。
     //   連チャン中の BIG の数が 2〜4 の間の当たり（その BIG 自身と、その後の BIG・REG）が対象。BIG5連目以降は対象外。
     //   最初の記録（前が分からない）と G数未入力の当たりは連チャンの始まり扱い
+    //   フリーズの当選自身は対象外（BGM が上書きされて鳴ったか分からない）。ただし連チャン中の BIG の数には数える
     function retroAutoCount(hits) {
         if (!Array.isArray(hits)) return 0;
         let bigs = 0, count = 0;
@@ -1067,7 +1106,7 @@
             const chained = i > 0 && h.g != null && Number(h.g) <= 100;
             if (!chained) bigs = 0;
             if (h.k === 'b') bigs++;
-            if (chained && bigs >= 2 && bigs <= 4) count++;
+            if (chained && bigs >= 2 && bigs <= 4 && h.notice !== 'freeze') count++;
         });
         return count;
     }
@@ -1177,7 +1216,8 @@
                     <div class="hit-display" id="hit-display">${hitDisplayHtml()}</div>
                     <div class="hit-hint">この当選の<br>回転数を修正</div>
                 </div>
-            </div>`;
+            </div>
+            <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>`;
         panel.classList.add('active');
         positionHitPanel();
     }
@@ -1208,6 +1248,7 @@
     function positionHitPanel() {
         const panel = document.getElementById('hit-panel');
         const isLandscape = window.innerWidth > window.innerHeight;
+        panel.classList.toggle('centered', hitPanelCentered); // キーの大きさ（CSS の #hit-panel.centered）
         if (hitPanelCentered) {
             // 大当たり分布からの編集: 画面中央（高さは中身なり）
             panel.style.top = '50%';
@@ -1279,6 +1320,7 @@
                     <div class="hit-hint">記録は既に<br>作成済み<br>閉じても残ります</div>
                 </div>
             </div>
+            <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>
         `;
         panel.classList.add('active');
         positionHitPanel();
@@ -1308,6 +1350,43 @@
         syncGameCountFromHits();
         syncRetroFromHits();
         save(true);
+    }
+
+    // テンキー画面の契機・告知のボタン（編集中の記録 editHitIdx の値）
+    function hitOptsHtml() {
+        const d = getData();
+        const h = (Array.isArray(d.hits) && editHitIdx >= 0) ? d.hits[editHitIdx] : null;
+        if (!h) return '';
+        normalizeHitInfo(h); // 契機・告知の無い記録（旧データなど）は初期値で表示する
+        const btn = (on, fn, o) => `<div class="hit-opt ${on ? 'on' : ''}" data-opt="${o.v}" onclick="${fn}('${o.v}')">${o.s || o.l}</div>`;
+        return `
+            <div class="hit-opt-title">契機</div>
+            <div class="hit-opt-grid">${HIT_TRIGS.map(o => btn(h.trig === o.v, 'setHitTrig', o)).join('')}</div>
+            <div class="hit-opt-title">告知</div>
+            <div class="hit-opt-grid">${HIT_NOTICES.map(o => btn(h.notice === o.v, 'setHitNotice', o)).join('')}</div>
+            <div class="hit-opt-grid">${HIT_EXTRAS.map(o => btn(h.extras.includes(o.v), 'toggleHitExtra', o)).join('')}</div>`;
+    }
+    // 編集中の記録の契機・告知を変える。フリーズはレトロの自動加算に効くので数え直す（手で直した分は残す）
+    function updateHitInfo(fn) {
+        const d = getData();
+        const h = (Array.isArray(d.hits) && editHitIdx >= 0) ? d.hits[editHitIdx] : null;
+        if (!h) return;
+        normalizeHitInfo(h);
+        fn(h);
+        syncRetroFromHits();
+        save(true);
+        refreshMainValues();
+        const el = document.getElementById('hit-opts');
+        if (el) el.innerHTML = hitOptsHtml();
+    }
+    function setHitTrig(v) { if (HIT_TRIGS.some(o => o.v === v)) updateHitInfo(h => { h.trig = v; }); }
+    function setHitNotice(v) { if (HIT_NOTICES.some(o => o.v === v)) updateHitInfo(h => { h.notice = v; }); }
+    function toggleHitExtra(v) {
+        if (!HIT_EXTRAS.some(o => o.v === v)) return;
+        updateHitInfo(h => {
+            const on = !h.extras.includes(v);
+            h.extras = HIT_EXTRAS.map(o => o.v).filter(x => (x === v) ? on : h.extras.includes(x));
+        });
     }
 
     function closeHitPanel() {
@@ -1461,6 +1540,18 @@
         return cells + ((g != null && g > 1000) ? '<div class="hm-over">↑</div>' : '');
     }
 
+    // 当選履歴の一覧に出す契機・告知（初期値以外だけ。フリーズはレトロの自動加算から外れるので色を変える）
+    function hitTagsHtml(h) {
+        if (!h) return '';
+        const tags = [];
+        const t = HIT_TRIGS.find(o => o.v === h.trig);
+        if (t && t.v !== HIT_TRIGS[0].v) tags.push(t.l);
+        const n = HIT_NOTICES.find(o => o.v === h.notice);
+        if (n && n.v !== HIT_NOTICES[0].v) tags.push(n.v === 'freeze' ? `<span class="freeze">${n.l}</span>` : n.l);
+        HIT_EXTRAS.forEach(o => { if (Array.isArray(h.extras) && h.extras.includes(o.v)) tags.push(o.l); });
+        return tags.length ? `<div class="hm-tags">${tags.join('・')}</div>` : '';
+    }
+
     function renderHitRecords() {
         const list = buildFilteredHits(hitListKind);
         const hamari = currentHamari(hitListKind);
@@ -1507,6 +1598,7 @@
                 <div class="hm-bar-wrap hm-edit" onclick="editHitG(${h.idx})">${hitMeterHtml(isBlank ? null : h.g)}</div>
                 <div class="hm-g hm-edit" onclick="editHitG(${h.idx})" style="cursor:pointer;">${gTxt}</div>
                 <div class="hm-kind ${kc}">${kl}</div>
+                ${hitTagsHtml(getData().hits[h.idx])}
             </div>`;
         });
         html += '</div>';
@@ -1806,6 +1898,8 @@
             machines.forEach(m => {
                 const md = d[m];
                 if (!Array.isArray(md.hits)) md.hits = [];
+                md.hits = md.hits.filter(h => h && typeof h === 'object');
+                md.hits.forEach(normalizeHitInfo);
                 if (md._lastHitTotal !== undefined) delete md._lastHitTotal; // 旧方式の残骸
                 // 後から追加されたキー(suikaR 等)を初期値で補完。既存値は保持する
                 md.start = Object.assign({}, SINGLE_DEFAULT.start, md.start);
@@ -2363,7 +2457,7 @@
                         // pre = 押す前のハマり。この当選を消したときにここへ戻す（removeLatestHit）。
                         // G数を記録の合計より小さく手入力していた場合はマイナスになる（消した時に手入力の値へ戻すため）
                         const played = Math.max(0, (Number(dd.cur.g) || 0) - (Number(dd.start.g) || 0));
-                        dd.hits.unshift({ g: null, k: el.dataset.id, pre: played - hitsTotal() });
+                        dd.hits.unshift({ g: null, k: el.dataset.id, pre: played - hitsTotal(), trig: HIT_TRIGS[0].v, notice: HIT_NOTICES[0].v, extras: [] });
                         save(true);
                         // 作成した記録（先頭）のG数を入力するモードで開く
                         openHitInput(el.dataset.id);
