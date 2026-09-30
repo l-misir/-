@@ -20,11 +20,10 @@ test('「全て」表示は廃止: 設定に切替が無く、古い保存デー
   assert.doesNotMatch(app.document.getElementById('title-predict').textContent, /全て/);
 });
 
-test('打ち始めの操作: 初期値は「できない」。メイン画面の＜打ち始め＞はタップしても変わらない', async () => {
+test('打ち始め: 初期値はロック（旧「打ち始めの操作: できない」）。メイン画面の＜打ち始め＞はタップしても変わらない', async () => {
   const app = loadApp();
   app.selectMachine('newking');
-  assert.equal(app.ev('data.startTap'), false);
-  assert.ok(app.document.getElementById('btn-starttap-off').classList.contains('active-mode'));
+  assert.equal(app.ev('data.countLock["start-g"]'), true);
   assert.equal(app.document.querySelector('#main-ui [data-start="g"].t-btn'), null, 'タップできるセルになっていない');
   assert.ok(!settingsIds(app).includes('start-g'), '設定画面の打ち始めの入力欄は削除');
 });
@@ -33,7 +32,7 @@ test('打ち始めの操作: 「できる」ならタップで打ち始めが変
   const app = loadApp();
   app.selectMachine('newking');
   app.ev(`const d = getData(); d.start = { g: 1000, b: 5, r: 3 }; d.cur.g = 1300; d.cur.b = 7; d.cur.r = 4; renderMain();`);
-  app.window.setStartTap(true);
+  ['start-g', 'start-b', 'start-r'].forEach((k) => app.window.toggleCountLock(k)); // 打ち始めのロックを外す（旧「打ち始めの操作: できる」）
   await app.tap('#main-ui [data-start="g"]'); // +50
   assert.equal(app.ev('getData().start.g'), 1050);
   assert.equal(app.ev('getData().cur.g'), 1350);
@@ -57,7 +56,7 @@ test('打ち始めの操作: 入力モードでも「できる」なら入力で
   const app = loadApp();
   app.selectMachine('newking');
   app.ev(`const d = getData(); d.start = { g: 1000, b: 5, r: 3 }; d.cur.g = 1300; d.cur.b = 7; d.cur.r = 4;`);
-  app.window.setStartTap(true);
+  ['start-g', 'start-b', 'start-r'].forEach((k) => app.window.toggleCountLock(k)); // 打ち始めのロックを外す（旧「打ち始めの操作: できる」）
   app.window.setInputMode('input');
   const input = app.document.querySelector('#main-ui [data-start="g"] input');
   input.value = '900';
@@ -97,25 +96,13 @@ test('機種名: 長押しでまとめて加算。タップでは何もしない
   assert.equal(app.ev('dummyMode'), false, '長押しでダミー表示にはならない');
 });
 
-test('設定画面: 1行に設定2つ（入力モード・数値表示・振動・ベルのタップ・打ち始めの操作）', () => {
-  const app = loadApp();
-  const pairs = [...app.document.querySelectorAll('#setting-modal .setting-pair')];
-  assert.ok(pairs.length >= 3, '2つずつ並べた行がある');
-  const inRow = (id) => pairs.findIndex((p) => p.querySelector(`#${id}`));
-  assert.equal(inRow('btn-mode-tap'), inRow('btn-dummy-real'), '入力モードと数値表示が同じ行');
-  assert.equal(inRow('btn-haptic-on'), inRow('btn-belltap-on'), '振動とベルのタップが同じ行');
-  assert.ok(inRow('btn-starttap-on') >= 0);
-  assert.match(app.document.getElementById('setting-modal').textContent, /＜数値表示＞/);
-  assert.doesNotMatch(app.document.getElementById('setting-modal').textContent, /起動時の数値表示/);
-});
+// 設定画面の並び（2026-10）は tests/countlock.test.js
 
-test('設定の表記: 数値表示＝デフォルト／ダミー、ベルのタップ＝ON／OFF、打ち始めの操作＝ON／OFF', () => {
+test('設定の表記: 数値表示＝デフォルト／ダミー', () => {
   const app = loadApp();
   const text = (id) => app.document.getElementById(id).textContent.trim();
   assert.equal(text('btn-dummy-real'), 'デフォルト');
   assert.equal(text('btn-dummy-hide'), 'ダミー');
-  assert.equal(text('btn-belltap-on'), 'ON');
-  assert.equal(text('btn-belltap-off'), 'OFF');
-  assert.equal(text('btn-starttap-on'), 'ON');
-  assert.equal(text('btn-starttap-off'), 'OFF');
+  assert.match(app.document.getElementById('setting-modal').textContent, /＜数値表示＞/);
+  assert.doesNotMatch(app.document.getElementById('setting-modal').textContent, /起動時の数値表示/);
 });

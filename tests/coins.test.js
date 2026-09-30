@@ -113,15 +113,15 @@ test('詳細を記録していなければ、今までと同じ（行も増え�
   assert.match(expectText(app), /総回転数 1080 G/);
 });
 
-test('設定「1枚掛けの計算」: 予測値／実測値。初期値は予測値。打ち始めの操作と同じ行', () => {
+test('設定「1枚掛けの計算」: 予測値／実測値。初期値は予測値。数値表示と同じ行', () => {
   const app = loadApp();
   assert.equal(app.ev('data.oneBet'), 'predict');
   assert.ok(app.document.getElementById('btn-onebet-predict').classList.contains('active-mode'));
   app.window.setOneBet('actual');
   assert.equal(app.ev('data.oneBet'), 'actual');
   assert.ok(app.document.getElementById('btn-onebet-actual').classList.contains('active-mode'));
-  const pair = app.document.getElementById('btn-starttap-on').closest('.setting-pair');
-  assert.ok(pair.querySelector('#btn-onebet-predict'), '打ち始めの操作と同じ行');
+  const pair = app.document.getElementById('btn-dummy-real').closest('.setting-pair');
+  assert.ok(pair.querySelector('#btn-onebet-predict'), '数値表示と同じ行');
   const bad = loadApp({ storage: { oneBet: 'xxx' } });
   assert.equal(bad.ev('data.oneBet'), 'predict');
 });

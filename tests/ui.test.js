@@ -17,53 +17,22 @@ test('数値表示: 設定が「隠す」なら起動直後からダミー表示
 
   const old = loadApp({ storage: { machine: 'newking' } }); // 設定追加前の保存データ
   assert.equal(old.ev('dummyMode'), false);
-  assert.equal(old.ev('data.haptic'), true, '振動の初期値は ON');
 });
 
-test('振動(iPhone): ON なら各セルにスイッチ用の透明ラベルをかぶせ、OFF なら外す', () => {
+// 振動は 2026-10 から設定なしで常に ON（tests/countlock.test.js）
+
+test('ベルのロック（旧「ベルのタップ無効」。2026-10 からカウントロック）: ベルのセルをタップしても増減しない', async () => {
   const app = loadApp();
   app.selectMachine('newking');
-  const cells = () => [...app.document.querySelectorAll('#main-ui .t-btn, #main-ui .t-lamp')];
-  const withSwitch = () => cells().filter((c) => c.querySelector('label.haptic-tap > input[type="checkbox"][switch]'));
-  assert.ok(cells().length > 20);
-  assert.equal(withSwitch().length, cells().length, 'ON: 全セルに付く');
-
-  app.window.setHaptic(false);
-  assert.equal(withSwitch().length, 0, 'OFF: 付かない');
-  app.window.setHaptic(true);
-  assert.equal(withSwitch().length, cells().length);
-});
-
-test('振動: ON ならセルのタップで振動、OFF なら振動しない（vibrate 対応端末）', async () => {
-  const app = loadApp();
-  app.selectMachine('newking');
-  let calls = 0;
-  app.window.navigator.vibrate = () => { calls++; return true; };
-
-  await app.tap('[data-id="bell"]');
-  await app.tap('.t-lamp[data-type="big"][data-idx="0"]');
-  assert.equal(calls, 2);
-  assert.equal(app.ev('getData().cur.bell'), 1);
-
-  app.window.setHaptic(false);
-  await app.tap('[data-id="bell"]');
-  assert.equal(calls, 2, 'OFF では振動しない');
-  assert.equal(app.ev('getData().cur.bell'), 2);
-});
-
-test('ベルのタップ無効: 設定で「数えない」にすると、ベルのセルをタップしても増減しない', async () => {
-  const app = loadApp();
-  app.selectMachine('newking');
-  assert.equal(app.ev('data.bellTap'), true, '初期値は数える');
+  assert.equal(app.ev('data.countLock.bell'), undefined, '初期値はロックしない');
   await app.tap('[data-id="bell"]');
   assert.equal(app.ev('getData().cur.bell'), 1);
 
-  app.window.setBellTap(false);
-  assert.ok(app.document.getElementById('btn-belltap-off').classList.contains('active-mode'));
+  app.window.toggleCountLock('bell');
   const cell = app.document.querySelector('#main-ui [data-id="bell"]');
   assert.ok(!cell.classList.contains('t-btn'), 'タップ処理を付けない');
   assert.ok(!cell.querySelector('.haptic-tap'), '振動用ラベルも付けない');
-  assert.match(cell.textContent, /タップ無効/);
+  assert.ok(cell.classList.contains('locked'));
   assert.equal(cell.querySelector('.value').textContent, '1');
   // 他のセルは今までどおり
   await app.tap('[data-id="suika"]');
@@ -77,7 +46,7 @@ test('ベルのタップ無効: 設定で「数えない」にすると、ベル
   assert.equal(app.document.querySelector('#main-ui [data-id="bell"] .value').textContent, '6');
 });
 
-test('ベルのタップ無効でも、ショートカット送信の上書きと発光は効く', async () => {
+test('ベルのロック中でも（旧設定 bellTap:false の保存データ）、ショートカット送信の上書きと発光は効く', async () => {
   const app = loadApp({
     storage: { machine: 'newking', bellTap: false, newking: { cur: { bell: 50 } } },
     query: '?bell=135&t=20260927153012',

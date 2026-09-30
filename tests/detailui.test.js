@@ -204,10 +204,10 @@ test('入力モード: 詳細の欄も入力できる。スイカの取得は「
   assert.equal(det(app, 'btBell'), 4);
 });
 
-test('ベルのタップ OFF は詳細記録の画面でも効く', () => {
+test('ベルのロックは詳細記録の画面でも効く', () => {
   const app = setup('newking');
-  app.window.setBellTap(false);
-  assert.ok(app.document.querySelector('#main-ui [data-id="bell"]').classList.contains('bell-locked'));
+  app.window.toggleCountLock('bell');
+  assert.ok(app.document.querySelector('#main-ui [data-id="bell"]').classList.contains('locked'));
 });
 
 test('設定: 詳細記録 ON/OFF（初期値 OFF）。朝一ランプの設定は無い。左上の🔑で管理画面（スプレッドシート連携・操作ログ）', () => {
@@ -236,7 +236,7 @@ test('朝一: 打ち始めの操作で台の BIG が 0 になった場合も外�
   const app = morningSetup('king');
   await app.tap(bigLamp(0));
   assert.equal(app.ev('getData().morning'), 1);
-  app.window.setStartTap(true);
+  ['start-g', 'start-b', 'start-r'].forEach((k) => app.window.toggleCountLock(k)); // 打ち始めのロックを外す
   app.window.switchDetailScreen(); // 画面1
   await app.tap('#main-ui [data-start="b"]');             // 打ち始め 0→1、台の BIG 1→2
   await app.tap('#main-ui [data-id="b"]', { long: true }); // 台の BIG 2→1

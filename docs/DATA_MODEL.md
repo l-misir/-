@@ -12,11 +12,10 @@
   "mode": "tap",                 // 'tap' | 'input'（入力モード）
   // viewMode（個人/全て）は 2026-09-30 に廃止。古い保存データにあっても読み込み時に消す（常に個人）
   "dummyDefault": false,         // 数値表示 true=ダミー（変えたらすぐ反映・起動時もこれ）
-  "startTap": false,             // 打ち始めの操作 true=ON（メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる）
+  "countLock": { "start-g": true, "start-b": true, "start-r": true }, // カウントロック（2026-10）。true の項目はメイン画面のタップ・入力で変えない。キーは項目の名前（tapLogId: bell / start-g / nRep / take-suika / big0 など）。全機種共通。初期値は打ち始めの3つ。無い保存データは旧 startTap / bellTap から作る
   "detailMode": false,           // 詳細記録 ON/OFF（全機種共通。画面は段階5で追加。docs/DETAIL_MODE_PLAN.md）
   "oneBet": "predict",           // 1枚掛けの計算 "predict" 予測値（カウンターは3枚で1回転）/ "actual" 実測値（1枚掛けは数えられない）
-  "haptic": true,                // タップ時の振動
-  "bellTap": true,               // ベルのタップ false=OFF（ベルのセルをタップしても増減しない。送信・まとめて加算のみ）
+  // haptic（振動）・bellTap（ベルのタップ）・startTap（打ち始めの操作）は 2026-10 に廃止（読み込み時に消す）
   "lastBellSyncT": "20260927153012", // 最後に適用したショートカット送信の日時（これ以前の送信は無視）。未送信なら無し
   "gasUrl": "https://script.google.com/macros/s/.../exec",
   "gasToken": "hanahana2026",

@@ -109,6 +109,16 @@
         .cell.loss { background: #4a2a2a; }
         .cell.loss .label { color: #ff8a8a; }
         .morning-lamp { box-shadow: inset 0 0 0 2px #ffdd44; }
+        /* カウントロックした項目: 暗くして🔒（メイン画面では表示だけ） */
+        .cell.locked { background: #2a2a2a; position: relative; }
+        .cell.loss.locked { background: #2e2323; }
+        .cell.locked .label, .cell.locked .value { color: #777 !important; }
+        .cell.locked::after { content: '🔒'; position: absolute; top: 1px; right: 2px; font-size: 9px; line-height: 1; }
+        /* カウントロックの画面: 押すとロック／解除（数値は出さない） */
+        .lock-cell { cursor: pointer; min-height: 40px; }
+        .lock-cell .value { font-size: 13px; }
+        .lock-cell.locked::after { content: none; }
+        .lock-screen-title { text-align: center; font-size: 13px; font-weight: bold; margin: 10px 0 0; color: #fff; }
         /* 詳細記録 ON: 機種名の左右に ○ / ●（左＝画面1、右＝画面2、表示中が ●） */
         #disp-machine.with-dots { border-bottom: none; display: flex; align-items: center; gap: 8px; }
         #disp-machine .mname { border-bottom: 2px solid white; }
@@ -181,6 +191,7 @@
         .sub-graph-row.open { display: table-row; }
         .white-txt { color: #fff !important; font-weight: normal; }
         .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
+        .lock-btn { width: 100%; padding: 12px; background: #333; color: #fff; border: 1px solid #666; margin-top: 12px; font-weight: bold; }
         
         select { color: white; }
 
@@ -463,7 +474,8 @@
                 <option value="newking">ニューキングハナハナⅤ</option>
             </select>
         </div>
-        <!-- 設定は1行に2つ並べる（2026-09 コンパクト化）。「個人／全て」は廃止、打ち始めはメイン画面で操作 -->
+        <!-- 設定は1行に2つ（2026-10）: ＜入力モード＞＜詳細記録＞ / ＜数値表示＞＜1枚掛けの計算＞。
+             振動は設定なし（常に ON）、ベルのタップ・打ち始めの操作はカウントロックへ、要素調整は管理画面へ -->
         <div class="setting-pair">
             <div class="setting-item">
                 <p class="section-title">＜入力モード＞</p>
@@ -473,35 +485,19 @@
                 </div>
             </div>
             <div class="setting-item">
+                <p class="section-title">＜詳細記録＞</p>
+                <div class="grid grid-2">
+                    <div class="cell" id="btn-detail-on" onclick="setDetailMode(true)"><div class="label-large">ON</div></div>
+                    <div class="cell" id="btn-detail-off" onclick="setDetailMode(false)"><div class="label-large">OFF</div></div>
+                </div>
+            </div>
+        </div>
+        <div class="setting-pair">
+            <div class="setting-item">
                 <p class="section-title">＜数値表示＞</p>
                 <div class="grid grid-2">
                     <div class="cell" id="btn-dummy-real" onclick="setDummyDefault(false)"><div class="label-large">デフォルト</div></div>
                     <div class="cell" id="btn-dummy-hide" onclick="setDummyDefault(true)"><div class="label-large">ダミー</div></div>
-                </div>
-            </div>
-        </div>
-        <div class="setting-pair">
-            <div class="setting-item">
-                <p class="section-title">＜タップ時の振動＞</p>
-                <div class="grid grid-2">
-                    <div class="cell" id="btn-haptic-on" onclick="setHaptic(true)"><div class="label-large">ON</div></div>
-                    <div class="cell" id="btn-haptic-off" onclick="setHaptic(false)"><div class="label-large">OFF</div></div>
-                </div>
-            </div>
-            <div class="setting-item">
-                <p class="section-title">＜ベルのタップ＞</p>
-                <div class="grid grid-2">
-                    <div class="cell" id="btn-belltap-on" onclick="setBellTap(true)"><div class="label-large">ON</div></div>
-                    <div class="cell" id="btn-belltap-off" onclick="setBellTap(false)"><div class="label-large">OFF</div></div>
-                </div>
-            </div>
-        </div>
-        <div class="setting-pair">
-            <div class="setting-item">
-                <p class="section-title">＜打ち始めの操作＞</p>
-                <div class="grid grid-2">
-                    <div class="cell" id="btn-starttap-on" onclick="setStartTap(true)"><div class="label-large">ON</div></div>
-                    <div class="cell" id="btn-starttap-off" onclick="setStartTap(false)"><div class="label-large">OFF</div></div>
                 </div>
             </div>
             <div class="setting-item">
@@ -512,20 +508,8 @@
                 </div>
             </div>
         </div>
-        <div class="setting-pair">
-            <div class="setting-item">
-                <p class="section-title">＜詳細記録＞</p>
-                <div class="grid grid-2">
-                    <div class="cell" id="btn-detail-on" onclick="setDetailMode(true)"><div class="label-large">ON</div></div>
-                    <div class="cell" id="btn-detail-off" onclick="setDetailMode(false)"><div class="label-large">OFF</div></div>
-                </div>
-            </div>
-            <div class="setting-item"></div>
-        </div>
         <!-- 朝一ランプの設定は 2026-10 に削除（詳細記録の画面で、今日の最初の BIG の後に押したランプが朝一になる） -->
-        
-        <p class="section-title" style="margin-top:15px; color:white;">＜設定推測：要素調整＞</p>
-        <div class="grid grid-3" id="weight-settings"></div>
+        <button onclick="openModal('lock-modal')" class="lock-btn">カウントロック</button>
 
         <button onclick="exportData()" class="export-btn">データ保存・画像出力</button>
         <button onclick="resetAll()" style="width:100%; padding:15px; background:transparent; color:#f44; border:1px solid #f44; margin-top:20px; font-weight:bold;">リセット</button>
@@ -541,13 +525,30 @@
         <div class="header-icon" onclick="closeModal('admin-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="section-title" style="color:white;">＜スプレッドシート連携＞</p>
-        <input type="text" class="gas-input" id="gas-url" placeholder="GAS WebアプリのURLを貼り付け" onchange="saveGasConfig()" value="">
-        <input type="text" class="gas-input" id="gas-token" placeholder="トークン（初期値: hanahana2026）" onchange="saveGasConfig()" value="" style="margin-top:6px;">
-        <p class="gas-note">※ GASコードのTOKENと同じ文字列を入力</p>
+        <!-- 並び（2026-10）: 要素調整・操作ログ・スプレッドシート連携 -->
+        <p class="section-title" style="color:white;">＜設定推測：要素調整＞</p>
+        <div class="grid grid-3" id="weight-settings"></div>
 
         <p class="section-title" style="margin-top:20px;">＜操作ログ（調査用・直近20件）＞</p>
         <pre id="tap-log" class="tap-log">（まだありません）</pre>
+
+        <p class="section-title" style="margin-top:20px; color:white;">＜スプレッドシート連携＞</p>
+        <input type="text" class="gas-input" id="gas-url" placeholder="GAS WebアプリのURLを貼り付け" onchange="saveGasConfig()" value="">
+        <input type="text" class="gas-input" id="gas-token" placeholder="トークン（初期値: hanahana2026）" onchange="saveGasConfig()" value="" style="margin-top:6px;">
+        <p class="gas-note">※ GASコードのTOKENと同じ文字列を入力</p>
+    </div>
+</div>
+
+<!-- カウントロック（設定画面の「カウントロック」から開く）。設定画面より後ろに置く＝手前に重なる -->
+<div id="lock-modal" class="modal">
+    <div class="modal-header">
+        <div class="header-icon" style="visibility:hidden; pointer-events:none;">✕</div>
+        <div class="modal-title">カウントロック</div>
+        <div class="header-icon" onclick="closeModal('lock-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+        <p class="gas-note" style="text-align:center;">押すとロック／解除。ロックした項目はメイン画面で変えられません（まとめて加算・ショートカットのベル送信では変えられます）</p>
+        <div id="lock-body"></div>
     </div>
 </div>
 
@@ -764,9 +765,9 @@
     const DEFAULTS = {
         machine: 'houou', mode: 'tap',  // 「個人／全て」(viewMode) は 2026-09 に廃止（常に個人）
         dummyDefault: false, // 数値表示 true=隠す（ダミー表示。変えたらすぐ反映・起動時もこれ）
-        haptic: true,        // タップ時の振動
-        bellTap: true,       // false = ベルのセルをタップしても増減しない（ショートカット送信・まとめて加算だけで入れる）
-        startTap: false,     // true = メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる
+        // カウントロック（2026-10）: ロックした項目はメイン画面のタップ・入力で変えない。キーは tapLogId（bell / start-g / nRep / big0 など）。
+        // 旧設定「ベルのタップ」「打ち始めの操作」をまとめたもの。初期値は打ち始めの3つ（旧「打ち始めの操作」の初期値 OFF と同じ）。振動の設定は廃止（常に ON）
+        countLock: { 'start-g': true, 'start-b': true, 'start-r': true },
         detailMode: false,   // 詳細記録 ON/OFF（全機種共通。画面は段階5）
         oneBet: 'predict',   // 1枚掛けの計算: 'predict' 予測値（カウンターは3枚で1回転）/ 'actual' 実測値（1枚掛けは数えられない）
         weights: {
@@ -2045,9 +2046,14 @@
             if (d.mode !== 'tap' && d.mode !== 'input') d.mode = DEFAULTS.mode;
             delete d.viewMode; // 「全て」表示は廃止。古い保存データの viewMode:'total' も個人で計算する
             if (typeof d.dummyDefault !== 'boolean') d.dummyDefault = DEFAULTS.dummyDefault;
-            if (typeof d.haptic !== 'boolean') d.haptic = DEFAULTS.haptic;
-            if (typeof d.bellTap !== 'boolean') d.bellTap = DEFAULTS.bellTap;
-            if (typeof d.startTap !== 'boolean') d.startTap = DEFAULTS.startTap;
+            // カウントロックが無い保存データは、旧設定（ベルのタップ・打ち始めの操作）から作る
+            if (!d.countLock || typeof d.countLock !== 'object' || Array.isArray(d.countLock)) {
+                d.countLock = {};
+                if (d.startTap !== true) ['start-g', 'start-b', 'start-r'].forEach(k => { d.countLock[k] = true; });
+                if (d.bellTap === false) d.countLock.bell = true;
+            }
+            Object.keys(d.countLock).forEach(k => { if (d.countLock[k] !== true) delete d.countLock[k]; });
+            delete d.haptic; delete d.bellTap; delete d.startTap; // 振動（常に ON）・ベルのタップ・打ち始めの操作の設定は廃止
             if (typeof d.detailMode !== 'boolean') d.detailMode = DEFAULTS.detailMode;
             if (d.oneBet !== 'predict' && d.oneBet !== 'actual') d.oneBet = DEFAULTS.oneBet;
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
@@ -2235,7 +2241,13 @@
         dummySeed = Math.floor(Math.random() * 1000000);
         save(); // 描き直して表示を切り替える
     }
-    function setStartTap(v) { data.startTap = v; save(); } // ＜打ち始め＞のセルを操作 ON／OFF で描き直す
+    // カウントロックの ON/OFF（項目ごと。キーは tapLogId）。メイン画面とロックの画面を描き直す
+    function isLocked(key) { return !!(data.countLock && data.countLock[key]); }
+    function toggleCountLock(key) {
+        if (isLocked(key)) delete data.countLock[key]; else data.countLock[key] = true;
+        save();
+        renderLockScreen();
+    }
     function setOneBet(v) { if (v === 'predict' || v === 'actual') { data.oneBet = v; save(); } } // 1枚掛けの計算（描き直して再計算）
     // 詳細記録 ON/OFF（全機種共通）。ON のときメイン画面を詳細記録の2画面にする（画面1から）
     function setDetailMode(v) { data.detailMode = v === true; detailScreen = 1; save(); }
@@ -2245,21 +2257,19 @@
         detailScreen = (detailScreen === 1) ? 2 : 1;
         renderMain();
     }
-    function setHaptic(v) { data.haptic = v; save(); } // セルの振動用ラベルを付け外しするので描き直す
-    function setBellTap(v) { data.bellTap = v; save(); }
+
 
     // タップ時の振動（iPhone）。iOS Safari は navigator.vibrate 非対応なので、
     // iOS 18 以降の「スイッチ型チェックボックスを切り替えると触覚フィードバックが出る」挙動を利用する（非公式）。
     // プログラムからの label.click() は WebKit の修正で振動しなくなったため、各セルに透明な <label> をかぶせ、
     // 指のタップ（本物のユーザー操作）で直接スイッチを切り替える。
+    // 振動の設定は 2026-10 に廃止（常に ON）
     function hapticTapHtml() {
-        if (!data.haptic) return '';
         return '<label class="haptic-tap" aria-hidden="true"><input type="checkbox" switch tabindex="-1"></label>';
     }
 
     // タップ時の振動（navigator.vibrate がある端末＝Android など）
     function haptic() {
-        if (!data.haptic) return;
         try {
             if (typeof navigator.vibrate === 'function') navigator.vibrate(15);
         } catch (e) { /* 振動できない環境では何もしない */ }
@@ -2289,6 +2299,17 @@
 
     function renderMain() {
         _dIdx = 0; // ダミー用セル連番（詳細記録の画面も含めて描くたびに振り直す）
+        const html = data.detailMode ? detailScreenHtml() : normalScreenHtml();
+        _dIdx = 0;
+        document.getElementById('main-ui').innerHTML = html;
+        if(data.mode === 'tap') attachEvents();
+        markMorningLamp();
+        updateHeader();
+        setTimeout(calc, 0);
+    }
+
+    // 詳細記録 OFF のメイン画面（今までの画面）
+    function normalScreenHtml() {
         const d = getData();
         const c = d.cur; const s = d.start;
         const vG = c.g; const vB = c.b; const vR = c.r;
@@ -2298,9 +2319,7 @@
         
         let html = '';
 
-        if (data.detailMode) {
-            html = detailScreenHtml();
-        } else if (isNew) {
+        if (isNew) {
             html = `
             <div class="main-layout">
                 <div class="col-left">
@@ -2340,13 +2359,35 @@
                 </div>
             </div>`;
         }
+        return html;
+    }
 
-        _dIdx = 0;
-        document.getElementById('main-ui').innerHTML = html;
-        if(data.mode === 'tap') attachEvents();
-        markMorningLamp();
-        updateHeader();
-        setTimeout(calc, 0);
+    // ============================================================
+    // カウントロックの画面: 今のメイン画面と同じ並び（詳細記録 ON なら画面1・画面2 の全部）で、押すとロック／解除
+    // セルを作る関数（mkC / mkS / mkD / mkT / mkL）は lockEdit の間、ロックの切り替えボタンを返す
+    // ============================================================
+    let lockEdit = false;
+    function lockCellHtml(key, label, labelAttr = '', extraCls = '') {
+        const on = isLocked(key);
+        return `<div class="cell lock-cell${extraCls}${on ? ' locked' : ''}" data-lock="${key}" onclick="toggleCountLock('${key}')"><div class="label"${labelAttr}>${label}</div><div class="value">${on ? '🔒' : '―'}</div></div>`;
+    }
+    function renderLockScreen() {
+        const el = document.getElementById('lock-body');
+        if (!el) return;
+        lockEdit = true;
+        let html;
+        try {
+            if (data.detailMode) {
+                const keep = detailScreen;
+                detailScreen = 1; const s1 = detailScreenHtml();
+                detailScreen = 2; const s2 = detailScreenHtml();
+                detailScreen = keep;
+                html = `<p class="lock-screen-title">画面1</p>${s1}<p class="lock-screen-title">画面2</p>${s2}`;
+            } else {
+                html = normalScreenHtml();
+            }
+        } finally { lockEdit = false; }
+        el.innerHTML = html;
     }
 
     let _dIdx = 0; // ダミー用セル連番
@@ -2358,7 +2399,7 @@
         document.querySelectorAll('#main-ui .cell[data-start]').forEach(el => {
             el.querySelector('.value').textContent = d.start[el.dataset.start];
         });
-        document.querySelectorAll('#main-ui .cell.t-btn[data-id], #main-ui .cell.bell-locked').forEach(el => {
+        document.querySelectorAll('#main-ui .cell.t-btn[data-id], #main-ui .cell.locked[data-id]').forEach(el => {
             const id = el.dataset.id;
             el.querySelector('.value').textContent = dummyNum(d.cur[id], parseInt(el.dataset.didx) || 0, dummyKind(id));
         });
@@ -2435,6 +2476,8 @@
         const idx = _dIdx++;
         const dv = dummyNum(v, idx, 'one');
         const ls = labelStyle ? ` style="${labelStyle}"` : '';
+        if (lockEdit) return lockCellHtml(key, label, ls, loss);
+        if (isLocked(key)) return `<div class="cell${loss} locked" data-detail="${key}" data-didx="${idx}"><div class="label"${ls}>${label}</div><div class="value">${dv}</div></div>`;
         if (data.mode === 'input') {
             if (dummyMode) return `<div class="cell${loss}" data-detail="${key}"><div class="label"${ls}>${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
             return `<div class="cell${loss}" data-detail="${key}"><div class="label"${ls}>${label}</div><input type="number" class="val-input" value="${v}" onchange="setDetailFromInput('${key}', this)" onfocus="this.select()"></div>`;
@@ -2451,6 +2494,8 @@
         const idx = _dIdx++;
         const dv = dummyNum(v, idx, 'two');
         const attrs = `data-take="${curKey}" data-loss="${lossKey}"`;
+        if (lockEdit) return lockCellHtml(`take-${curKey}`, label);
+        if (isLocked(`take-${curKey}`)) return `<div class="cell locked" ${attrs} data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
         if (data.mode === 'input') {
             if (dummyMode) return `<div class="cell" ${attrs}><div class="label">${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
             return `<div class="cell" ${attrs}><div class="label">${label}</div><input type="number" class="val-input" value="${v}" onchange="setTakeFromInput('${curKey}', '${lossKey}', this)" onfocus="this.select()"></div>`;
@@ -2519,16 +2564,15 @@
     }
 
     function mkC(id, label, val, step=1) {
+        if (lockEdit) return lockCellHtml(id, label);
         const idx = _dIdx++;
         const dv = dummyNum(val, idx, dummyKind(id));
+        // カウントロック: 表示だけのセル（タップ処理・振動用ラベル・入力欄なし）。data-id は送信時のベルの発光用
+        if (isLocked(id)) return `<div class="cell locked" data-id="${id}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
         if(data.mode === 'input') {
             // data-id は送信時のベルの発光などでセルを特定するため（タップ処理は付けない）
             if (dummyMode) return `<div class="cell" data-id="${id}"><div class="label">${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
             return `<div class="cell" data-id="${id}"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="setCurFromInput('${id}', this)" onfocus="this.select()"></div>`;
-        }
-        // ベルのタップ無効: タップ処理も振動用ラベルも付けない表示だけのセル（data-id は送信時の発光用）
-        if (id === 'bell' && data.bellTap === false) {
-            return `<div class="cell bell-locked" data-id="${id}" data-didx="${idx}"><div class="label" style="color:#888;">タップ無効</div><div class="value">${dv}</div></div>`;
         }
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div>${hapticTapHtml()}</div>`;
     }
@@ -2536,8 +2580,10 @@
     // ＜打ち始め＞のセル。「打ち始めの操作」が ON なら＜現在＞と同じ操作（タップ +1・長押し −1。G は ±50。入力モードは入力）。
     // 変えると現在も同じだけずれる（shiftStart）。g/b/r はダミー表示でも本当の数値なのでダミー用の連番は使わない
     function mkS(key, label, val, step=1) {
-        if (!data.startTap || (data.mode === 'input' && dummyMode)) {
-            return `<div class="cell" data-start="${key}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+        if (lockEdit) return lockCellHtml(`start-${key}`, label);
+        const locked = isLocked(`start-${key}`); // 初期値はロック（旧「打ち始めの操作: できない」）
+        if (locked || (data.mode === 'input' && dummyMode)) {
+            return `<div class="cell${locked ? ' locked' : ''}" data-start="${key}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
         }
         if (data.mode === 'input') {
             return `<div class="cell" data-start="${key}"><div class="label">${label}</div><input type="number" class="val-input" value="${val}" onchange="setStartFromInput('${key}', this)" onfocus="this.select()"></div>`;
@@ -2577,8 +2623,11 @@
             const v = d.lamps[type][i];
             const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
+            if (lockEdit) return lockCellHtml(`${type}${i}`, l, ` ${cls}`);
             const didx = _dIdx++;
             const dv = dummyNum(v, didx, 'one');
+            // カウントロック: 表示だけ（data-type / data-idx は朝一の枠用）
+            if (isLocked(`${type}${i}`)) return `<div class="cell locked" data-type="${type}" data-idx="${i}" data-didx="${didx}"><div class="label" ${cls}>${l}</div><div class="value">${dv}</div></div>`;
             if(data.mode === 'input') {
                 // data-type / data-idx は朝一の枠を付けるため（タップ処理は付けない）
                 if (dummyMode) return `<div class="cell" data-type="${type}" data-idx="${i}"><div class="label" ${cls}>${l}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
@@ -2604,12 +2653,6 @@
         document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
         document.getElementById('btn-dummy-real').className = `cell ${!data.dummyDefault?'active-mode':''}`;
         document.getElementById('btn-dummy-hide').className = `cell ${data.dummyDefault?'active-mode':''}`;
-        document.getElementById('btn-haptic-on').className = `cell ${data.haptic?'active-mode':''}`;
-        document.getElementById('btn-haptic-off').className = `cell ${!data.haptic?'active-mode':''}`;
-        document.getElementById('btn-belltap-on').className = `cell ${data.bellTap!==false?'active-mode':''}`;
-        document.getElementById('btn-belltap-off').className = `cell ${data.bellTap===false?'active-mode':''}`;
-        document.getElementById('btn-starttap-on').className = `cell ${data.startTap?'active-mode':''}`;
-        document.getElementById('btn-starttap-off').className = `cell ${!data.startTap?'active-mode':''}`;
         document.getElementById('btn-onebet-predict').className = `cell ${data.oneBet!=='actual'?'active-mode':''}`;
         document.getElementById('btn-onebet-actual').className = `cell ${data.oneBet==='actual'?'active-mode':''}`;
         document.getElementById('btn-detail-on').className = `cell ${data.detailMode?'active-mode':''}`;
@@ -3942,6 +3985,7 @@
         document.getElementById(id).classList.add('active');
         if (id === 'predict-modal') calc();
         if (id === 'admin-modal') renderTapLog();
+        if (id === 'lock-modal') renderLockScreen();
     }
     function closeModal(id) {
         document.getElementById(id).classList.remove('active');
