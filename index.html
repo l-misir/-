@@ -98,6 +98,12 @@
         .touch-active { background: #55aaff !important; }
         .minus-mode { background: #900 !important; }
         .selected-lamp { box-shadow: inset 0 0 0 2px #fff; background: #666; }
+        /* 押したボタンの下に出す増減（+1 / -1）。指でセルが隠れても結果が分かるように。メイン画面の外の層に出すので描き直しで消えない */
+        #tap-delta-layer { position: fixed; inset: 0; pointer-events: none; z-index: 90; }
+        .tap-delta { position: absolute; transform: translateX(-50%); font-size: 11px; font-weight: bold; line-height: 1; padding: 1px 5px; border-radius: 6px; background: rgba(0,0,0,0.8); white-space: nowrap; }
+        .tap-delta.plus { color: #6cf; }
+        .tap-delta.minus { color: #ff6b6b; }
+        .tap-delta.zero { color: #ddd; }
         .active-mode { background: var(--active-btn) !important; color: white; }
         
         /* 入力フォーム関連のスタイル */
@@ -429,6 +435,7 @@
 <div class="container">
     <div id="main-ui"></div>
 </div>
+<div id="tap-delta-layer"></div>
 
 <div id="setting-modal" class="modal">
     <div class="modal-header">
@@ -2422,6 +2429,37 @@
         document.getElementById('btn-onebet-actual').className = `cell ${data.oneBet==='actual'?'active-mode':''}`;
     }
 
+    // 押したボタンの下に増減を出す（一定時間で消える）。消える前に同じボタンを操作したら合計を出し直して時間をリセット
+    // （例: 2回タップで +2、タップ→長押しで ±0）。値は実際の増減（G数は +50、下限で変わらなければ ±0）
+    let tapDeltaMs = 1500; // 消えるまでの時間
+    const tapDeltas = {};   // ボタン（tapLogId）ごとの { sum, timer, el }
+    function showTapDelta(cell, delta) {
+        const key = tapLogId(cell);
+        const layer = document.getElementById('tap-delta-layer');
+        if (!layer) return;
+        let t = tapDeltas[key];
+        if (!t) {
+            const el = document.createElement('div');
+            el.className = 'tap-delta';
+            el.dataset.key = key;
+            layer.appendChild(el);
+            t = tapDeltas[key] = { sum: 0, timer: null, el };
+        }
+        t.sum += delta;
+        t.el.textContent = t.sum > 0 ? `+${t.sum}` : (t.sum < 0 ? `${t.sum}` : '±0');
+        t.el.className = 'tap-delta ' + (t.sum > 0 ? 'plus' : (t.sum < 0 ? 'minus' : 'zero'));
+        const r = cell.getBoundingClientRect();
+        t.el.style.left = (r.left + r.width / 2) + 'px'; // ボタンの真下（下の隙間）
+        t.el.style.top = r.bottom + 'px';
+        clearTimeout(t.timer);
+        t.timer = setTimeout(() => { t.el.remove(); delete tapDeltas[key]; }, tapDeltaMs);
+    }
+    // 画面の向きが変わると位置がずれるので、出ている表示は消す
+    function clearTapDeltas() {
+        Object.keys(tapDeltas).forEach(k => { clearTimeout(tapDeltas[k].timer); tapDeltas[k].el.remove(); delete tapDeltas[k]; });
+    }
+    window.addEventListener('resize', clearTapDeltas);
+
     // タップの記録に残すセルの名前（bell / regS0 / 打ち始めは start-g など）
     function tapLogId(el) {
         if (el.dataset.id) return el.dataset.id;
@@ -2521,6 +2559,7 @@
                 // タップの記録には実際の増減を残す（G数は +50、下限で変わらなければ「変化なし」）
                 if (log) log.result = (_changed ? (_delta > 0 ? '+' : '') + _delta : (isMinus ? '変化なし(長押し・下限)' : '変化なし')) + note;
                 renderTapLog();
+                showTapDelta(el, _delta); // ボタンの下に増減を出す（指で隠れても分かるように）
                 
                 if (el.dataset.start) {
                     refreshMainValues(); // 打ち始めと一緒にずれた＜現在＞も書き換える
