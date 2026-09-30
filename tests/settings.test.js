@@ -108,3 +108,14 @@ test('設定画面: 1行に設定2つ（入力モード・数値表示・振動�
   assert.match(app.document.getElementById('setting-modal').textContent, /＜数値表示＞/);
   assert.doesNotMatch(app.document.getElementById('setting-modal').textContent, /起動時の数値表示/);
 });
+
+test('設定の表記: 数値表示＝デフォルト／ダミー、ベルのタップ＝ON／OFF、打ち始めの操作＝ON／OFF', () => {
+  const app = loadApp();
+  const text = (id) => app.document.getElementById(id).textContent.trim();
+  assert.equal(text('btn-dummy-real'), 'デフォルト');
+  assert.equal(text('btn-dummy-hide'), 'ダミー');
+  assert.equal(text('btn-belltap-on'), 'ON');
+  assert.equal(text('btn-belltap-off'), 'OFF');
+  assert.equal(text('btn-starttap-on'), 'ON');
+  assert.equal(text('btn-starttap-off'), 'OFF');
+});

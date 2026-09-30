@@ -445,8 +445,8 @@
             <div class="setting-item">
                 <p class="section-title">＜数値表示＞</p>
                 <div class="grid grid-2">
-                    <div class="cell" id="btn-dummy-real" onclick="setDummyDefault(false)"><div class="label-large">本当の数値</div></div>
-                    <div class="cell" id="btn-dummy-hide" onclick="setDummyDefault(true)"><div class="label-large">隠す</div></div>
+                    <div class="cell" id="btn-dummy-real" onclick="setDummyDefault(false)"><div class="label-large">デフォルト</div></div>
+                    <div class="cell" id="btn-dummy-hide" onclick="setDummyDefault(true)"><div class="label-large">ダミー</div></div>
                 </div>
             </div>
         </div>
@@ -461,8 +461,8 @@
             <div class="setting-item">
                 <p class="section-title">＜ベルのタップ＞</p>
                 <div class="grid grid-2">
-                    <div class="cell" id="btn-belltap-on" onclick="setBellTap(true)"><div class="label-large">数える</div></div>
-                    <div class="cell" id="btn-belltap-off" onclick="setBellTap(false)"><div class="label-large">数えない</div><div class="label" style="margin-top:1px;">送信・まとめて加算のみ</div></div>
+                    <div class="cell" id="btn-belltap-on" onclick="setBellTap(true)"><div class="label-large">ON</div></div>
+                    <div class="cell" id="btn-belltap-off" onclick="setBellTap(false)"><div class="label-large">OFF</div></div>
                 </div>
             </div>
         </div>
@@ -470,8 +470,8 @@
             <div class="setting-item">
                 <p class="section-title">＜打ち始めの操作＞</p>
                 <div class="grid grid-2">
-                    <div class="cell" id="btn-starttap-on" onclick="setStartTap(true)"><div class="label-large">できる</div></div>
-                    <div class="cell" id="btn-starttap-off" onclick="setStartTap(false)"><div class="label-large">できない</div></div>
+                    <div class="cell" id="btn-starttap-on" onclick="setStartTap(true)"><div class="label-large">ON</div></div>
+                    <div class="cell" id="btn-starttap-off" onclick="setStartTap(false)"><div class="label-large">OFF</div></div>
                 </div>
             </div>
             <div class="setting-item"></div>
@@ -603,13 +603,87 @@
 <script>
     document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
 
+    // ============================================================
+    // 詳細小役記録（docs/DETAIL_MODE_PLAN.md）。段階2ではデータの持ち方だけ（計算は段階4、画面は段階5）
+    // 今の項目（cur.bell / cur.suika / cur.suikaR / lamps の各色）を合計として正にし、
+    // 詳細にしか無い値（新しい小役・欠損・中段チェリー・筐体ランプの白(不明)）だけを機種データの detail に持つ。
+    // of = その欠損が含まれている今の合計（cur のキー）。取得 = 合計 − 欠損。欠損は合計を超えない（clampDetailLoss）
+    // 1回の成立は1つの欄にだけ数える（例: 通常時チェリーは nChe（4枚）/ nCheM（中段・2枚）/ lnChe（欠損・0枚）のどれか1つ）
+    // ============================================================
+    const DETAIL_ITEMS = {
+        newking: [
+            { k:'nRep',    g:'通常時',   label:'リプレイ' },
+            { k:'nChe',    g:'通常時',   label:'チェリー' },
+            { k:'nSui',    g:'通常時',   label:'スイカ' },
+            { k:'bChe',    g:'ボーナス', label:'BIG(前半)チェリー' },
+            { k:'rChe',    g:'ボーナス', label:'REGチェリー' },
+            { k:'btRep',   g:'ボーナス', label:'BT中リプレイ' },
+            { k:'btBell',  g:'ボーナス', label:'BT中ベル' },
+            { k:'lnChe',   g:'欠損',     label:'通常時チェリー' },
+            { k:'nCheM',   g:'欠損',     label:'通常時中段チェリー' },
+            { k:'lnSui',   g:'欠損',     label:'通常時スイカ' },
+            { k:'lAlign',  g:'欠損',     label:'通常時ボーナス揃えミス' },
+            { k:'lbChe',   g:'欠損',     label:'BIG前半チェリー' },
+            { k:'lbSui',   g:'欠損',     label:'BIG前半スイカ', of:'suika' },
+            { k:'lblSui',  g:'欠損',     label:'BIG後半スイカ' },
+            { k:'lblBell', g:'欠損',     label:'BIG後半ベル' },
+            { k:'lrChe',   g:'欠損',     label:'REGチェリー' },
+            { k:'lrSui',   g:'欠損',     label:'REGスイカ', of:'suikaR' },
+            { k:'wBig',    g:'BIG筐体ランプ', label:'白(不明)' },
+            { k:'wReg',    g:'REG筐体ランプ', label:'白(不明)' }
+        ],
+        other: [
+            { k:'nRep',   g:'通常時',   label:'リプレイ' },
+            { k:'nChe',   g:'通常時',   label:'チェリー' },
+            { k:'nSui',   g:'通常時',   label:'スイカ' },
+            { k:'oRep',   g:'1枚掛け',  label:'リプレイ' },
+            { k:'oBell',  g:'1枚掛け',  label:'ベル' },
+            { k:'oChe',   g:'1枚掛け',  label:'チェリー' },
+            { k:'oSui',   g:'1枚掛け',  label:'スイカ' },
+            { k:'bChe',   g:'ボーナス', label:'BIGチェリー' },
+            { k:'bMiss',  g:'ボーナス', label:'BIG純ハズレ' },
+            { k:'rMiss',  g:'ボーナス', label:'REG純ハズレ' },
+            { k:'lnChe',  g:'欠損',     label:'通常時チェリー' },
+            { k:'nCheM',  g:'欠損',     label:'通常時中段チェリー' },
+            { k:'lnSui',  g:'欠損',     label:'通常時スイカ' },
+            { k:'lAlign', g:'欠損',     label:'ボーナス揃えミス' },
+            { k:'lbChe',  g:'欠損',     label:'BIGチェリー' },
+            { k:'lbSui',  g:'欠損',     label:'BIGスイカ', of:'suika' },
+            { k:'lrSui',  g:'欠損',     label:'REGスイカ' },
+            { k:'wBig',   g:'BIG筐体ランプ', label:'白(不明)' },
+            { k:'wReg',   g:'REG筐体ランプ', label:'白(不明)' }
+        ]
+    };
+    function detailItems(m) { return m === 'newking' ? DETAIL_ITEMS.newking : DETAIL_ITEMS.other; }
+    // 全機種の項目をまとめた初期値（機種データの形を揃えるため、その機種で使わない項目も 0 で持つ）
+    const DETAIL_DEFAULT = {};
+    [...DETAIL_ITEMS.newking, ...DETAIL_ITEMS.other].forEach(x => { DETAIL_DEFAULT[x.k] = 0; });
+
+    // 欠損は、含まれている今の合計を超えない。今の画面（詳細 OFF・入力モード）で合計を減らして欠損を下回ったら、欠損も一緒に減らす
+    function clampDetailLoss(md, m) {
+        if (!md || !md.detail || !md.cur) return;
+        detailItems(m).forEach(x => {
+            if (x.of) md.detail[x.k] = Math.min(md.detail[x.k], Math.max(0, Number(md.cur[x.of]) || 0));
+        });
+    }
+    // 読み込み時: 足りない項目は 0 で補い、0 以上の整数にそろえる（古い保存データ・壊れた値）
+    function normalizeDetail(md, m) {
+        if (!md.detail || typeof md.detail !== 'object' || Array.isArray(md.detail)) md.detail = {};
+        Object.keys(DETAIL_DEFAULT).forEach(k => {
+            const v = Math.floor(Number(md.detail[k]));
+            md.detail[k] = (Number.isFinite(v) && v > 0) ? v : 0;
+        });
+        clampDetailLoss(md, m);
+    }
+
     const SINGLE_DEFAULT = {
         start: { g:0, b:0, r:0 },
         cur: { g:0, b:0, r:0, bell:0, suika:0, suikaR:0, retro_d:0, retro:0 },
         lamps: { big: [0,0,0,0,0], regS: [0,0,0,0,0], regT: [0,0,0,0,0] },
         morning: -1,
         hits: [],  // 大当たり回転数の記録 [{g:回転数, k:'b'|'r', pre}] 先頭が最新
-        retroAuto: 0 // hits から自動で数えたレトロ条件達成の数（前回値。差分だけ cur.retro_d に反映する）
+        retroAuto: 0, // hits から自動で数えたレトロ条件達成の数（前回値。差分だけ cur.retro_d に反映する）
+        detail: Object.assign({}, DETAIL_DEFAULT) // 詳細小役記録の値（DETAIL_ITEMS。詳細記録 OFF の間も持つ）
     };
 
     const DEFAULTS = {
@@ -618,6 +692,7 @@
         haptic: true,        // タップ時の振動
         bellTap: true,       // false = ベルのセルをタップしても増減しない（ショートカット送信・まとめて加算だけで入れる）
         startTap: false,     // true = メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる
+        detailMode: false,   // 詳細記録 ON/OFF（全機種共通。画面は段階5）
         weights: {
             houou: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
             king: { b: 40, r: 40, gas: 40, bell: 50, sui: 20, sl: 75, morn: 5, bl: 20, rl: 100, ret: 5 },
@@ -1741,6 +1816,7 @@
                     md.lamps[t] = SINGLE_DEFAULT.lamps[t].map((z, i) => (arr[i] === undefined ? z : arr[i]));
                 });
                 if (typeof md.morning !== 'number') md.morning = -1;
+                normalizeDetail(md, m);
                 // 自動加算の導入前のデータは、今の当選履歴から数えた値を基準にする（読み込んだだけでは retro_d を変えない）
                 if (typeof md.retroAuto !== 'number') md.retroAuto = retroAutoCount(md.hits);
             });
@@ -1750,6 +1826,7 @@
             if (typeof d.haptic !== 'boolean') d.haptic = DEFAULTS.haptic;
             if (typeof d.bellTap !== 'boolean') d.bellTap = DEFAULTS.bellTap;
             if (typeof d.startTap !== 'boolean') d.startTap = DEFAULTS.startTap;
+            if (typeof d.detailMode !== 'boolean') d.detailMode = DEFAULTS.detailMode;
             if (!d.machine || !machines.includes(d.machine)) d.machine = 'houou';
             if (!d.gasUrl) d.gasUrl = '';
             if (!d.gasToken) d.gasToken = 'hanahana2026';
@@ -1764,6 +1841,7 @@
         // 古いタブからは保存しない（新しいタブのデータを上書きしないため）
         if (!isActiveTab()) { if (tabReady) markTabStale(); return false; }
         let ok = true;
+        Object.keys(ALL_PARAMS).forEach(m => clampDetailLoss(data[m], m)); // 合計を減らしたら欠損も（詳細記録）
         try {
             localStorage.setItem('hana_v20_data', JSON.stringify(data));
         } catch (e) {
@@ -1946,14 +2024,14 @@
     }
 
     function setInputMode(m) { data.mode = m; save(); updateHeader(); }
-    // 数値表示（本当の数値／隠す）。設定どおり常に表示する（2026-09 に「起動時だけ」から変更。機種名長押しの切替は廃止）
+    // 数値表示（デフォルト／ダミー）。設定どおり常に表示する（2026-09 に「起動時だけ」から変更。機種名長押しの切替は廃止）
     function setDummyDefault(v) {
         data.dummyDefault = v;
         dummyMode = v;
         dummySeed = Math.floor(Math.random() * 1000000);
         save(); // 描き直して表示を切り替える
     }
-    function setStartTap(v) { data.startTap = v; save(); } // ＜打ち始め＞のセルを操作できる／できないで描き直す
+    function setStartTap(v) { data.startTap = v; save(); } // ＜打ち始め＞のセルを操作 ON／OFF で描き直す
     function setHaptic(v) { data.haptic = v; save(); } // セルの振動用ラベルを付け外しするので描き直す
     function setBellTap(v) { data.bellTap = v; save(); }
 
@@ -2087,7 +2165,7 @@
         return `<div class="cell t-btn" data-id="${id}" data-step="${step}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div>${hapticTapHtml()}</div>`;
     }
 
-    // ＜打ち始め＞のセル。「打ち始めの操作: できる」なら＜現在＞と同じ操作（タップ +1・長押し −1。G は ±50。入力モードは入力）。
+    // ＜打ち始め＞のセル。「打ち始めの操作」が ON なら＜現在＞と同じ操作（タップ +1・長押し −1。G は ±50。入力モードは入力）。
     // 変えると現在も同じだけずれる（shiftStart）。g/b/r はダミー表示でも本当の数値なのでダミー用の連番は使わない
     function mkS(key, label, val, step=1) {
         if (!data.startTap || (data.mode === 'input' && dummyMode)) {

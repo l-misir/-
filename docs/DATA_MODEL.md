@@ -11,10 +11,11 @@
   "machine": "newking",          // 選択中の機種 ID
   "mode": "tap",                 // 'tap' | 'input'（入力モード）
   // viewMode（個人/全て）は 2026-09-30 に廃止。古い保存データにあっても読み込み時に消す（常に個人）
-  "dummyDefault": false,         // 数値表示 true=隠す（ダミー表示。変えたらすぐ反映・起動時もこれ）
-  "startTap": false,             // 打ち始めの操作 true=メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる
+  "dummyDefault": false,         // 数値表示 true=ダミー（変えたらすぐ反映・起動時もこれ）
+  "startTap": false,             // 打ち始めの操作 true=ON（メイン画面の＜打ち始め＞を＜現在＞と同じ操作で変えられる）
+  "detailMode": false,           // 詳細記録 ON/OFF（全機種共通。画面は段階5で追加。docs/DETAIL_MODE_PLAN.md）
   "haptic": true,                // タップ時の振動
-  "bellTap": true,               // false = ベルのセルをタップしても増減しない（送信・まとめて加算のみ）
+  "bellTap": true,               // ベルのタップ false=OFF（ベルのセルをタップしても増減しない。送信・まとめて加算のみ）
   "lastBellSyncT": "20260927153012", // 最後に適用したショートカット送信の日時（これ以前の送信は無視）。未送信なら無し
   "gasUrl": "https://script.google.com/macros/s/.../exec",
   "gasToken": "hanahana2026",
@@ -44,9 +45,30 @@
     ],
     "retroAuto": 1           // hits から自動で数えたレトロ条件達成の数（前回値）。hits が変わるたびに差分だけ cur.retro_d に足す。
                              // 無い旧データは読込時に今の hits から数えた値を入れる（SPEC.md「レトロ条件達成の自動加算」）
+    "detail": { "nRep":0, "lbSui":0 /* …DETAIL_ITEMS の全項目 */ } // 詳細小役記録（下記）
   }
 }
 ```
+
+### 詳細小役記録 `detail`（2026-09-30 段階2。docs/DETAIL_MODE_PLAN.md「持ち方」）
+- 今の項目（`cur.bell` `cur.suika` `cur.suikaR` `lamps` の各色）を**合計として正**にし、詳細にしか無い値だけを `detail` に持つ。詳細記録 OFF の間も持ち、今の計算には使わない（計算は段階4）
+- 項目は `DETAIL_ITEMS`（ニューキング / それ以外）。全機種が全項目を 0 で持つ（形を揃えるため。その機種で使わない項目は 0 のまま）
+- 1回の成立は1つの欄にだけ数える。例: 通常時チェリー = `nChe`（4枚）/ `nCheM`（中段・2枚）/ `lnChe`（欠損・0枚）の合計
+- `of` の付いた欠損は今の合計に含まれる（取得 = 合計 − 欠損）: ニューキング `lbSui`⊆`cur.suika`（BIG前半スイカ）・`lrSui`⊆`cur.suikaR`、それ以外 `lbSui`⊆`cur.suika`（BIGスイカ）。欠損は合計を超えない（`save()` の `clampDetailLoss`。今の画面で合計を減らしたら欠損も一緒に減る）
+- 読み込み時に足りない項目は 0、0 以上の整数にそろえる（`normalizeDetail`）。リセット・シートからの復元は 0（シートの詳細列は段階4）
+
+| キー | ニューキング | それ以外 |
+|---|---|---|
+| `nRep` `nChe` `nSui` | 通常時 リプレイ・チェリー・スイカ | 同じ |
+| `oRep` `oBell` `oChe` `oSui` | – | 1枚掛け リプレイ・ベル・チェリー・スイカ |
+| `bChe` | BIG(前半)チェリー | BIGチェリー |
+| `rChe` `btRep` `btBell` | REGチェリー・BT中リプレイ・BT中ベル | – |
+| `bMiss` `rMiss` | – | BIG純ハズレ・REG純ハズレ |
+| `lnChe` `nCheM` `lnSui` `lAlign` | 欠損: 通常時チェリー・中段チェリー・通常時スイカ・ボーナス揃えミス | 同じ |
+| `lbChe` `lbSui` | 欠損: BIG前半チェリー・BIG前半スイカ | 欠損: BIGチェリー・BIGスイカ |
+| `lblSui` `lblBell` `lrChe` | 欠損: BIG後半スイカ・BIG後半ベル・REGチェリー | – |
+| `lrSui` | 欠損: REGスイカ（`cur.suikaR` に含まれる） | 欠損: REGスイカ（今の合計には含まれない） |
+| `wBig` `wReg` | BIG筐体・REG筐体ランプの白(不明) | 同じ |
 
 `loadData()` は欠けたキーを `DEFAULTS` / `SINGLE_DEFAULT` で補完する（機種データ内の `start` `cur` `lamps` `morning` も、既存値を保持したまま補完）。構造を足すときは `SINGLE_DEFAULT` に足せば補完されるが、`cur` `start` `lamps` 以外の階層を足すときは `loadData()` にも補完処理を追加すること（古い保存データでクラッシュさせない）。
 

@@ -9,6 +9,11 @@ function setup() {
   const app = loadApp();
   app.selectMachine('newking');
   app.ev('getData().cur.bell = 10; renderMain();');
+  // 押していた時間（長押し 300ms・枠外 click の 2 秒）はアプリの Date.now で測る。テストを並列で走らせると
+  // 実際の待ち時間が数秒に延びて判定が変わるので、wait の分だけ進む時計にする（押下の時間を決まった値にする）
+  let now = Date.now();
+  app.window.Date.now = () => now;
+  app.advance = (ms) => { now += ms; };
   return app;
 }
 const bell = (app) => app.ev('getData().cur.bell');
@@ -22,7 +27,11 @@ async function gesture(app, selector, steps) {
     return e;
   };
   for (const s of steps) {
-    if (s.startsWith('wait:')) await new Promise((r) => setTimeout(r, Number(s.slice(5))));
+    if (s.startsWith('wait:')) {
+      const ms = Number(s.slice(5));
+      await new Promise((r) => setTimeout(r, ms)); // 300ms で赤（minus-mode）にするタイマーを進める
+      app.advance(ms);
+    }
     else if (s === 'down') el.onpointerdown(ev('pointerdown'));
     else if (s === 'up') el.onpointerup(ev('pointerup'));
     else if (s === 'cancel') el.onpointercancel(ev('pointercancel'));
