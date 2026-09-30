@@ -5,10 +5,16 @@ const assert = require('node:assert/strict');
 const { loadApp } = require('./helpers');
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// テストの後に画面を閉じる（出したままの表示のタイマーでテストの終了が遅れないように）
+const apps = [];
+test.afterEach(() => { while (apps.length) apps.pop().window.close(); });
 function setup() {
   const app = loadApp();
+  apps.push(app);
   app.selectMachine('newking');
   app.ev('getData().cur.bell = 10; getData().cur.retro = 0; renderMain();');
+  // テストを並列で走らせると待ち時間が延びて 1.5 秒で消えてしまうので、時間を確かめるテスト以外は長くする
+  app.ev('tapDeltaMs = 60000');
   return app;
 }
 const deltas = (app) => [...app.document.querySelectorAll('#tap-delta-layer .tap-delta')];

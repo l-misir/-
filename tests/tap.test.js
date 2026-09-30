@@ -156,6 +156,6 @@ test('タップの記録: 直近のタップで届いたイベントと結果を
   assert.equal(entries[1].result, '+1(click補完)');
   assert.equal(entries[0].result, '-1');
   assert.ok(entries[0].ms >= 300, '押していた時間も残す');
-  app.window.openModal('setting-modal');
+  app.window.openModal('admin-modal'); // 操作ログは管理画面（設定画面の🔑）
   assert.match(app.document.getElementById('tap-log').textContent, /click補完/);
 });
