@@ -141,15 +141,33 @@ test('当選履歴の一覧: 初期値以外の契機・告知を小さく表示
   assert.equal(rows[1].querySelector('.hm-tags'), null, '初期値だけの当選は何も出さない');
 });
 
-test('テンキー画面: 当選履歴からの編集は中央表示（キーは今までの大きさ）、BIG/REG 加算時は画面下まで伸ばす表示', async () => {
+// jsdom の画面の大きさを変える（縦画面 / 横画面の判定は innerWidth > innerHeight）
+function setViewport(app, w, h) {
+  Object.defineProperty(app.window, 'innerWidth', { value: w, configurable: true });
+  Object.defineProperty(app.window, 'innerHeight', { value: h, configurable: true });
+}
+
+test('テンキー画面: キーは元の大きさ。契機・告知の欄は縦画面ならキーの下、横画面ならキーの右（BIG/REG 加算時・当選履歴から）', async () => {
   const app = setup();
   const panel = app.document.getElementById('hit-panel');
+  const html = require('fs').readFileSync(require('./helpers').HTML_PATH, 'utf-8');
+  assert.match(html, /#hit-panel \.hit-key \{ font-size:24px; padding:12px 0; \}/, 'キーは元の大きさ（縮めない）');
+  assert.doesNotMatch(html, /minmax\(34px/);
+
+  setViewport(app, 375, 667); // 縦画面
   await hit(app, 'b', '300');
-  assert.ok(!panel.classList.contains('centered'), 'BIG/REG 加算時: キーは空いた高さに合わせて縮む');
+  assert.ok(!panel.classList.contains('wide'), '縦画面: 欄はキーの下');
+  assert.ok(!panel.classList.contains('centered'));
   app.window.hitEditSave();
   app.window.editHitG(0);
-  assert.ok(panel.classList.contains('centered'), '当選履歴から: 中央表示');
+  assert.ok(!panel.classList.contains('wide') && panel.classList.contains('centered'), '当選履歴から（縦画面）: 中央・欄は下');
   app.window.hitEditSave();
+
+  setViewport(app, 844, 390); // 横画面
   await hit(app, 'r', '50');
-  assert.ok(!panel.classList.contains('centered'), '次の加算では外れる');
+  assert.ok(panel.classList.contains('wide'), '横画面: 欄はキーの右');
+  assert.ok(!panel.classList.contains('centered'));
+  app.window.hitEditSave();
+  app.window.editHitG(0);
+  assert.ok(panel.classList.contains('wide') && panel.classList.contains('centered'), '当選履歴から（横画面）: 中央・欄は右');
 });

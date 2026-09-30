@@ -205,34 +205,28 @@
         .hit-key.del { background:#833; font-size:14px; }
         .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
         /* キーとG数表示の間はパネルの内側余白(8px)と揃える */
-        .hit-keys-wrap { display:flex; gap:8px; align-items:stretch; flex:1 1 auto; min-width:0; } /* キーの最低の高さより縮めない（契機・告知の欄と重ねない。足りなければパネルをスクロール） */
+        .hit-keys-wrap { display:flex; gap:8px; align-items:stretch; flex:1 1 auto; min-width:0; }
         .hit-keys-wrap .hit-keys { flex:1 1 auto; min-width:0; grid-template-rows: repeat(4, 1fr); }
         /* G数表示は「4桁＋G」ぴったりの幅（左右の余白は同じ10px）。残りはすべてテンキーへ */
         .hit-side { flex:0 0 auto; width:min-content; }
         .hit-side .hit-display { margin-bottom:6px; font-size:26px; min-height:38px; white-space:nowrap; }
         .hit-display .num { display:inline-block; min-width:4ch; text-align:right; }
         /* パネル内のキーを大きく（高さはパネルいっぱいまで伸びる） */
-        /* BIG/REG 加算時（画面下まで伸ばす配置）は、キーが空いた高さに合わせて縮む（契機・告知の欄を入れても収める。最低34px）。
-           当選履歴からの編集（中央・高さは中身なり）は今までどおりの大きさ */
-        #hit-panel .hit-key { font-size:24px; padding:0; min-height:34px; }
-        #hit-panel .hit-keys-wrap .hit-keys { grid-template-rows: repeat(4, minmax(34px, 1fr)); }
-        #hit-panel.centered .hit-key { padding:12px 0; }
-        /* 画面より高くなるとき（高さの小さい横画面など）はパネルの中をスクロールして、キー・ボタン・✕ を全部使えるようにする */
+        #hit-panel .hit-key { font-size:24px; padding:12px 0; }
+        /* 万一画面に入りきらない時だけ、パネルの中をスクロールして全部使えるようにする（ふだんは入る配置にしている） */
         #hit-panel { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
         #hit-panel .hit-key.ok { font-size:18px; }
         #hit-panel .hit-key.del { font-size:19px; }
         #hit-panel .hit-hint { font-size:10px; }
-        /* 当選の契機・告知（キーの下。見た目は UI 調整で詰める） */
+        /* 当選の契機・告知。テンキーは元の大きさのまま、縦画面はキーの下（パネルを上へ伸ばす）、
+           横画面はキーの右（パネルを左へ伸ばす。.wide）に置く。見た目は UI 調整で詰める */
         .hit-opts { flex:0 0 auto; margin-top:4px; }
+        #hit-panel.wide #hit-panel-body { flex-direction:row; gap:8px; }
+        #hit-panel.wide .hit-opts { flex:0 0 250px; width:250px; margin-top:0; }
         .hit-opt-title { font-size:10px; color:#888; margin:3px 0 2px; }
         .hit-opt-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:3px; margin-bottom:3px; }
         .hit-opt { padding:7px 2px; background:#222; color:#aaa; border:1px solid #333; border-radius:5px; font-size:11px; text-align:center; white-space:nowrap; overflow:hidden; cursor:pointer; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
         .hit-opt.on { background:#0066cc; color:#fff; border-color:#0088ff; }
-        /* 高さの小さい画面（横画面など）は契機・告知の欄を詰める（見出しを省き、ボタンを低く） */
-        @media (max-height: 500px) {
-            .hit-opt { padding:4px 2px; }
-            .hit-opt-title { display:none; }
-        }
 
         /* --- 一括加算パネル（機種名長押し） --- */
         #bulk-panel {
@@ -1245,17 +1239,23 @@
         return `<span class="num">${hitInputValue === '' ? '0' : hitInputValue}</span><span class="unit">G</span>`;
     }
 
+    // 契機・告知の欄の幅（横画面でテンキーの右に置くとき）と、テンキーとの間
+    const HIT_OPTS_W = 250, HIT_OPTS_GAP = 8;
+
     function positionHitPanel() {
         const panel = document.getElementById('hit-panel');
         const isLandscape = window.innerWidth > window.innerHeight;
-        panel.classList.toggle('centered', hitPanelCentered); // キーの大きさ（CSS の #hit-panel.centered）
+        panel.classList.toggle('centered', hitPanelCentered);
+        // 契機・告知の欄: 横画面はテンキーの右、縦画面はテンキーの下（テンキーはどちらも元の大きさ）
+        panel.classList.toggle('wide', isLandscape);
+        const optsExtraW = HIT_OPTS_W + HIT_OPTS_GAP;
         if (hitPanelCentered) {
-            // 大当たり分布からの編集: 画面中央（高さは中身なり）
+            // 大当たり分布からの編集: 画面中央（高さは中身なり。縦画面は下に欄の分だけ伸びる）
             panel.style.top = '50%';
             panel.style.bottom = 'auto';
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = isLandscape ? 'min(340px, 52%)' : 'min(340px, 94%)';
+            panel.style.width = isLandscape ? `min(calc(min(340px, 52%) + ${optsExtraW}px), calc(100% - 16px))` : 'min(340px, 94%)';
             panel.style.transform = 'translate(-50%, -50%)';
             return;
         }
@@ -1269,23 +1269,31 @@
             const col = document.querySelector('#main-ui .col-right');
             const r = col ? col.getBoundingClientRect() : null;
             if (r && r.width > 0) {
-                panel.style.left = r.left + 'px';
-                panel.style.width = r.width + 'px';
+                // テンキーは右カラムの幅のまま、その右に契機・告知の欄。右端は右カラムに揃え、左へ伸ばす
+                const left = Math.max(8, r.right - (r.width + optsExtraW));
+                panel.style.left = left + 'px';
+                panel.style.width = (r.right - left) + 'px';
                 panel.style.right = 'auto';
             } else {
                 panel.style.right = '10px';
                 panel.style.left = 'auto';
-                panel.style.width = 'min(340px, 52%)';
+                panel.style.width = `min(calc(min(340px, 52%) + ${optsExtraW}px), calc(100% - 20px))`;
             }
             panel.style.transform = 'none';
         } else {
-            // 縦画面: 上端をスイカの個数（数字）の位置に合わせる
-            const suika = document.querySelector('.t-btn[data-id="suika"] .value');
-            panel.style.top = suika ? (suika.getBoundingClientRect().top + 'px') : '38%';
+            // 縦画面: 今までのパネルの上端（スイカの個数の位置）から、下に置く契機・告知の欄の高さ＋余白の分だけ
+            // パネル全体を上へ伸ばす。テンキーは今までと同じ大きさのまま、その分上へずれる（スクロールしなくて済むように）
             panel.style.left = '50%';
             panel.style.right = 'auto';
             panel.style.width = 'min(340px, 94%)';
             panel.style.transform = 'translateX(-50%)';
+            const suika = document.querySelector('.t-btn[data-id="suika"] .value');
+            const baseTop = suika ? suika.getBoundingClientRect().top : window.innerHeight * 0.38;
+            const opts = panel.querySelector('.hit-opts');
+            const extraH = opts ? opts.getBoundingClientRect().height + 4 : 0; // 4 = 欄の上の余白
+            const header = document.querySelector('.header');
+            const minTop = (header ? header.getBoundingClientRect().bottom : 40) + 4;
+            panel.style.top = Math.max(minTop, baseTop - extraH) + 'px';
         }
     }
 
