@@ -141,17 +141,22 @@ test('シート保存: Z 列に1枚掛けの計算、AA 列以降に詳細の項
   const app = setupMachine('king', KING, KING_DETAIL, 'actual');
   const keys = JSON.parse(app.ev(`JSON.stringify(detailItems('king').map(x => x.k))`));
   const body = captureSave(app);
-  assert.equal(body.rowData.length, 26 + keys.length + 1, 'A〜AT');
-  assert.equal(body.rowData[25], '実測値');
-  assert.deepEqual(body.rowData.slice(26, 26 + keys.length), keys.map((k) => KING_DETAIL[k] || 0), '記録した日は 0 も数字で');
-  assert.equal(body.rowData[1], 1090, 'B 列の総回転数も同じ計算（実測値: 1004 + 64 + 22）');
+  // 列の並びは 2026-10 のユーザー指定（tests/sheet.test.js）。見出しで値を引く
+  const cols = JSON.parse(app.ev(`JSON.stringify(sheetColumns('king'))`));
+  const val = (h) => body.rowData[body.headers.indexOf(h)];
   assert.equal(body.headers.length, body.rowData.length, '見出しも同じ列数');
-  assert.equal(body.headers[25], '1枚掛けの計算');
+  assert.equal(val('1枚掛けの計算'), '実測値');
+  assert.ok(keys.length > 0);
+  cols.forEach((c, i) => { if (c.t === 'detail') assert.equal(body.rowData[i], KING_DETAIL[c.k] || 0, `${c.h}: 記録した日は 0 も数字で`); });
+  assert.equal(val('総回転数'), 1090, '総回転数も同じ計算（実測値: 1004 + 64 + 22）');
+  assert.deepEqual([val('BIG：回転数'), val('REG：回転数')], [64, 22]);
+  assert.equal(val('BIG：スイカ'), 4, '取得 = 合計5 − 欠損1');
 
   const none = setupMachine('king', KING, {});
   const b2 = captureSave(none);
-  assert.equal(b2.rowData[25], '予測値');
-  assert.ok(b2.rowData.slice(26, 26 + keys.length).every((v) => v === ''), '記録していない日は空欄（記録なし）');
+  const cols2 = JSON.parse(none.ev(`JSON.stringify(sheetColumns('king'))`));
+  assert.equal(b2.rowData[b2.headers.indexOf('1枚掛けの計算')], '予測値');
+  assert.ok(cols2.every((c, i) => c.t !== 'detail' || b2.rowData[i] === ''), '記録していない日は空欄（記録なし）');
 });
 
 // キングのシート1行（DATA_MODEL.md §3 の列順）。detail を渡すと AE 列以降も付ける

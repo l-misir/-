@@ -112,12 +112,11 @@ test('シート保存: 「全て」表示でも自分が打った分（個人）
   };
   app.ev(`data.gasUrl = 'https://example.invalid/exec';`);
   app.window.saveToSheet();
-  // rowData: [日付, 総回転, 通常時, ボーナス, BIG, REG, ベル, ...]（2026-10 に A 列の空欄を廃止）
-  assert.deepEqual(body.rowData.slice(1, 7), PERSONAL);
-  // Z = 1枚掛けの計算、AA〜AS = 詳細の項目（記録していない日は空欄）、AT = 当選履歴（2026-10 に AA〜AD の空欄4列を廃止。tests/sheet.test.js）
-  assert.equal(body.rowData.length, 26 + app.ev("detailItems('newking').length") + 1);
-  assert.equal(body.rowData[25], '予測値');
-  assert.ok(body.rowData.slice(26).every((v) => v === ''));
+  // 列の並びは 2026-10 のユーザー指定（tests/sheet.test.js）。見出しで値を引く
+  const val = (h) => body.rowData[body.headers.indexOf(h)];
+  assert.deepEqual([val('総回転数'), val('通常時回転数'), val('BIG：回転数') + val('REG：回転数'), val('BIG'), val('REG'), val('通常時：ベル')], PERSONAL);
+  assert.equal(body.rowData.length, body.headers.length);
+  assert.equal(val('通常時：リプレイ'), '', '詳細を記録していない日は空欄');
 });
 
 test('データコピー(TSV): 「全て」表示でも個人の値を出力する', async () => {
@@ -130,8 +129,9 @@ test('データコピー(TSV): 「全て」表示でも個人の値を出力す�
   });
   app.window.exportData();
   await new Promise((r) => setTimeout(r, 0));
-  // TSV: 日付, 総回転, 通常時, ボーナス, BIG, REG, ベル, ...（A列と末尾4列なし）
-  assert.deepEqual(txt.split('\t').slice(1, 7).map(Number), PERSONAL);
+  // TSV: 日付, 総回転数, 通常時, BIG回転数, REG回転数, BIG, REG, …（2026-10 の並び）
+  const t = txt.split('\t').map(Number);
+  assert.deepEqual([t[1], t[2], t[3] + t[4], t[5], t[6]], PERSONAL.slice(0, 5));
 });
 
 test('高設定期待度の帯: 切り捨てで判定し、100 は高設定以外の確率が0の日だけ', () => {
