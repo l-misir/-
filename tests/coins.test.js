@@ -137,22 +137,21 @@ function captureSave(app) {
   return body;
 }
 
-test('シート保存: AE 列に1枚掛けの計算、AF 列以降に詳細の項目。詳細を記録していない日は空欄', () => {
+test('シート保存: Z 列に1枚掛けの計算、AA 列以降に詳細の項目。詳細を記録していない日は空欄（2026-10 の並び）', () => {
   const app = setupMachine('king', KING, KING_DETAIL, 'actual');
   const keys = JSON.parse(app.ev(`JSON.stringify(detailItems('king').map(x => x.k))`));
   const body = captureSave(app);
-  assert.equal(body.rowData.length, 31 + keys.length);
-  assert.deepEqual(body.rowData.slice(26, 30), ['', '', '', ''], 'AA〜AD は空欄のまま');
-  assert.equal(body.rowData[30], '実測値');
-  assert.deepEqual(body.rowData.slice(31), keys.map((k) => KING_DETAIL[k] || 0), '記録した日は 0 も数字で');
-  assert.equal(body.rowData[2], 1090, 'C 列の総回転数も同じ計算（実測値: 1004 + 64 + 22）');
+  assert.equal(body.rowData.length, 26 + keys.length + 1, 'A〜AT');
+  assert.equal(body.rowData[25], '実測値');
+  assert.deepEqual(body.rowData.slice(26, 26 + keys.length), keys.map((k) => KING_DETAIL[k] || 0), '記録した日は 0 も数字で');
+  assert.equal(body.rowData[1], 1090, 'B 列の総回転数も同じ計算（実測値: 1004 + 64 + 22）');
   assert.equal(body.headers.length, body.rowData.length, '見出しも同じ列数');
-  assert.equal(body.headers[30], '1枚掛けの計算');
+  assert.equal(body.headers[25], '1枚掛けの計算');
 
   const none = setupMachine('king', KING, {});
   const b2 = captureSave(none);
-  assert.equal(b2.rowData[30], '予測値');
-  assert.ok(b2.rowData.slice(31).every((v) => v === ''), '記録していない日は空欄（記録なし）');
+  assert.equal(b2.rowData[25], '予測値');
+  assert.ok(b2.rowData.slice(26, 26 + keys.length).every((v) => v === ''), '記録していない日は空欄（記録なし）');
 });
 
 // キングのシート1行（DATA_MODEL.md §3 の列順）。detail を渡すと AE 列以降も付ける

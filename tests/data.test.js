@@ -112,13 +112,12 @@ test('シート保存: 「全て」表示でも自分が打った分（個人）
   };
   app.ev(`data.gasUrl = 'https://example.invalid/exec';`);
   app.window.saveToSheet();
-  // rowData: ['', 日付, 総回転, 通常時, ボーナス, BIG, REG, ベル, ...]
-  assert.deepEqual(body.rowData.slice(2, 8), PERSONAL);
-  // AA〜AD は空欄4列、AE = 1枚掛けの計算、AF 以降 = 詳細の項目（記録していない日は空欄）。docs/DETAIL_MODE_PLAN.md「スプレッドシート」
-  assert.equal(body.rowData.length, 31 + app.ev("detailItems('newking').length"));
-  assert.deepEqual(body.rowData.slice(26, 30), ['', '', '', '']);
-  assert.equal(body.rowData[30], '予測値');
-  assert.ok(body.rowData.slice(31).every((v) => v === ''));
+  // rowData: [日付, 総回転, 通常時, ボーナス, BIG, REG, ベル, ...]（2026-10 に A 列の空欄を廃止）
+  assert.deepEqual(body.rowData.slice(1, 7), PERSONAL);
+  // Z = 1枚掛けの計算、AA〜AS = 詳細の項目（記録していない日は空欄）、AT = 当選履歴（2026-10 に AA〜AD の空欄4列を廃止。tests/sheet.test.js）
+  assert.equal(body.rowData.length, 26 + app.ev("detailItems('newking').length") + 1);
+  assert.equal(body.rowData[25], '予測値');
+  assert.ok(body.rowData.slice(26).every((v) => v === ''));
 });
 
 test('データコピー(TSV): 「全て」表示でも個人の値を出力する', async () => {
