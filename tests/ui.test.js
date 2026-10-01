@@ -10,7 +10,7 @@ const isActive = (app, id) => app.document.getElementById(id).classList.contains
 test('数値表示: 設定が「隠す」なら起動直後からダミー表示', () => {
   const hidden = loadApp({ storage: { machine: 'newking', dummyDefault: true } });
   assert.equal(hidden.ev('dummyMode'), true);
-  assert.equal(hidden.document.getElementById('disp-machine').style.opacity, '0.5');
+  assert.notEqual(hidden.document.getElementById('disp-machine').style.opacity, '0.5', 'ダミー中も機種名は薄くしない（2026-10）');
 
   const real = loadApp({ storage: { machine: 'newking', dummyDefault: false } });
   assert.equal(real.ev('dummyMode'), false);

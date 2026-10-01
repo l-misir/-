@@ -75,7 +75,7 @@ test('数値表示: 設定を変えるとすぐ切り替わり、再読込後も
   assert.ok(app.document.getElementById('btn-dummy-hide').classList.contains('active-mode'));
   const shown = app.document.querySelector('#main-ui [data-id="bell"] .value').textContent;
   assert.notEqual(shown, '400');
-  assert.equal(shown.slice(2, 5), '400', '隠す（前後に数字を足す）');
+  assert.equal(shown.slice(1, 4), '400', '隠す（前後に数字を足して5桁）');
   app.window.setDummyDefault(false);
   assert.equal(app.document.querySelector('#main-ui [data-id="bell"] .value').textContent, '400');
   const reloaded = loadApp({ storage: { machine: 'newking', dummyDefault: true } });

@@ -114,10 +114,8 @@
         .cell.loss.locked { background: #2e2323; }
         .cell.locked .label, .cell.locked .value { color: #777 !important; }
         .cell.locked::after { content: '🔒'; position: absolute; top: 1px; right: 2px; font-size: 9px; line-height: 1; }
-        /* カウントロックの画面: 押すとロック／解除（数値は出さない） */
-        .lock-cell { cursor: pointer; min-height: 40px; }
-        .lock-cell .value { font-size: 13px; }
-        .lock-cell.locked::after { content: none; }
+        /* カウントロックの画面: メイン画面と同じボタン（大きさ・数値・ロックの🔒）。押すとロック／解除 */
+        .lock-cell { cursor: pointer; }
         .lock-screen-title { text-align: center; font-size: 13px; font-weight: bold; margin: 10px 0 0; color: #fff; }
         /* 詳細記録 ON: 機種名の左右に ○ / ●（左＝画面1、右＝画面2、表示中が ●） */
         #disp-machine.with-dots { border-bottom: none; display: flex; align-items: center; gap: 8px; }
@@ -190,8 +188,9 @@
         .sub-graph-row { display: none; background: #111; }
         .sub-graph-row.open { display: table-row; }
         .white-txt { color: #fff !important; font-weight: normal; }
-        .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 10px; font-weight: bold; }
-        .lock-btn { width: 100%; padding: 12px; background: #333; color: #fff; border: 1px solid #666; margin-top: 12px; font-weight: bold; }
+        /* 設定画面の下のボタンは間隔をそろえる（カウントロック・データ保存・リセットとも上に 20px） */
+        .export-btn { width: 100%; padding: 15px; background: #000; color: #0ff; border: 1px solid #0ff; margin-top: 20px; font-weight: bold; }
+        .lock-btn { width: 100%; padding: 12px; background: #333; color: #fff; border: 1px solid #666; margin-top: 20px; font-weight: bold; }
         
         select { color: white; }
 
@@ -547,7 +546,6 @@
         <div class="header-icon" onclick="closeModal('lock-modal')">✕</div>
     </div>
     <div class="modal-body">
-        <p class="gas-note" style="text-align:center;">押すとロック／解除。ロックした項目はメイン画面で変えられません（まとめて加算・ショートカットのベル送信では変えられます）</p>
         <div id="lock-body"></div>
     </div>
 </div>
@@ -1101,8 +1099,9 @@
 
     // ダミー数値生成
     // kind: 'none' = 変化なし（ゲーム数, BIG, REG）
-    //       'two'  = 前後に2桁ずつ追加（ベル, スイカ系, レトロ系）
-    //       'one'  = 前後に1桁ずつ追加（ランプ等その他）
+    //       'five' = 小役・欠損（ベル, スイカ系, 詳細記録の小役・欠損・取得）。値の桁数に関係なく5桁にそろえる（2026-10）
+    //       'two'  = 前後に2桁ずつ追加（レトロ系）
+    //       'one'  = 前後に1桁ずつ追加（ランプ・白(不明)）
     function dummyNum(val, idx, kind) {
         if (!dummyMode || kind === 'none') return val;
         const v = Math.max(0, val);
@@ -1112,6 +1111,14 @@
             h = ((h >>> 16) ^ h) * 45679;
             h = ((h >>> 16) ^ h) * 45679;
             return Math.abs(h % 100000);
+        }
+        if (kind === 'five') {
+            // 本当の数を真ん中あたりに置き、前後を乱数で埋めて5桁に（1桁: 前2・後2、2桁: 前2・後1、3桁: 前1・後1、4桁: 前1）。5桁以上はそのまま
+            const pad = Math.max(0, 5 - s.length);
+            const preLen = Math.ceil(pad / 2), postLen = pad - preLen;
+            const pre = preLen > 0 ? String((rng(1) % (9 * Math.pow(10, preLen - 1))) + Math.pow(10, preLen - 1)) : ''; // 0始まり回避
+            const post = postLen > 0 ? String(rng(2) % Math.pow(10, postLen)).padStart(postLen, '0') : '';
+            return `${pre}${s}${post}`;
         }
         if (kind === 'two') {
             const pre = (rng(1) % 90) + 10;   // 10-99（0始まり回避）
@@ -1126,8 +1133,13 @@
     // カウンター種別 → ダミー化ルール
     function dummyKind(id) {
         if (id === 'g' || id === 'b' || id === 'r') return 'none';
-        if (id === 'bell' || id === 'suika' || id === 'suikaR' || id === 'retro_d' || id === 'retro') return 'two';
+        if (id === 'bell' || id === 'suika' || id === 'suikaR') return 'five';
+        if (id === 'retro_d' || id === 'retro') return 'two';
         return 'one';
+    }
+    // 詳細記録の欄: 筐体ランプの白(不明)はランプと同じ、それ以外（小役・欠損）は5桁
+    function detailDummyKind(key) {
+        return (key === 'wBig' || key === 'wReg') ? 'one' : 'five';
     }
 
     // ============================================================
@@ -2367,9 +2379,12 @@
     // セルを作る関数（mkC / mkS / mkD / mkT / mkL）は lockEdit の間、ロックの切り替えボタンを返す
     // ============================================================
     let lockEdit = false;
-    function lockCellHtml(key, label, labelAttr = '', extraCls = '') {
+    // メイン画面と同じ見た目（項目名と数値。ロック中は暗くして🔒）のボタン
+    // small: メイン画面で入力モード＋ダミー表示のとき数値を 14px にしているセル（打ち始め以外。ロック中は今までの大きさ）
+    function lockCellHtml(key, label, value, labelAttr = '', extraCls = '', small = true) {
         const on = isLocked(key);
-        return `<div class="cell lock-cell${extraCls}${on ? ' locked' : ''}" data-lock="${key}" onclick="toggleCountLock('${key}')"><div class="label"${labelAttr}>${label}</div><div class="value">${on ? '🔒' : '―'}</div></div>`;
+        const vs = (small && !on && data.mode === 'input' && dummyMode) ? ' style="font-size:14px;"' : '';
+        return `<div class="cell lock-cell${extraCls}${on ? ' locked' : ''}" data-lock="${key}" onclick="toggleCountLock('${key}')"><div class="label"${labelAttr}>${label}</div><div class="value"${vs}>${value}</div></div>`;
     }
     function renderLockScreen() {
         const el = document.getElementById('lock-body');
@@ -2378,15 +2393,17 @@
         let html;
         try {
             if (data.detailMode) {
+                // ダミー用の連番はメイン画面と同じく画面ごとに 0 から（同じ数を出す）
                 const keep = detailScreen;
-                detailScreen = 1; const s1 = detailScreenHtml();
-                detailScreen = 2; const s2 = detailScreenHtml();
+                detailScreen = 1; _dIdx = 0; const s1 = detailScreenHtml();
+                detailScreen = 2; _dIdx = 0; const s2 = detailScreenHtml();
                 detailScreen = keep;
                 html = `<p class="lock-screen-title">画面1</p>${s1}<p class="lock-screen-title">画面2</p>${s2}`;
             } else {
+                _dIdx = 0;
                 html = normalScreenHtml();
             }
-        } finally { lockEdit = false; }
+        } finally { lockEdit = false; _dIdx = 0; }
         el.innerHTML = html;
     }
 
@@ -2409,11 +2426,11 @@
         });
         document.querySelectorAll('#main-ui .cell[data-detail]').forEach(el => {
             const v = el.querySelector('.value');
-            if (v) v.textContent = dummyNum(Number(d.detail[el.dataset.detail]) || 0, parseInt(el.dataset.didx) || 0, 'one');
+            if (v) v.textContent = dummyNum(Number(d.detail[el.dataset.detail]) || 0, parseInt(el.dataset.didx) || 0, detailDummyKind(el.dataset.detail));
         });
         document.querySelectorAll('#main-ui .cell[data-take]').forEach(el => {
             const v = el.querySelector('.value');
-            if (v) v.textContent = dummyNum(takeValue(d, el.dataset.take, el.dataset.loss), parseInt(el.dataset.didx) || 0, 'two');
+            if (v) v.textContent = dummyNum(takeValue(d, el.dataset.take, el.dataset.loss), parseInt(el.dataset.didx) || 0, 'five');
         });
         markMorningLamp();
         updateHeader();
@@ -2474,9 +2491,9 @@
         const loss = (item && item.g === '欠損') ? ' loss' : '';
         const v = Number(d.detail[key]) || 0;
         const idx = _dIdx++;
-        const dv = dummyNum(v, idx, 'one');
+        const dv = dummyNum(v, idx, detailDummyKind(key));
         const ls = labelStyle ? ` style="${labelStyle}"` : '';
-        if (lockEdit) return lockCellHtml(key, label, ls, loss);
+        if (lockEdit) return lockCellHtml(key, label, dv, ls, loss);
         if (isLocked(key)) return `<div class="cell${loss} locked" data-detail="${key}" data-didx="${idx}"><div class="label"${ls}>${label}</div><div class="value">${dv}</div></div>`;
         if (data.mode === 'input') {
             if (dummyMode) return `<div class="cell${loss}" data-detail="${key}"><div class="label"${ls}>${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
@@ -2492,9 +2509,9 @@
         const d = getData();
         const v = takeValue(d, curKey, lossKey);
         const idx = _dIdx++;
-        const dv = dummyNum(v, idx, 'two');
+        const dv = dummyNum(v, idx, 'five');
         const attrs = `data-take="${curKey}" data-loss="${lossKey}"`;
-        if (lockEdit) return lockCellHtml(`take-${curKey}`, label);
+        if (lockEdit) return lockCellHtml(`take-${curKey}`, label, dv);
         if (isLocked(`take-${curKey}`)) return `<div class="cell locked" ${attrs} data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
         if (data.mode === 'input') {
             if (dummyMode) return `<div class="cell" ${attrs}><div class="label">${label}</div><div class="value" style="font-size:14px;">${dv}</div></div>`;
@@ -2564,9 +2581,9 @@
     }
 
     function mkC(id, label, val, step=1) {
-        if (lockEdit) return lockCellHtml(id, label);
         const idx = _dIdx++;
         const dv = dummyNum(val, idx, dummyKind(id));
+        if (lockEdit) return lockCellHtml(id, label, dv);
         // カウントロック: 表示だけのセル（タップ処理・振動用ラベル・入力欄なし）。data-id は送信時のベルの発光用
         if (isLocked(id)) return `<div class="cell locked" data-id="${id}" data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
         if(data.mode === 'input') {
@@ -2580,7 +2597,7 @@
     // ＜打ち始め＞のセル。「打ち始めの操作」が ON なら＜現在＞と同じ操作（タップ +1・長押し −1。G は ±50。入力モードは入力）。
     // 変えると現在も同じだけずれる（shiftStart）。g/b/r はダミー表示でも本当の数値なのでダミー用の連番は使わない
     function mkS(key, label, val, step=1) {
-        if (lockEdit) return lockCellHtml(`start-${key}`, label);
+        if (lockEdit) return lockCellHtml(`start-${key}`, label, val, '', '', false);
         const locked = isLocked(`start-${key}`); // 初期値はロック（旧「打ち始めの操作: できない」）
         if (locked || (data.mode === 'input' && dummyMode)) {
             return `<div class="cell${locked ? ' locked' : ''}" data-start="${key}"><div class="label">${label}</div><div class="value">${val}</div></div>`;
@@ -2623,9 +2640,9 @@
             const v = d.lamps[type][i];
             const col = useCols[i];
             const cls = col === 'rainbow' ? 'class="rainbow"' : `style="color:var(${col})"`;
-            if (lockEdit) return lockCellHtml(`${type}${i}`, l, ` ${cls}`);
             const didx = _dIdx++;
             const dv = dummyNum(v, didx, 'one');
+            if (lockEdit) return lockCellHtml(`${type}${i}`, l, dv, ` ${cls}`);
             // カウントロック: 表示だけ（data-type / data-idx は朝一の枠用）
             if (isLocked(`${type}${i}`)) return `<div class="cell locked" data-type="${type}" data-idx="${i}" data-didx="${didx}"><div class="label" ${cls}>${l}</div><div class="value">${dv}</div></div>`;
             if(data.mode === 'input') {
@@ -2648,7 +2665,6 @@
             nameEl.textContent = name;
             nameEl.classList.remove('with-dots');
         }
-        nameEl.style.opacity = dummyMode ? '0.5' : '1';
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
         document.getElementById('btn-mode-input').className = `cell ${data.mode==='input'?'active-mode':''}`;
         document.getElementById('btn-dummy-real').className = `cell ${!data.dummyDefault?'active-mode':''}`;
