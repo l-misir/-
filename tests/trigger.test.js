@@ -1,6 +1,7 @@
 // 段階3: 当選の契機・告知の記録と、レトロ条件達成の自動加算のフリーズ除外（docs/DETAIL_MODE_PLAN.md「当選の契機・告知」）
 // 契機: 単独(先)/単独(後)/チェリー/スイカ/リプレイ/ベル から1つ（初期値 単独(先)）
-// 告知: ノーマル点滅/プレミア点滅/フリーズ から1つ（初期値 ノーマル点滅）＋ 特殊テンパイ音/バイブ/アメイジングチャンス（複数可）
+// 告知: ノーマル点滅/プレミア点滅/フリーズ から1つ（初期値 ノーマル点滅）＋ 特殊テンパイ音/バイブ/バウンドストップ（複数可）。
+// アメイジングチャンスは 2026-10-05 にボタンを無くした（今までの記録に付いている分は残す）
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadApp } = require('./helpers');
@@ -27,28 +28,28 @@ test('BIG/REG を押して作った当選は、契機 単独(先)・告知 ノ�
   assert.equal(h.notice, 'normal');
   assert.deepEqual(h.extras, []);
   const opts = [...app.document.querySelectorAll('#hit-panel [data-opt]')].map((e) => e.dataset.opt);
-  assert.deepEqual(opts, ['solo1', 'solo2', 'che', 'sui', 'rep', 'bell', 'normal', 'premium', 'freeze', 'tenpai', 'vibe', 'ac']);
+  assert.deepEqual(opts, ['solo1', 'solo2', 'che', 'sui', 'rep', 'bell', 'normal', 'premium', 'freeze', 'tenpai', 'vibe', 'bound']);
   assert.ok(optOn(app, 'solo1'));
   assert.ok(optOn(app, 'normal'));
   assert.ok(!optOn(app, 'tenpai'));
 });
 
-test('テンキー画面で契機・告知を選ぶ: 契機と点滅/フリーズは1つだけ、テンパイ音・バイブ・アメイジングチャンスは複数', async () => {
+test('テンキー画面で契機・告知を選ぶ: 契機と点滅/フリーズは1つだけ、テンパイ音・バイブ・バウンドストップは複数', async () => {
   const app = setup();
   await hit(app, 'b', '300');
   app.window.setHitTrig('che');
   app.window.setHitNotice('premium');
   app.window.toggleHitExtra('vibe');
-  app.window.toggleHitExtra('ac');
+  app.window.toggleHitExtra('bound');
   app.window.toggleHitExtra('tenpai');
   app.window.toggleHitExtra('tenpai'); // もう一度押すと外れる
   const h = hitAt(app, 0);
   assert.equal(h.trig, 'che');
   assert.equal(h.notice, 'premium');
-  assert.deepEqual([...h.extras].sort(), ['ac', 'vibe']);
+  assert.deepEqual([...h.extras].sort(), ['bound', 'vibe']);
   assert.ok(optOn(app, 'che') && !optOn(app, 'solo1'), '押したボタンだけ点く');
   assert.ok(optOn(app, 'premium') && !optOn(app, 'normal'));
-  assert.ok(optOn(app, 'vibe') && optOn(app, 'ac') && !optOn(app, 'tenpai'));
+  assert.ok(optOn(app, 'vibe') && optOn(app, 'bound') && !optOn(app, 'tenpai'));
   app.window.setHitNotice('freeze');
   assert.equal(hitAt(app, 0).notice, 'freeze', '点滅とフリーズは同時に起きない（1つだけ）');
   assert.equal(hitAt(app, 0).g, 300, 'G数はそのまま');
@@ -170,4 +171,32 @@ test('テンキー画面: キーは元の大きさ。契機・告知の欄は縦
   app.window.hitEditSave();
   app.window.editHitG(0);
   assert.ok(panel.classList.contains('wide') && panel.classList.contains('centered'), '当選履歴から（横画面）: 中央・欄は右');
+});
+
+test('アメイジングチャンス: ボタンは無い。今までの記録に付いている分は、開いて直しても残り、備考・プレミア・シートの文字列にも出る', async () => {
+  const app = setup();
+  app.ev(`const d = getData(); d.hits = [{ g: 120, k: 'b', trig: 'che', notice: 'normal', extras: ['ac'] }]; d.cur.g = 120; d.cur.b = 1;`);
+  app.window.editHitG(0);
+  assert.equal(app.document.querySelector('#hit-panel [data-opt="ac"]'), null, 'ボタンは無い');
+  assert.equal(app.document.querySelector('#hit-panel [data-opt="bound"]').textContent, 'バウンド');
+  app.window.toggleHitExtra('vibe');
+  app.window.toggleHitExtra('ac'); // ボタンの無いものは押せない（何も変えない）
+  assert.deepEqual(hitAt(app, 0).extras, ['vibe', 'ac'], '開いて別の付随を押しても消えない');
+  app.window.hitEditSave();
+  app.window.openHitModal();
+  assert.match(app.document.querySelector('#hm-content .hm-row .hm-tagline').textContent, /チェリー・バイブ・アメイジングチャンス/);
+  assert.equal(app.ev(`hitsToText(getData().hits)`), 'B120[チェリー・バイブ・アメイジングチャンス]');
+});
+
+test('バウンドストップ: 備考に出し、プレミアに数え、シートの文字列で読み書きできる', async () => {
+  const app = setup();
+  await hit(app, 'r', '80');
+  app.window.toggleHitExtra('bound');
+  app.window.hitEditSave();
+  app.window.openHitModal();
+  assert.match(app.document.querySelector('#hm-content .hm-row .hm-tagline').textContent, /バウンドストップ/);
+  assert.equal(app.document.querySelector('#hm-content .hm-pie [data-seg="premium"]').dataset.n, '1');
+  const text = app.ev(`hitsToText(getData().hits)`);
+  assert.equal(text, 'R80[バウンドストップ]');
+  assert.deepEqual(JSON.parse(app.ev(`JSON.stringify(textToHits(${JSON.stringify(text)}))`))[0].extras, ['bound']);
 });

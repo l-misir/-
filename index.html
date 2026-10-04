@@ -743,20 +743,23 @@
     // 当選の契機・告知（詳細記録 OFF でも記録。docs/DETAIL_MODE_PLAN.md「当選の契機・告知」）。当選履歴の各記録に持つ
     //   trig: 契機を1つ（初期値 単独(先)。小役重複は後告知に該当）
     //   notice: 点滅／フリーズを1つ（初期値 ノーマル点滅。同時には起きない）
-    //   extras: 特殊テンパイ音・バイブ・アメイジングチャンス（複数可）
-    // 回数や割合の集計は出さない。フリーズはレトロ条件達成の自動加算から外す（retroAutoCount）
+    //   extras: 特殊テンパイ音・バイブ・バウンドストップ（複数可）。アメイジングチャンスは 2026-10-05 にボタンを無くした
+    // テンキー画面に回数や割合は出さない（割合は当選履歴の円グラフ）。フリーズはレトロ条件達成の自動加算から外す（retroAutoCount）
     const HIT_TRIGS = [
         { v:'solo1', l:'単独(先)' }, { v:'solo2', l:'単独(後)' }, { v:'che', l:'チェリー' },
         { v:'sui', l:'スイカ' }, { v:'rep', l:'リプレイ' }, { v:'bell', l:'ベル' }
     ];
     const HIT_NOTICES = [ { v:'normal', l:'ノーマル点滅' }, { v:'premium', l:'プレミア点滅' }, { v:'freeze', l:'フリーズ' } ];
-    const HIT_EXTRAS = [ { v:'tenpai', l:'特殊テンパイ音' }, { v:'vibe', l:'バイブ' }, { v:'ac', l:'アメイジングチャンス', s:'アメイジング' } ];
+    const HIT_EXTRAS = [ { v:'tenpai', l:'特殊テンパイ音' }, { v:'vibe', l:'バイブ' }, { v:'bound', l:'バウンドストップ', s:'バウンド' } ];
+    // ボタンを無くした付随（2026-10-05 ユーザー判断。ほぼ出ないため）。今までの記録に付いている分は消さず、備考・プレミア・シートの文字列に残す
+    const HIT_EXTRAS_RETIRED = [ { v:'ac', l:'アメイジングチャンス' } ];
+    const HIT_EXTRAS_ALL = HIT_EXTRAS.concat(HIT_EXTRAS_RETIRED);
     // 契機・告知の無い記録（この機能より前のデータ）や壊れた値は初期値にする
     function normalizeHitInfo(h) {
         if (!HIT_TRIGS.some(o => o.v === h.trig)) h.trig = HIT_TRIGS[0].v;
         if (!HIT_NOTICES.some(o => o.v === h.notice)) h.notice = HIT_NOTICES[0].v;
         const ex = Array.isArray(h.extras) ? h.extras : [];
-        h.extras = HIT_EXTRAS.map(o => o.v).filter(v => ex.includes(v));
+        h.extras = HIT_EXTRAS_ALL.map(o => o.v).filter(v => ex.includes(v));
     }
 
     const SINGLE_DEFAULT = {
@@ -1525,7 +1528,7 @@
         if (!HIT_EXTRAS.some(o => o.v === v)) return;
         updateHitInfo(h => {
             const on = !h.extras.includes(v);
-            h.extras = HIT_EXTRAS.map(o => o.v).filter(x => (x === v) ? on : h.extras.includes(x));
+            h.extras = HIT_EXTRAS_ALL.map(o => o.v).filter(x => (x === v) ? on : h.extras.includes(x));
         });
     }
 
@@ -1687,12 +1690,12 @@
         if (t && t.v !== HIT_TRIGS[0].v) tags.push(t.l);
         const n = HIT_NOTICES.find(o => o.v === h.notice);
         if (n && n.v !== HIT_NOTICES[0].v) tags.push(n.v === 'freeze' ? `<span class="freeze">${n.l}</span>` : n.l);
-        HIT_EXTRAS.forEach(o => { if (Array.isArray(h.extras) && h.extras.includes(o.v)) tags.push(o.l); });
+        HIT_EXTRAS_ALL.forEach(o => { if (Array.isArray(h.extras) && h.extras.includes(o.v)) tags.push(o.l); });
         return tags.length ? `<span class="hm-tags">${tags.join('・')}</span>` : '';
     }
 
     // 当選履歴の円グラフ（2026-10-04、ユーザーが案C を選択）。全体＝BIG/REG の割合、BIG・REG＝先告知・後告知・小役重複。
-    // プレミアは外側の金の線の長さ（プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・アメイジングチャンス〕付き）。
+    // プレミアは外側の金の線の長さ（プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・バウンドストップ。ボタンを無くしたアメイジングチャンスの古い記録も〕付き）。
     // 割合は四捨五入。契機の無い古い記録は初期値（単独(先)＝先告知）として数える
     const HIT_PIE_COLORS = {
         b: '#e05555', r: '#3a9ad9', premium: '#ffdd44',
@@ -1707,7 +1710,7 @@
     function isPremiumHit(h) {
         if (!h) return false;
         if (h.notice === 'premium' || h.notice === 'freeze') return true;
-        return Array.isArray(h.extras) && h.extras.some(v => HIT_EXTRAS.some(o => o.v === v));
+        return Array.isArray(h.extras) && h.extras.some(v => HIT_EXTRAS_ALL.some(o => o.v === v));
     }
     // 円グラフ（svg）と割合の行。list は buildFilteredHits の結果（idx で元の記録を引く）
     function hitPieParts(list, kind) {
@@ -3562,7 +3565,7 @@
             if (t && t.v !== HIT_TRIGS[0].v) tags.push(t.l);
             const n = HIT_NOTICES.find(o => o.v === h.notice);
             if (n && n.v !== HIT_NOTICES[0].v) tags.push(n.l);
-            HIT_EXTRAS.forEach(o => { if (Array.isArray(h.extras) && h.extras.includes(o.v)) tags.push(o.l); });
+            HIT_EXTRAS_ALL.forEach(o => { if (Array.isArray(h.extras) && h.extras.includes(o.v)) tags.push(o.l); });
             return `${h.k === 'r' ? 'R' : 'B'}${h.g == null ? '-' : h.g}${tags.length ? `[${tags.join('・')}]` : ''}`;
         }).join(' ');
     }
@@ -3580,7 +3583,7 @@
             const n = HIT_NOTICES.find(o => labels.includes(o.l));
             h.trig = t ? t.v : HIT_TRIGS[0].v;
             h.notice = n ? n.v : HIT_NOTICES[0].v;
-            h.extras = HIT_EXTRAS.filter(o => labels.includes(o.l)).map(o => o.v);
+            h.extras = HIT_EXTRAS_ALL.filter(o => labels.includes(o.l)).map(o => o.v);
             out.unshift(h);
         });
         return out;
