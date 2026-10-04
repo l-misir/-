@@ -86,7 +86,7 @@ test('ダミー表示: 内部値は変わらず、表示だけ置き換わる', 
   const vals = [...app.document.querySelectorAll('.value')].map((v) => v.textContent);
   assert.ok(vals.includes('3000'), 'G数は変化なしのはず');
   assert.ok(vals.includes('12'), 'BIGは変化なしのはず');
-  assert.ok(vals.some((v) => v.length === 5 && v.slice(1, 4) === '400'), 'ベル（小役）は5桁にそろえる（3桁なら前後1桁ずつ）');
+  assert.ok(vals.some((v) => v.length === 7 && v.slice(2, 5) === '400'), 'ベル（小役）は前後に2桁ずつ足す（3桁なら7桁）');
   assert.equal(app.ev('getData().cur.bell'), 400);
   app.window.toggleDummy();
 });

@@ -83,7 +83,7 @@ test('ニューキング: BT中ベル +12、ボーナス中の欠損はその区
   assert.match(t, /\(-16枚\)/);
   assert.match(rowText(app, 'sui'), /4回.*\(1\/7\.50\).*\(1回\)/);
   assert.match(rowText(app, 'suiR'), /1回.*\(1\/11\.00\).*\(1回\)/);
-  assert.match(rowText(app, 'nrep'), /140回.*\(1\/7\.14\)/, '通常時リプレイの確率');
+  assert.match(rowText(app, 'nrep'), /140回.*\(1\/7\.143\)/, '通常時リプレイの確率（小数点以下3桁。2026-10-04）');
   assert.doesNotMatch(app.document.getElementById('detail-rows').textContent, /白\(不明\)/, '筐体ランプの白(不明)は出さない');
 });
 

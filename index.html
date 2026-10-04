@@ -91,7 +91,8 @@
         /* 縦画面時の文字と数値の隙間を詰める（-3pxの部分を-2や-4にして好みに微調整できます） */
         .label { font-size: 9px; color: white; margin-bottom: -3px; pointer-events: none; }
         .value { font-size: 16px; font-weight: bold; line-height: 1.2; pointer-events: none; }
-        /* 振動用: セル全体にかぶせる透明ラベル（中に非表示のスイッチ）。指のタップが直接スイッチを切り替える */
+        /* 振動用: セル全体にかぶせる透明ラベル（中に非表示のスイッチ）。指のタップが直接スイッチを切り替える。
+           セル以外の押せるもの（アイコン・機種名・ボタンなど）にも addHaptics で同じラベルを付ける（2026-10-04） */
         .cell.t-btn, .cell.t-lamp { position: relative; }
         .haptic-tap { position: absolute; inset: 0; z-index: 1; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
         .haptic-tap input { display: none; }
@@ -105,10 +106,10 @@
         .tap-delta.minus { color: #ff6b6b; }
         .tap-delta.zero { color: #ddd; }
         .tap-delta.mark { color: #ffdd44; } /* 朝一 / 朝一解除 */
-        /* 詳細記録の画面: 欠損のセルはくすんだ赤（押した時の色は他と同じ）。朝一に指定したランプは黄色の枠 */
+        /* 詳細記録の画面: 欠損のセルはくすんだ赤（押した時の色は他と同じ）。朝一に指定したランプは黒の枠（目立たせすぎない。2026-10-04 に黄色から変更） */
         .cell.loss { background: #4a2a2a; }
         .cell.loss .label { color: #ff8a8a; }
-        .morning-lamp { box-shadow: inset 0 0 0 2px #ffdd44; }
+        .morning-lamp { box-shadow: inset 0 0 0 2px #000; }
         /* カウントロックした項目: 暗くして🔒（メイン画面では表示だけ） */
         .cell.locked { background: #2a2a2a; position: relative; }
         .cell.loss.locked { background: #2e2323; }
@@ -118,7 +119,9 @@
         .lock-cell { cursor: pointer; }
         .lock-screen-title { text-align: center; font-size: 13px; font-weight: bold; margin: 10px 0 0; color: #fff; }
         /* 詳細記録 ON: 機種名の左右に ○ / ●（左＝画面1、右＝画面2、表示中が ●） */
-        #disp-machine.with-dots { border-bottom: none; display: flex; align-items: center; gap: 8px; }
+        /* 中身は #disp-machine-name だけ書き換える（機種名の振動用ラベルを描き直しで消さない） */
+        #disp-machine.with-dots { border-bottom: none; }
+        #disp-machine.with-dots > #disp-machine-name { display: flex; align-items: center; gap: 8px; }
         #disp-machine .mname { border-bottom: 2px solid white; }
         #disp-machine .scr-dot { font-size: 12px; }
         .active-mode { background: var(--active-btn) !important; color: white; }
@@ -158,8 +161,10 @@
         /* 詳細データのレイアウト固定化 (ダブルタップ時の項目ズレを完全に防止) */
         .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; color: white; table-layout: fixed; }
         /* 幅は 50:50。ランプ行が全色2桁でも値側が1行に収まる（iPhone SE 幅 375px で確認） */
-        .detail-table th { width: 50%; background: #222; text-align: left; padding: 6px 4px; border-bottom: 1px solid #444; font-weight: normal; word-wrap: break-word; }
+        .detail-table th { width: 50%; background: #222; text-align: left; padding: 6px 4px 6px 7px; border-bottom: 1px solid #444; font-weight: normal; word-wrap: break-word; }
         .detail-table td { width: 50%; padding: 6px 4px; border-bottom: 1px solid #444; text-align: right; font-weight: bold; cursor: pointer; word-wrap: break-word; }
+        /* 設定推測に使う行（要素調整が 0% でない要素）は項目名の左端に青い線（2026-10-04） */
+        .detail-table tr.est > th { box-shadow: inset 3px 0 0 #39f; }
 
         @media (orientation: landscape) {
             .label { margin-bottom: 1px; }
@@ -228,7 +233,6 @@
         .hit-key.ok { background:#0a5; font-size:13px; }
         .hit-key.ok:active { background:#0c7; }
         .hit-key.del { background:#833; font-size:14px; }
-        .hit-hint { font-size:9px; color:#888; margin-top:5px; text-align:center; line-height:1.4; }
         /* キーとG数表示の間はパネルの内側余白(8px)と揃える */
         .hit-keys-wrap { display:flex; gap:8px; align-items:stretch; flex:1 1 auto; min-width:0; }
         .hit-keys-wrap .hit-keys { flex:1 1 auto; min-width:0; grid-template-rows: repeat(4, 1fr); }
@@ -242,7 +246,6 @@
         #hit-panel { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
         #hit-panel .hit-key.ok { font-size:18px; }
         #hit-panel .hit-key.del { font-size:19px; }
-        #hit-panel .hit-hint { font-size:10px; }
         /* 当選の契機・告知。テンキーは元の大きさのまま、縦画面はキーの下（パネルを上へ伸ばす）、
            横画面はキーの右（パネルを左へ伸ばす。.wide）に置く。見た目は UI 調整で詰める */
         .hit-opts { flex:0 0 auto; margin-top:4px; }
@@ -296,7 +299,6 @@
             #bulk-keys .hit-key.ok { font-size:15px; }
             #bulk-panel .hit-display { font-size:18px; padding:2px 10px; min-height:26px; margin-bottom:4px; }
             #bulk-panel .section-title { margin:4px 0 3px !important; font-size:11px; }
-            #bulk-panel .hit-hint { display:none; }
             .bulk-target { padding:5px 2px; font-size:10px; }
         }
 
@@ -311,20 +313,28 @@
         .hm-sub { display:flex; gap:4px; margin-bottom:10px; }
         .hm-sub-btn { flex:1; padding:6px 0; background:#222; color:#999; border:1px solid #333; border-radius:5px; text-align:center; font-size:11px; cursor:pointer; }
         .hm-sub-btn.active { background:#444; color:#fff; border-color:#666; }
-        .hm-now { background:#1a2a1a; border:1px solid #2a4a2a; border-radius:8px; padding:10px 12px; margin-bottom:12px; text-align:center; }
-        .hm-now-g { font-size:26px; font-weight:bold; color:#6f6; }
-        .hm-now-l { font-size:11px; color:#8a8; }
+        /* 当選履歴（2026-10-04）: 左に円グラフ、右に回数・平均・最大・最小（2×2）、下に割合。一覧の先頭は今のハマり（緑の枠はやめた） */
+        .hm-top { display:flex; gap:10px; align-items:center; margin-bottom:6px; }
+        .hm-pie { width:110px; height:110px; flex-shrink:0; }
+        .hm-top .hm-stat { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:0; }
+        .hm-top .hm-stat-box { padding:6px; }
+        .hm-legend { display:flex; flex-wrap:wrap; gap:3px 10px; font-size:10px; color:#bbb; margin-bottom:10px; }
+        .hm-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:3px; }
         .hm-list { }
-        .hm-row { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:8px 6px; border-bottom:1px solid #282828; }
-        .hm-tags { flex-basis:100%; padding-left:22px; font-size:10px; color:#aaa; }
+        /* 行の高さは備考の有無で変えない: 備考は棒の下の決まった高さの段に1行で（長いときは …） */
+        .hm-row, .hm-cur { display:flex; align-items:center; gap:4px; padding:6px; border-bottom:1px solid #282828; }
+        .hm-list > :nth-child(odd) { background:#181818; }
+        .hm-mc { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .hm-row .hm-mc { cursor:pointer; }
+        .hm-tagline { height:12px; line-height:12px; font-size:10px; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .hm-tags .freeze { color:#f80; }
         .loss-txt { color:#ff4444; } /* 欠損（回数・枚数） */
-        .hm-row:nth-child(odd) { background:#181818; }
         .hm-no { width:18px; font-size:10px; color:#666; flex-shrink:0; }
         .hm-g { width:66px; flex-shrink:0; font-size:18px; font-weight:bold; text-align:right; padding-right:4px; white-space:nowrap; }
+        .hm-cur .hm-g { color:#6f6; }
         /* 当選履歴のメモリ（データカウンター風）: 100G の箱が10個（箱の間は広めに空けて100G ごとを分かりやすく）。
            各箱は10G ごとに10分割: 点いた長さ(--p)を箱の色(--c)で塗り、10G ごとに細い区切り線を重ねる */
-        .hm-bar-wrap { flex:1; min-width:0; position:relative; height:16px; display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; cursor:pointer; }
+        .hm-bar-wrap { position:relative; height:12px; display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; }
         .hm-cell { border-radius:2px; --p:0%;
             background:
                 repeating-linear-gradient(to right, transparent 0, transparent calc(10% - 0.5px), rgba(0,0,0,0.5) calc(10% - 0.5px), rgba(0,0,0,0.5) 10%),
@@ -334,6 +344,7 @@
         .hm-kind { width:36px; font-size:11px; font-weight:bold; text-align:center; flex-shrink:0; border-radius:4px; padding:2px 0; }
         .hm-kind.big { background:#4a2626; color:#ff6b6b; }
         .hm-kind.reg { background:#345; color:#6cf; }
+        .hm-kind.now { background:#1a2a1a; color:#6f6; }
         .hm-empty { text-align:center; color:#666; padding:40px 0; font-size:13px; }
         .hm-stat { display:flex; gap:8px; margin-bottom:12px; }
         .hm-stat-box { flex:1; background:#222; border-radius:6px; padding:8px; text-align:center; }
@@ -436,7 +447,6 @@
         /* --- GAS設定 --- */
         .gas-input { width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:5px; box-sizing:border-box; font-size:13px; margin-top:4px; }
         .gas-input::placeholder { color:#666; }
-        .gas-note { font-size:10px; color:#888; margin-top:2px; }
     </style>
 </head>
 <body>
@@ -447,7 +457,7 @@
          onpointerdown="startMachinePress()" onpointerup="endMachinePress()"
          onpointerleave="cancelMachinePress()" onpointercancel="cancelMachinePress()"
          oncontextmenu="event.preventDefault();"
-         style="cursor:pointer; -webkit-user-select:none; user-select:none;">---</div>
+         style="cursor:pointer; -webkit-user-select:none; user-select:none;"><span id="disp-machine-name">---</span></div>
     <div class="header-icon" onclick="openModal('setting-modal')">⚙️</div>
 </div>
 
@@ -528,13 +538,12 @@
         <p class="section-title" style="color:white;">＜設定推測：要素調整＞</p>
         <div class="grid grid-3" id="weight-settings"></div>
 
-        <p class="section-title" style="margin-top:20px;">＜操作ログ（調査用・直近20件）＞</p>
+        <p class="section-title" style="margin-top:20px;">＜操作ログ＞</p>
         <pre id="tap-log" class="tap-log">（まだありません）</pre>
 
         <p class="section-title" style="margin-top:20px; color:white;">＜スプレッドシート連携＞</p>
         <input type="text" class="gas-input" id="gas-url" placeholder="GAS WebアプリのURLを貼り付け" onchange="saveGasConfig()" value="">
         <input type="text" class="gas-input" id="gas-token" placeholder="トークン（初期値: hanahana2026）" onchange="saveGasConfig()" value="" style="margin-top:6px;">
-        <p class="gas-note">※ GASコードのTOKENと同じ文字列を入力</p>
     </div>
 </div>
 
@@ -1097,14 +1106,16 @@
         renderMain();
     }
 
-    // ダミー数値生成
+    // ダミー数値生成（本当の数の前後に数字を足す。本当の数の桁が増えると全体も1桁ずつ増える）
     // kind: 'none' = 変化なし（ゲーム数, BIG, REG）
-    //       'five' = 小役・欠損（ベル, スイカ系, 詳細記録の小役・欠損・取得）。値の桁数に関係なく5桁にそろえる（2026-10）
-    //       'two'  = 前後に2桁ずつ追加（レトロ系）
+    //       'two'  = 前後に2桁ずつ追加（小役・欠損: ベル, スイカ系, 詳細記録の小役・欠損・取得。レトロ系）。1桁なら5桁（15○94 → 15○○94）。
+    //                2026-10 に一度「5桁にそろえる」にしたが、2026-10-04 に元の足し方へ戻した（ユーザー要望）
     //       'one'  = 前後に1桁ずつ追加（ランプ・白(不明)）
+    // 一番下の数字は本当の数と一緒に動かす（タップで +1、長押しで −1。9 の次は 0 で、下から2桁目は変えない）。
+    // 真ん中だけが変わると、どこが本当の数か見ている人に分かってしまうため（2026-10-04 ユーザー要望）
     function dummyNum(val, idx, kind) {
         if (!dummyMode || kind === 'none') return val;
-        const v = Math.max(0, val);
+        const v = Math.max(0, Math.floor(Number(val) || 0));
         const s = String(v);
         function rng(offset) {
             let h = dummySeed + idx * 2654435761 + offset * 40503;
@@ -1112,34 +1123,24 @@
             h = ((h >>> 16) ^ h) * 45679;
             return Math.abs(h % 100000);
         }
-        if (kind === 'five') {
-            // 本当の数を真ん中あたりに置き、前後を乱数で埋めて5桁に（1桁: 前2・後2、2桁: 前2・後1、3桁: 前1・後1、4桁: 前1）。5桁以上はそのまま
-            const pad = Math.max(0, 5 - s.length);
-            const preLen = Math.ceil(pad / 2), postLen = pad - preLen;
-            const pre = preLen > 0 ? String((rng(1) % (9 * Math.pow(10, preLen - 1))) + Math.pow(10, preLen - 1)) : ''; // 0始まり回避
-            const post = postLen > 0 ? String(rng(2) % Math.pow(10, postLen)).padStart(postLen, '0') : '';
-            return `${pre}${s}${post}`;
-        }
+        const last = (rng(3) + v) % 10; // 一番下の数字
         if (kind === 'two') {
             const pre = (rng(1) % 90) + 10;   // 10-99（0始まり回避）
-            const post = String(rng(2) % 100).padStart(2, '0'); // 00-99
-            return `${pre}${s}${post}`;
+            return `${pre}${s}${rng(2) % 10}${last}`;
         }
         const pre = (rng(1) % 9) + 1;         // 1-9
-        const post = rng(2) % 10;             // 0-9
-        return `${pre}${s}${post}`;
+        return `${pre}${s}${last}`;
     }
 
     // カウンター種別 → ダミー化ルール
     function dummyKind(id) {
         if (id === 'g' || id === 'b' || id === 'r') return 'none';
-        if (id === 'bell' || id === 'suika' || id === 'suikaR') return 'five';
-        if (id === 'retro_d' || id === 'retro') return 'two';
+        if (id === 'bell' || id === 'suika' || id === 'suikaR' || id === 'retro_d' || id === 'retro') return 'two';
         return 'one';
     }
-    // 詳細記録の欄: 筐体ランプの白(不明)はランプと同じ、それ以外（小役・欠損）は5桁
+    // 詳細記録の欄: 筐体ランプの白(不明)はランプと同じ、それ以外（小役・欠損）はベルと同じ
     function detailDummyKind(key) {
-        return (key === 'wBig' || key === 'wReg') ? 'one' : 'five';
+        return (key === 'wBig' || key === 'wReg') ? 'one' : 'two';
     }
 
     // ============================================================
@@ -1341,7 +1342,6 @@
                 </div>
                 <div class="hit-side">
                     <div class="hit-display" id="hit-display">${hitDisplayHtml()}</div>
-                    <div class="hit-hint">この当選の<br>回転数を修正</div>
                 </div>
             </div>
             <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>`;
@@ -1458,7 +1458,6 @@
                 </div>
                 <div class="hit-side">
                     <div class="hit-display" id="hit-display">${hitDisplayHtml()}</div>
-                    <div class="hit-hint">記録は既に<br>作成済み<br>閉じても残ります</div>
                 </div>
             </div>
             <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>
@@ -1593,7 +1592,6 @@
                 <button class="hit-key" onclick="bulkKey('0')">0</button>
                 <button class="hit-key ok" onclick="bulkKey('ok')">加算</button>
             </div>
-            <div class="hit-hint">項目を選んで数を入力 → 加算</div>
         `;
     }
 
@@ -1690,33 +1688,92 @@
         const n = HIT_NOTICES.find(o => o.v === h.notice);
         if (n && n.v !== HIT_NOTICES[0].v) tags.push(n.v === 'freeze' ? `<span class="freeze">${n.l}</span>` : n.l);
         HIT_EXTRAS.forEach(o => { if (Array.isArray(h.extras) && h.extras.includes(o.v)) tags.push(o.l); });
-        return tags.length ? `<div class="hm-tags">${tags.join('・')}</div>` : '';
+        return tags.length ? `<span class="hm-tags">${tags.join('・')}</span>` : '';
+    }
+
+    // 当選履歴の円グラフ（2026-10-04、ユーザーが案C を選択）。全体＝BIG/REG の割合、BIG・REG＝先告知・後告知・小役重複。
+    // プレミアは外側の金の線の長さ（プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・アメイジングチャンス〕付き）。
+    // 割合は四捨五入。契機の無い古い記録は初期値（単独(先)＝先告知）として数える
+    const HIT_PIE_COLORS = {
+        b: '#e05555', r: '#3a9ad9', premium: '#ffdd44',
+        pre: { b: '#9b2f2f', r: '#1f5f8f' }, post: { b: '#e05555', r: '#3a9ad9' }, dup: { b: '#ffa3a3', r: '#9fd8ff' }
+    };
+    function hitTrigCategory(h) {
+        const t = h && h.trig;
+        if (t === 'solo2') return 'post';
+        if (t !== HIT_TRIGS[0].v && HIT_TRIGS.some(o => o.v === t)) return 'dup'; // チェリー・スイカ・リプレイ・ベル
+        return 'pre';
+    }
+    function isPremiumHit(h) {
+        if (!h) return false;
+        if (h.notice === 'premium' || h.notice === 'freeze') return true;
+        return Array.isArray(h.extras) && h.extras.some(v => HIT_EXTRAS.some(o => o.v === v));
+    }
+    // 円グラフ（svg）と割合の行。list は buildFilteredHits の結果（idx で元の記録を引く）
+    function hitPieParts(list, kind) {
+        const d = getData();
+        const hits = list.map(x => d.hits[x.idx]).filter(Boolean);
+        const total = hits.length;
+        if (total === 0) return { svg: '', legend: '' };
+        const cnt = (f) => hits.filter(f).length;
+        const pct = (n) => `${Math.round(n / total * 100)}%`;
+        const segs = (kind === 'all')
+            ? [{ k: 'b', l: 'BIG', c: HIT_PIE_COLORS.b, n: cnt(h => h.k === 'b') }, { k: 'r', l: 'REG', c: HIT_PIE_COLORS.r, n: cnt(h => h.k === 'r') }]
+            : [['pre', '先告知'], ['post', '後告知'], ['dup', '小役重複']].map(([k, l]) => ({ k, l, c: HIT_PIE_COLORS[k][kind], n: cnt(h => hitTrigCategory(h) === k) }));
+        const nPrem = cnt(isPremiumHit);
+        // 扇形は半径24・太さ48の円周の線で描く（中心から48まで）。上から時計回り
+        const R = 24, C = 2 * Math.PI * R;
+        let start = 0;
+        const arcs = segs.map(sg => {
+            const len = sg.n / total * C;
+            const el = `<circle data-seg="${sg.k}" data-n="${sg.n}" cx="60" cy="60" r="${R}" fill="none" stroke="${sg.c}" stroke-width="${R * 2}" stroke-dasharray="${len} ${C}" stroke-dashoffset="${-start}"/>`;
+            start += len;
+            return el;
+        }).join('');
+        const PR = 55, PC = 2 * Math.PI * PR; // プレミアの線（外側の輪）
+        const prem = `<circle cx="60" cy="60" r="${PR}" fill="none" stroke="#333" stroke-width="4"/>`
+            + `<circle data-seg="premium" data-n="${nPrem}" cx="60" cy="60" r="${PR}" fill="none" stroke="${HIT_PIE_COLORS.premium}" stroke-width="4" stroke-dasharray="${nPrem / total * PC} ${PC}"/>`;
+        const name = kind === 'all' ? '全体' : (kind === 'b' ? 'BIG' : 'REG');
+        const svg = `<svg class="hm-pie" viewBox="0 0 120 120"><g transform="rotate(-90 60 60)">${arcs}${prem}</g>`
+            + `<circle cx="60" cy="60" r="24" fill="#111"/>`
+            + `<text x="60" y="56" text-anchor="middle" font-size="10" fill="#aaa">${name}</text>`
+            + `<text x="60" y="70" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">${total}回</text></svg>`;
+        const sw = (c) => `<i style="background:${c}"></i>`;
+        const items = segs.map(sg => `<span>${sw(sg.c)}${sg.l} ${pct(sg.n)}</span>`);
+        if (kind === 'all') {
+            items.push(`<span>後告知 ${pct(cnt(h => hitTrigCategory(h) === 'post'))}</span>`);
+            items.push(`<span>小役重複 ${pct(cnt(h => hitTrigCategory(h) === 'dup'))}</span>`);
+        }
+        items.push(`<span>${sw(HIT_PIE_COLORS.premium)}プレミア ${pct(nPrem)}</span>`);
+        return { svg, legend: `<div class="hm-legend">${items.join(' ')}</div>` };
     }
 
     function renderHitRecords() {
         const list = buildFilteredHits(hitListKind);
         const hamari = currentHamari(hitListKind);
-        const kindLabel = hitListKind === 'all' ? '前回の当たり' : (hitListKind === 'b' ? '前回のBIG' : '前回のREG');
 
-        let html = `
-            <div class="hm-now">
-                <div class="hm-now-g">${hamari}<span style="font-size:15px;">G</span></div>
-                <div class="hm-now-l">${kindLabel}から</div>
+        // 今のハマり（前回の当たりから回した分）は一覧の先頭の行に、当選の行と同じメモリで出す（2026-10-04。緑の枠はやめた）
+        const curRow = `<div class="hm-cur">
+                <div class="hm-no"></div>
+                <div class="hm-mc"><div class="hm-bar-wrap">${hitMeterHtml(hamari)}</div><div class="hm-tagline"></div></div>
+                <div class="hm-g hm-now-g">${hamari}<span style="font-size:11px;color:#888;">G</span></div>
+                <div class="hm-kind now">現在</div>
             </div>`;
 
         if (list.length === 0) {
-            return html + '<div class="hm-empty">記録がありません<br><span style="font-size:11px;">BIG/REGを加算すると入力できます</span></div>';
+            return `<div class="hm-list">${curRow}</div><div class="hm-empty">記録がありません</div>`;
         }
 
         // 統計は G が入力済みのものだけで計算。
         // 平均（大当たり確率）は今のハマり（前回の当たりから回した分）も母数に含める: (記録の合計 + ハマり) ÷ 回数
         const valid = list.filter(h => h.g != null && !h.blank);
+        let stat = '';
         if (valid.length > 0) {
             const sum = valid.reduce((a, h) => a + h.g, 0);
             const avg = Math.round((sum + hamari) / valid.length);
             const max = Math.max(...valid.map(h => h.g));
             const min = Math.min(...valid.map(h => h.g));
-            html += `
+            stat = `
                 <div class="hm-stat">
                     <div class="hm-stat-box"><div class="hm-stat-v">${list.length}</div><div class="hm-stat-l">回数</div></div>
                     <div class="hm-stat-box"><div class="hm-stat-v">1/${avg}</div><div class="hm-stat-l">平均</div></div>
@@ -1724,8 +1781,10 @@
                     <div class="hm-stat-box"><div class="hm-stat-v">${min}</div><div class="hm-stat-l">最小</div></div>
                 </div>`;
         }
-        html += `<div style="font-size:10px;color:#666;margin-bottom:6px;">G数をタップすると修正できます</div><div class="hm-list">`;
+        const pie = hitPieParts(list, hitListKind);
+        let html = `<div class="hm-top">${pie.svg}${stat}</div>${pie.legend}<div class="hm-list">${curRow}`;
 
+        // 備考（初期値以外の契機・告知）は棒の下の段に出す。備考が無い行も同じ段を持つので、行の高さは変わらない
         const n = list.length;
         list.forEach((h, i) => {
             const kc = h.k === 'b' ? 'big' : 'reg';
@@ -1736,16 +1795,12 @@
                 : `${h.g}<span style="font-size:11px;color:#888;">G</span>${h.blank ? '<span style="color:#f80;font-size:10px;">*</span>' : ''}`;
             html += `<div class="hm-row">
                 <div class="hm-no">${n - i}</div>
-                <div class="hm-bar-wrap hm-edit" onclick="editHitG(${h.idx})">${hitMeterHtml(isBlank ? null : h.g)}</div>
+                <div class="hm-mc hm-edit" onclick="editHitG(${h.idx})"><div class="hm-bar-wrap">${hitMeterHtml(isBlank ? null : h.g)}</div><div class="hm-tagline">${hitTagsHtml(getData().hits[h.idx])}</div></div>
                 <div class="hm-g hm-edit" onclick="editHitG(${h.idx})" style="cursor:pointer;">${gTxt}</div>
                 <div class="hm-kind ${kc}">${kl}</div>
-                ${hitTagsHtml(getData().hits[h.idx])}
             </div>`;
         });
         html += '</div>';
-        if (list.some(h => h.blank || h.g == null)) {
-            html += `<div style="font-size:10px;color:#f80;margin-top:8px;">※ 未入力の記録が含まれています（* は未入力を含む区間）</div>`;
-        }
         return html;
     }
 
@@ -1834,10 +1889,6 @@
             </tr>`;
         });
         html += `</table>`;
-        html += `<div style="font-size:10px;color:#666;margin-top:10px;line-height:1.6;">
-            ※ 理論=その回転数までに当たる確率／実績=記録のうちその回転数以内だった割合<br>
-            ※ 実績は${kind === 'all' ? '全記録（BIG+REG合算）の当選間隔' : `${kindName}間の間隔（間のもう一方のボーナスの区間も含む）`}で計算しています
-        </div>`;
         return html;
     }
 
@@ -2256,6 +2307,36 @@
             if (typeof navigator.vibrate === 'function') navigator.vibrate(15);
         } catch (e) { /* 振動できない環境では何もしない */ }
     }
+
+    // セル以外の「押すと何か起きるもの」（アイコン・機種名・ボタン・タブ・テンキー・設定推測の行など）も押したら振動させる（2026-10-04）。
+    // セルと同じ透明なラベルを要素全体にかぶせる。押した時の処理は今までどおり要素の onclick など（ラベルの click がそのまま伝わる）。
+    // ラベルが中のスイッチへ送る2回目の click はラベルで止める（止めないと処理が2回動く。描き直しで外れたラベルでも止まる）。
+    // 描き直しで出てくる要素にも付けるため、DOM の変化を見張る。メイン画面のセルは今までのラベル（hapticTapHtml）のまま
+    const HAPTIC_TARGETS = [
+        '.header-icon[onclick]', '#disp-machine', '.modal-title[onclick]', '#setting-modal .cell[onclick]', 'button',
+        '.hm-tab', '.hm-sub-btn', '.hm-edit', '.set-tab', '.hit-opt', '.hit-close', '.bulk-target',
+        '.hist-filter-btn', '.hist-item', '.lock-cell',
+        '#detail-rows tr[onclick^="toggleGraph"] > th', '#detail-rows tr[onclick^="toggleGraph"] > td',
+        '#detail-rows tr[onclick^="handleTap"] > th', '#detail-rows tr[onclick^="handleTap"] > td'
+    ].join(', ');
+    const HAPTIC_LABEL_HTML = '<label class="haptic-tap" aria-hidden="true" onclick="if (event.target !== this) event.stopPropagation();"><input type="checkbox" switch tabindex="-1"></label>';
+    function addHaptic(el) {
+        if (!el.querySelector(':scope > .haptic-tap')) el.insertAdjacentHTML('beforeend', HAPTIC_LABEL_HTML);
+    }
+    function addHaptics(root) {
+        if (!root || root.nodeType !== 1) return;
+        if (root.matches(HAPTIC_TARGETS)) addHaptic(root);
+        root.querySelectorAll(HAPTIC_TARGETS).forEach(addHaptic);
+    }
+    // ラベルを要素全体にかぶせるため、対象は position: relative（今の対象はどれも static）。
+    // className を書き換える要素（設定のボタン）でも外れないよう、クラスではなく同じセレクタで指定する（タップのたびに getComputedStyle しない）
+    document.head.insertAdjacentHTML('beforeend', `<style>${HAPTIC_TARGETS} { position: relative; }</style>`);
+    addHaptics(document.body);
+    // 描き直しで出てきた要素と、中身を書き換えた要素（データ保存のボタンの「保存中...」など）に付け直す
+    new MutationObserver(ms => ms.forEach(m => {
+        if (m.target.nodeType === 1 && m.target.matches(HAPTIC_TARGETS)) addHaptic(m.target);
+        m.addedNodes.forEach(addHaptics);
+    })).observe(document.body, { childList: true, subtree: true });
     function updateMachine() { 
         data.machine = document.getElementById('machine-select').value; 
         save(); updateHeader(); renderWeightSettings();
@@ -2400,7 +2481,7 @@
         });
         document.querySelectorAll('#main-ui .cell[data-take]').forEach(el => {
             const v = el.querySelector('.value');
-            if (v) v.textContent = dummyNum(takeValue(d, el.dataset.take, el.dataset.loss), parseInt(el.dataset.didx) || 0, 'five');
+            if (v) v.textContent = dummyNum(takeValue(d, el.dataset.take, el.dataset.loss), parseInt(el.dataset.didx) || 0, 'two');
         });
         markMorningLamp();
         updateHeader();
@@ -2479,7 +2560,7 @@
         const d = getData();
         const v = takeValue(d, curKey, lossKey);
         const idx = _dIdx++;
-        const dv = dummyNum(v, idx, 'five');
+        const dv = dummyNum(v, idx, 'two');
         const attrs = `data-take="${curKey}" data-loss="${lossKey}"`;
         if (lockEdit) return lockCellHtml(`take-${curKey}`, label, dv);
         if (isLocked(`take-${curKey}`)) return `<div class="cell locked" ${attrs} data-didx="${idx}"><div class="label">${label}</div><div class="value">${dv}</div></div>`;
@@ -2626,13 +2707,14 @@
 
     function updateHeader() {
         const nameEl = document.getElementById('disp-machine');
+        const box = document.getElementById('disp-machine-name'); // 中身だけ書き換える（振動用ラベルは消さない）
         const name = ALL_PARAMS[data.machine].name;
         if (data.detailMode) {
             // 左＝画面1、右＝画面2。表示中の方が ●
-            nameEl.innerHTML = `<span class="scr-dot">${detailScreen === 1 ? '●' : '○'}</span><span class="mname">${name}</span><span class="scr-dot">${detailScreen === 2 ? '●' : '○'}</span>`;
+            box.innerHTML = `<span class="scr-dot">${detailScreen === 1 ? '●' : '○'}</span><span class="mname">${name}</span><span class="scr-dot">${detailScreen === 2 ? '●' : '○'}</span>`;
             nameEl.classList.add('with-dots');
         } else {
-            nameEl.textContent = name;
+            box.textContent = name;
             nameEl.classList.remove('with-dots');
         }
         document.getElementById('btn-mode-tap').className = `cell ${data.mode==='tap'?'active-mode':''}`;
@@ -2647,7 +2729,7 @@
 
     // 押したボタンの下に増減を出す（一定時間で消える）。消える前に同じボタンを操作したら合計を出し直して時間をリセット
     // （例: 2回タップで +2、タップ→長押しで ±0）。値は実際の増減（G数は +50、下限で変わらなければ ±0）
-    let tapDeltaMs = 1500; // 消えるまでの時間
+    let tapDeltaMs = 4100; // 消えるまでの時間（1回転分。2026-10-04 に 1.5 秒から変更）
     const tapDeltas = {};   // ボタン（tapLogId）ごとの { sum, timer, el }
     function showTapDelta(cell, delta, label = '') {
         const key = tapLogId(cell);
@@ -3212,39 +3294,41 @@
         const dn = (k) => Math.max(0, Number(dx[k]) || 0);
         const effGTxt = st.oneBetGames > 0 ? ` <span class="white-txt">(1枚掛け補正 ${Math.round(effG * 10) / 10})</span>` : '';
 
+        // est = 推測に使う行（要素調整が 0% の要素は使っていないので外す）。項目名の左端に青い線を出す（2026-10-04）
+        const used = (k) => (Number(w[k]) || 0) > 0;
         let rows = [
             { id:'g', lab:'通常時回転数', val:`${calcG}回転${effGTxt}`, l:null, str:null },
-            { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, effG, 2)})</span>`, l:rawB, str:pm.b_str },
-            { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, effG, 2)})</span>`, l:rawR, str:pm.r_str },
-            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, effG, 2)})</span>`, l:rawG, str:pm.gas_str }
+            { id:'b', lab: labels.b, val:`${calcB}回 <span class="white-txt">(${getP(calcB, effG, 2)})</span>`, l:rawB, str:pm.b_str, est: used('b') },
+            { id:'r', lab: labels.r, val:`${calcR}回 <span class="white-txt">(${getP(calcR, effG, 2)})</span>`, l:rawR, str:pm.r_str, est: used('r') },
+            { id:'gas', lab: labels.gas, val:`${calcB+calcR}回 <span class="white-txt">(${getP(calcB+calcR, effG, 2)})</span>`, l:rawG, str:pm.gas_str, est: used('gas') }
         ];
         // 小役の行。n = 出現回数（取得 + 欠損）、denom = 分母のゲーム数（null なら回数だけ）、loss = 欠損回数（その欄が無ければ 0）
-        // graph = 個別設定推測のグラフ（推測に使う要素だけ）
+        // graph = 個別設定推測のグラフ（推測に使う要素だけ。w は要素調整のキー）
         const role = (id, lab, n, denom, loss = 0, graph = null, digits = 2) => {
             if (n <= 0) return;
             let val = `${n}回`;
             if (denom !== null) val += ` <span class="white-txt">(${getP(n, denom, digits)})</span>`;
             if (loss > 0) val += ` <span class="loss-txt">(${loss}回)</span>`;
-            rows.push({ id, lab, val, l: graph ? graph.l : null, str: graph ? graph.str : null });
+            rows.push({ id, lab, val, l: graph ? graph.l : null, str: graph ? graph.str : null, est: !!graph && used(graph.w) });
         };
         // 通常時の分母は通常時の回転数（1枚掛けの補正込み）。ボーナス中はその区間のゲーム数（欠損・純ハズレの +1 込み）
         const cheAll = dn('nChe') + dn('nCheM') + dn('lnChe'), cheLoss = dn('lnChe') + dn('nCheM'); // 中段チェリーも欠損の欄
         if (isNew) {
-            role('nrep', '通常時：リプレイ', dn('nRep'), effG);
-            role('bel', '通常時：ベル', c.bell, effG, 0, { l: rawBell, str: pm.bell_str }, 3);
+            role('nrep', '通常時：リプレイ', dn('nRep'), effG, 0, null, 3);
+            role('bel', '通常時：ベル', c.bell, effG, 0, { l: rawBell, str: pm.bell_str, w: 'bell' }, 3);
             role('nche', '通常時：チェリー', cheAll, effG, cheLoss);
             role('nsui', '通常時：スイカ', dn('nSui') + dn('lnSui'), effG, dn('lnSui'));
             role('bche', 'BIG(前半)：チェリー', dn('bChe') + dn('lbChe'), st.suiDenom, dn('lbChe'));
-            role('sui', 'BIG(前半)：スイカ', c.suika, st.suiDenom, dn('lbSui'), { l: rawSui, str: pm.suika_str });
+            role('sui', 'BIG(前半)：スイカ', c.suika, st.suiDenom, dn('lbSui'), { l: rawSui, str: pm.suika_str, w: 'sui' });
             // BT は中段リプレイで終わるので、BT のゲーム数 = BT中リプレイ + BT中ベル + BIG 回数
             const btG = dn('btRep') + dn('btBell') + calcB;
             role('btrep', 'BT：リプレイ', dn('btRep'), btG);
             role('btbell', 'BT：ベル', dn('btBell'), btG);
             role('rche', 'REG：チェリー', dn('rChe') + dn('lrChe'), st.suiRDenom, dn('lrChe'));
-            role('suiR', 'REG：スイカ', c.suikaR, st.suiRDenom, dn('lrSui'), { l: rawSuiR, str: pm.suikaR_str });
+            role('suiR', 'REG：スイカ', c.suikaR, st.suiRDenom, dn('lrSui'), { l: rawSuiR, str: pm.suikaR_str, w: 'suiR' });
         } else {
-            role('nrep', '通常時：リプレイ（3）', dn('nRep'), effG);
-            role('bel', '通常時：ベル（3）', c.bell, effG, 0, { l: rawBell, str: pm.bell_str }, 3);
+            role('nrep', '通常時：リプレイ（3）', dn('nRep'), effG, 0, null, 3);
+            role('bel', '通常時：ベル（3）', c.bell, effG, 0, { l: rawBell, str: pm.bell_str, w: 'bell' }, 3);
             role('nche', '通常時：チェリー（3）', cheAll, effG, cheLoss);
             role('nsui', '通常時：スイカ（3）', dn('nSui') + dn('lnSui'), effG, dn('lnSui'));
             role('orep', '通常時：リプレイ（1・2）', dn('oRep'), null);
@@ -3252,12 +3336,12 @@
             role('oche', '通常時：チェリー（1・2）', dn('oChe'), null);
             role('osui', '通常時：スイカ（1・2）', dn('oSui'), null);
             role('bche', 'BIG：チェリー', dn('bChe') + dn('lbChe'), st.suiDenom, dn('lbChe'));
-            role('sui', 'BIG：スイカ', c.suika, st.suiDenom, dn('lbSui'), { l: rawSui, str: pm.suika_str });
+            role('sui', 'BIG：スイカ', c.suika, st.suiDenom, dn('lbSui'), { l: rawSui, str: pm.suika_str, w: 'sui' });
             role('bmiss', 'BIG：純ハズレ', dn('bMiss'), st.suiDenom);
             role('rmiss', 'REG：純ハズレ', dn('rMiss'), st.suiRDenom);
         }
 
-        rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true });
+        rows.push({ id:'sl', lab: labels.sl, val:mkLmpT(d.lamps.regS, pm, 'regS'), l:rawSidL, str:null, hasColors: true, est: used('sl') });
         
         let sideCols = isNew ? pm.colors_side : pm.colors;
         let sideLabs = isNew ? pm.labels_side : pm.labels;
@@ -3274,12 +3358,13 @@
                 val: `${c_v}回 <span class="white-txt">(${pct}%)</span>`,
                 l: c_l,
                 str: pm.sideR_str[i],
+                est: used('sl'),
                 isColorRow: true,
                 parent: 'sl'
             });
         });
 
-        rows.push({ id:'bl', lab: labels.bl, val:mkLmpT(bigLamps, pm, 'big'), l:lBigL_indiv, str:pm.blamp_str, hasColors: true });
+        rows.push({ id:'bl', lab: labels.bl, val:mkLmpT(bigLamps, pm, 'big'), l:lBigL_indiv, str:pm.blamp_str, hasColors: true, est: used('bl') });
         
         pm.labels.forEach((lab, i) => {
             let c_v = bigLamps[i];
@@ -3291,13 +3376,14 @@
                 val: `${c_v}回 <span class="white-txt">(${getP(c_v, lampCalcB, 2)})</span>`,
                 l: c_l,
                 str: pm.lampB_str[i],
+                est: used('bl'),
                 isColorRow: true,
                 parent: 'bl'
             });
         });
 
-        rows.push({ id:'rl', lab: labels.rl, val:mkLmpT(d.lamps.regT, pm, 'regT'), l:null, str:null });
-        rows.push({ id:'ret', lab: labels.ret, val:`${c.retro}回 <span class="white-txt">(${getP(c.retro, c.retro_d, 2)})</span>`, l:rawRet, str:pm.retro_str });
+        rows.push({ id:'rl', lab: labels.rl, val:mkLmpT(d.lamps.regT, pm, 'regT'), l:null, str:null, est: used('rl') });
+        rows.push({ id:'ret', lab: labels.ret, val:`${c.retro}回 <span class="white-txt">(${getP(c.retro, c.retro_d, 2)})</span>`, l:rawRet, str:pm.retro_str, est: used('ret') });
 
         const container = document.getElementById(prefix+'detail-rows');
         const interactive = !targetId; // 画像出力用テーブルにはイベントを付けない
@@ -3308,7 +3394,7 @@
 
             if (r.isColorRow) {
                 let tapEvt = interactive ? (hasGraph ? `onclick="toggleGraph('${prefix}g-${r.id}')"` : `onclick="event.stopPropagation();"`) : '';
-                htmlRows += `<tr class="${prefix}${r.parent}-colors" style="display:none;" ${tapEvt}>
+                htmlRows += `<tr class="${prefix}${r.parent}-colors${r.est ? ' est' : ''}" style="display:none;" ${tapEvt}>
                                 <th>${r.lab}</th><td>${r.val}</td>
                              </tr>`;
             } else {
@@ -3323,7 +3409,7 @@
                         tapEvt = `onclick="event.stopPropagation();"`;
                     }
                 }
-                htmlRows += `<tr id="${prefix}row-${r.id}" ${tapEvt}><th>${r.lab}</th><td>${r.val}</td></tr>`;
+                htmlRows += `<tr id="${prefix}row-${r.id}"${r.est ? ' class="est"' : ''} ${tapEvt}><th>${r.lab}</th><td>${r.val}</td></tr>`;
             }
 
             if (hasGraph) {

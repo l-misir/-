@@ -61,14 +61,15 @@ test('実際の増減を出す（ゲーム数は +50、下限で変わらなけ�
 
 test('一定時間で消え、消える前に操作すると時間をリセットする。消えた後はまた +1 から', async () => {
   const app = setup();
-  app.ev('tapDeltaMs = 300'); // テスト用に短く（本番は 1.5 秒）
+  // テスト用に短く（本番は 4.1 秒）。ほかのテストと並んで重くなってもずれないよう、待ち時間には余裕を持たせる
+  app.ev('tapDeltaMs = 1000');
   await app.tap('#main-ui [data-id="bell"]');
-  await wait(200);
+  await wait(600);
   await app.tap('#main-ui [data-id="bell"]'); // ここで時間をリセット
-  await wait(200);
-  assert.equal(deltaText(app, 'bell'), '+2', 'リセットしたのでまだ出ている');
-  await wait(250);
-  assert.equal(deltaText(app, 'bell'), null, '最後の操作から 300ms で消える');
+  await wait(600);
+  assert.equal(deltaText(app, 'bell'), '+2', 'リセットしたのでまだ出ている（最初から 1200ms）');
+  await wait(700);
+  assert.equal(deltaText(app, 'bell'), null, '最後の操作から 1000ms で消える');
   await app.tap('#main-ui [data-id="bell"]');
   assert.equal(deltaText(app, 'bell'), '+1', '消えた後は数え直し');
 });

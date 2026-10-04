@@ -119,7 +119,7 @@ test('設定画面: ＜入力モード＞＜詳細記録＞ / ＜数値表示＞
   ['btn-haptic-on', 'btn-belltap-on', 'btn-starttap-on'].forEach((id) => assert.equal(doc.getElementById(id), null, id));
   assert.equal(doc.querySelector('#setting-modal #weight-settings'), null);
   const adminTitles = [...doc.querySelectorAll('#admin-modal .section-title')].map((e) => e.textContent);
-  assert.deepEqual(adminTitles, ['＜設定推測：要素調整＞', '＜操作ログ（調査用・直近20件）＞', '＜スプレッドシート連携＞']);
+  assert.deepEqual(adminTitles, ['＜設定推測：要素調整＞', '＜操作ログ＞', '＜スプレッドシート連携＞']);
   assert.ok(doc.querySelector('#admin-modal #weight-settings').children.length > 0, '要素調整は管理画面で描く');
   const order = [...doc.querySelectorAll('body > div[id]')].map((e) => e.id);
   assert.ok(order.indexOf('lock-modal') > order.indexOf('setting-modal'), 'カウントロックは設定画面より手前に重なる');
