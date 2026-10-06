@@ -2,7 +2,7 @@
 // メイン画面のセルと同じく、透明な振動用ラベル（中に非表示のスイッチ）をかぶせ、指のタップで直接スイッチを切り替える
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadApp } = require('./helpers');
+const { loadApp, useManualTimers } = require('./helpers');
 
 const tick = () => new Promise((r) => setTimeout(r, 0)); // 振動用ラベルは描いた後に付ける（MutationObserver）
 const hasHaptic = (el) => !!(el && el.querySelector(':scope > label.haptic-tap > input[type="checkbox"][switch]'));
@@ -124,4 +124,99 @@ test('データ保存のボタン: 「保存中...」に書き換えた後も振
   assert.equal(btn.textContent, 'データ保存・画像出力');
   assert.ok(hasHaptic(btn), '保存後');
   assert.equal(btn.querySelectorAll('.haptic-tap').length, 1);
+});
+
+// 機種名のタップ（詳細記録の画面1・画面2 の切替）: 離した瞬間に描き直すと iOS がタップを click にせず振動しないので、
+// 切替は振動用ラベルの click で行う。click が来なければ 0.4 秒後に切り替える（2026-10-06）
+const detailScreenNo = (app) => app.document.querySelector('#main-ui .detail-screen').dataset.screen;
+const nameLabel = (app) => app.document.querySelector('#disp-machine > .haptic-tap');
+function detailApp() {
+  const app = loadApp();
+  app.selectMachine('newking');
+  app.window.setDetailMode(true);
+  return app;
+}
+
+test('機種名のタップ: 離した瞬間には描き直さず、振動用ラベルの click で切り替える（スイッチへの2回目の click では戻らない）', () => {
+  const app = detailApp();
+  const before = app.document.querySelector('#main-ui .detail-screen');
+  app.window.startMachinePress();
+  app.window.endMachinePress();
+  assert.equal(detailScreenNo(app), '1');
+  assert.equal(app.document.querySelector('#main-ui .detail-screen'), before, '離した瞬間には描き直さない');
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '2');
+  assert.match(app.document.getElementById('disp-machine').textContent, /○ニューキングハナハナⅤ●/);
+  app.window.startMachinePress();
+  app.window.endMachinePress();
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '1', 'もう一度タップで画面1');
+});
+
+test('機種名のタップ: click が来なくても 0.4 秒後には切り替える（遅れて来た click では戻らない）', () => {
+  const app = detailApp();
+  const advance = useManualTimers(app);
+  app.window.startMachinePress();
+  app.window.endMachinePress();
+  advance(399);
+  assert.equal(detailScreenNo(app), '1');
+  advance(1);
+  assert.equal(detailScreenNo(app), '2', '予備のタイマーで切り替わる');
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '2');
+});
+
+test('機種名: pointercancel の後に click が来たら（振動したら）切り替える。長押し（まとめて加算）の後の click では切り替えない', () => {
+  const app = detailApp();
+  const advance = useManualTimers(app);
+  app.window.startMachinePress();
+  app.window.cancelMachinePress();
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '2');
+  app.window.startMachinePress();
+  advance(549);
+  assert.ok(!app.document.getElementById('bulk-panel').classList.contains('active'));
+  advance(1);
+  assert.ok(app.document.getElementById('bulk-panel').classList.contains('active'), '550ms で長押し（まとめて加算）');
+  app.window.endMachinePress();
+  nameLabel(app).click();
+  advance(1000);
+  assert.equal(detailScreenNo(app), '2', '長押しでは切り替えない');
+});
+
+test('機種名の連打: 前のタップの click が来ないうちに次を押しても、前のタップの切替は失わない（次が長押しでも）', () => {
+  const app = detailApp();
+  const advance = useManualTimers(app);
+  app.window.startMachinePress();
+  app.window.endMachinePress(); // 1回目: click が来ない
+  advance(100);
+  app.window.startMachinePress(); // 2回目を押した時点で1回目の分を切り替える
+  assert.equal(detailScreenNo(app), '2');
+  app.window.endMachinePress();
+  advance(400);
+  assert.equal(detailScreenNo(app), '1', '2回目の分');
+  app.window.startMachinePress();
+  app.window.endMachinePress(); // click が来ない
+  advance(100);
+  app.window.startMachinePress(); // 長押し
+  advance(550);
+  assert.ok(app.document.getElementById('bulk-panel').classList.contains('active'));
+  app.window.endMachinePress();
+  advance(1000);
+  assert.equal(detailScreenNo(app), '2', '長押しの前のタップの分は切り替わる');
+});
+
+test('機種名: pointercancel の後の click は、押し始めから2秒以内だけ切り替える', () => {
+  const app = detailApp();
+  const advance = useManualTimers(app);
+  app.window.startMachinePress();
+  app.window.cancelMachinePress();
+  advance(2001);
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '1', '2秒を過ぎた click では切り替えない');
+  app.window.startMachinePress();
+  app.window.cancelMachinePress();
+  advance(2000);
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '2');
 });

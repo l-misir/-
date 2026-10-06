@@ -23,7 +23,12 @@ const dots = (app) => [...app.document.querySelectorAll('#disp-machine .scr-dot'
 const cur = (app, k) => app.ev(`getData().cur.${k}`);
 const det = (app, k) => app.ev(`getData().detail.${k}`);
 const shown = (app, sel) => app.document.querySelector(`#main-ui ${sel} .value`).textContent;
-const tapMachine = (app) => { app.window.startMachinePress(); app.window.endMachinePress(); };
+// 機種名のタップ: 押して離し、振動用ラベルの click（iOS の本物のタップ）で切り替わる（2026-10-06）
+const tapMachine = (app) => {
+  app.window.startMachinePress();
+  app.window.endMachinePress();
+  app.document.querySelector('#disp-machine > .haptic-tap').click();
+};
 
 test('詳細記録 OFF: 今の画面のまま。機種名をタップしても何もしない・○● も出ない', () => {
   const app = loadApp();

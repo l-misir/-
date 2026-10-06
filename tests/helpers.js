@@ -79,4 +79,28 @@ function extractScript() {
   return m[1];
 }
 
-module.exports = { loadApp, extractScript, HTML_PATH };
+// アプリのタイマー（setTimeout / clearTimeout）と Date.now を手で進める時計に差し替える。戻り値の advance(ms) で時間を進める。
+// 本物の時間を待つテストは、テストを並列で走らせて重いと遅れたり、Node 24 + jsdom ではページ側のタイマーが
+// しばらく動かないことがあった（2026-10-06）ので、時間で動きが変わるところはこれで確かめる
+function useManualTimers(app) {
+  let now = 0, seq = 0;
+  const timers = new Map();
+  const base = app.window.Date.now();
+  app.window.Date.now = () => base + now; // アプリが測る時間（押していた時間など）も同じ時計で進める
+  app.window.setTimeout = (fn, ms = 0, ...args) => { timers.set(++seq, { fn, args, at: now + (Number(ms) || 0) }); return seq; };
+  app.window.clearTimeout = (id) => { timers.delete(id); };
+  return function advance(ms) {
+    const end = now + ms;
+    for (;;) {
+      const due = [...timers].filter(([, t]) => t.at <= end).sort((a, b) => a[1].at - b[1].at || a[0] - b[0]);
+      if (due.length === 0) break;
+      const [id, t] = due[0];
+      timers.delete(id);
+      now = t.at;
+      t.fn(...t.args);
+    }
+    now = end;
+  };
+}
+
+module.exports = { loadApp, extractScript, HTML_PATH, useManualTimers };

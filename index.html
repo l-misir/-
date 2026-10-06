@@ -455,7 +455,7 @@
     <div class="header-icon" onclick="openHitModal()">🔍</div>
     <div class="header-title" id="disp-machine"
          onpointerdown="startMachinePress()" onpointerup="endMachinePress()"
-         onpointerleave="cancelMachinePress()" onpointercancel="cancelMachinePress()"
+         onpointerleave="cancelMachinePress()" onpointercancel="cancelMachinePress()" onclick="machineTapDone()"
          oncontextmenu="event.preventDefault();"
          style="cursor:pointer; -webkit-user-select:none; user-select:none;"><span id="disp-machine-name">---</span></div>
     <div class="header-icon" onclick="openModal('setting-modal')">⚙️</div>
@@ -1149,25 +1149,42 @@
     // ============================================================
     // 機種名の長押し判定（長押し=まとめて加算 / タップ=詳細記録画面との切替〔段階5〕。2026-09 に変更）
     // ============================================================
+    // タップは詳細記録の画面1・画面2 の切替（詳細記録 OFF の間は何もしない）。切替は離した瞬間ではなく、振動用ラベルの click で行う
+    // （2026-10-06）。離した瞬間に描き直すと、iOS は中身が変わったタップを click にしないので振動しない。
+    // click が来なかったとき（離した後）は 0.4 秒後に切り替える（振動はしない）。pointercancel の後でも click が来たら（＝振動したら）切り替える
     let machinePressTimer = null;
-    let machineLongPressed = false;
+    let machineTapTimer = null;
+    let machinePress = null; // 押している間〜切り替えるまで: { at: 押し始めた時刻, long: 長押し（まとめて加算）か, up: 離したか }
 
     function startMachinePress() {
-        machineLongPressed = false;
+        // 前のタップ（離した後、まだ click も予備のタイマーも来ていない）の切替は先に済ませる（連打で切替を失わないため）
+        if (machinePress && machinePress.up) machineTapDone();
+        clearTimeout(machineTapTimer);
+        const p = machinePress = { at: Date.now(), long: false };
         machinePressTimer = setTimeout(() => {
-            machineLongPressed = true;
+            p.long = true;
             openBulkPanel();
         }, 550);
     }
     function endMachinePress() {
         clearTimeout(machinePressTimer);
-        // タップは詳細記録の画面1・画面2 の切替。詳細記録 OFF の間は何もしない
-        if (!machineLongPressed) switchDetailScreen();
-        machineLongPressed = false;
+        if (!machinePress || machinePress.long) { machinePress = null; return; }
+        machinePress.up = true;
+        clearTimeout(machineTapTimer);
+        machineTapTimer = setTimeout(machineTapDone, 400); // click が来なかったときの予備
     }
     function cancelMachinePress() {
         clearTimeout(machinePressTimer);
-        machineLongPressed = false;
+        if (machinePress && machinePress.long) machinePress = null;
+    }
+    // 機種名の click（振動用ラベルから伝わる）か、予備のタイマー。1回のタップで1回だけ切り替える。
+    // 離していない（pointercancel の）押下は、押し始めから2秒以内の click だけ扱う（関係ない古い押下で切り替えない）
+    function machineTapDone() {
+        clearTimeout(machineTapTimer);
+        const p = machinePress;
+        machinePress = null;
+        if (!p || p.long || (!p.up && Date.now() - p.at > 2000)) return;
+        switchDetailScreen();
     }
 
     // ============================================================
@@ -1694,13 +1711,17 @@
         return tags.length ? `<span class="hm-tags">${tags.join('・')}</span>` : '';
     }
 
-    // 当選履歴の円グラフ（2026-10-04、ユーザーが案C を選択）。全体＝BIG/REG の割合、BIG・REG＝先告知・後告知・小役重複。
-    // プレミアは外側の金の線の長さ（プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・バウンドストップ。ボタンを無くしたアメイジングチャンスの古い記録も〕付き）。
-    // 割合は四捨五入。契機の無い古い記録は初期値（単独(先)＝先告知）として数える
+    // 当選履歴の円グラフ（2026-10-04 にユーザーが案C を選択、2026-10-06 に見直し）。
+    // 扇は種別×契機（先告知・後告知・小役重複）。全体のタブも BIG・REG のタブと同じ色（BIG は赤、REG は青の濃淡）で分け、扇の境目に細い線。
+    // 当たり1回ごとに円の中の場所を決め（BIG→REG、先告知→後告知→小役重複、通常→プレミアの順。時間の順ではない）、
+    // プレミアの金の線はその当たりの場所に出す（扇の中の金の長さ＝その扇の中のプレミアの割合）。
+    // プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・バウンドストップ。ボタンを無くしたアメイジングチャンスの古い記録も〕付き。
+    // 円の下の割合は、そのタブの当たり全体に対する割合（四捨五入）。契機の無い古い記録は初期値（単独(先)＝先告知）として数える
     const HIT_PIE_COLORS = {
-        b: '#e05555', r: '#3a9ad9', premium: '#ffdd44',
+        premium: '#ffdd44',
         pre: { b: '#9b2f2f', r: '#1f5f8f' }, post: { b: '#e05555', r: '#3a9ad9' }, dup: { b: '#ffa3a3', r: '#9fd8ff' }
     };
+    const HIT_PIE_CATS = [['pre', '先告知'], ['post', '後告知'], ['dup', '小役重複']];
     function hitTrigCategory(h) {
         const t = h && h.trig;
         if (t === 'solo2') return 'post';
@@ -1720,34 +1741,48 @@
         if (total === 0) return { svg: '', legend: '' };
         const cnt = (f) => hits.filter(f).length;
         const pct = (n) => `${Math.round(n / total * 100)}%`;
-        const segs = (kind === 'all')
-            ? [{ k: 'b', l: 'BIG', c: HIT_PIE_COLORS.b, n: cnt(h => h.k === 'b') }, { k: 'r', l: 'REG', c: HIT_PIE_COLORS.r, n: cnt(h => h.k === 'r') }]
-            : [['pre', '先告知'], ['post', '後告知'], ['dup', '小役重複']].map(([k, l]) => ({ k, l, c: HIT_PIE_COLORS[k][kind], n: cnt(h => hitTrigCategory(h) === k) }));
-        const nPrem = cnt(isPremiumHit);
-        // 扇形は半径24・太さ48の円周の線で描く（中心から48まで）。上から時計回り
-        const R = 24, C = 2 * Math.PI * R;
-        let start = 0;
-        const arcs = segs.map(sg => {
-            const len = sg.n / total * C;
-            const el = `<circle data-seg="${sg.k}" data-n="${sg.n}" cx="60" cy="60" r="${R}" fill="none" stroke="${sg.c}" stroke-width="${R * 2}" stroke-dasharray="${len} ${C}" stroke-dashoffset="${-start}"/>`;
-            start += len;
-            return el;
+        const kOf = (h) => (h.k === 'r' ? 'r' : 'b');
+        const C = HIT_PIE_COLORS;
+        // 円の中の並び: 種別→契機→通常/プレミア。扇（種別×契機）と、その中のプレミアの位置を決める
+        const slices = [], prems = [];
+        let pos = 0;
+        ['b', 'r'].forEach(k => HIT_PIE_CATS.forEach(([c]) => {
+            const n = cnt(h => kOf(h) === k && hitTrigCategory(h) === c);
+            if (n === 0) return;
+            const np = cnt(h => kOf(h) === k && hitTrigCategory(h) === c && isPremiumHit(h));
+            slices.push({ k, c, from: pos, n });
+            if (np > 0) prems.push({ seg: `${k}-${c}`, from: pos + n - np, n: np }); // プレミアは扇の後ろ側
+            pos += n;
+        }));
+        // from から n 回分の弧（上から時計回り）。扇は半径24・太さ48の円周の線で描く（中心から48まで）
+        const arc = (r, w, color, from, n, attrs) => {
+            const L = 2 * Math.PI * r;
+            return `<circle ${attrs} cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="${w}" stroke-dasharray="${n / total * L} ${L}" stroke-dashoffset="${-from / total * L}"/>`;
+        };
+        const pie = slices.map(sl => arc(24, 48, C[sl.c][sl.k], sl.from, sl.n, `data-seg="${sl.k}-${sl.c}" data-n="${sl.n}"`)).join('');
+        const seps = slices.length < 2 ? '' : slices.map(sl => {
+            const a = sl.from / total * 2 * Math.PI;
+            return `<line class="hm-pie-sep" x1="60" y1="60" x2="${60 + 48 * Math.cos(a)}" y2="${60 + 48 * Math.sin(a)}" stroke="#111" stroke-width="1"/>`;
         }).join('');
-        const PR = 55, PC = 2 * Math.PI * PR; // プレミアの線（外側の輪）
-        const prem = `<circle cx="60" cy="60" r="${PR}" fill="none" stroke="#333" stroke-width="4"/>`
-            + `<circle data-seg="premium" data-n="${nPrem}" cx="60" cy="60" r="${PR}" fill="none" stroke="${HIT_PIE_COLORS.premium}" stroke-width="4" stroke-dasharray="${nPrem / total * PC} ${PC}"/>`;
+        const nPrem = cnt(isPremiumHit);
+        const prem = `<circle cx="60" cy="60" r="55" fill="none" stroke="#333" stroke-width="4"/>`
+            + `<g data-seg="premium" data-n="${nPrem}">${prems.map(p => arc(55, 4, C.premium, p.from, p.n, `data-in="${p.seg}" data-n="${p.n}"`)).join('')}</g>`;
         const name = kind === 'all' ? '全体' : (kind === 'b' ? 'BIG' : 'REG');
-        const svg = `<svg class="hm-pie" viewBox="0 0 120 120"><g transform="rotate(-90 60 60)">${arcs}${prem}</g>`
+        const svg = `<svg class="hm-pie" viewBox="0 0 120 120"><g transform="rotate(-90 60 60)">${pie}${seps}${prem}</g>`
             + `<circle cx="60" cy="60" r="24" fill="#111"/>`
             + `<text x="60" y="56" text-anchor="middle" font-size="10" fill="#aaa">${name}</text>`
             + `<text x="60" y="70" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">${total}回</text></svg>`;
-        const sw = (c) => `<i style="background:${c}"></i>`;
-        const items = segs.map(sg => `<span>${sw(sg.c)}${sg.l} ${pct(sg.n)}</span>`);
+        // 割合の行。全体の BIG・REG の色見本は先告知・後告知・小役重複の3色、後告知・小役重複は BIG・REG の2色
+        const sw = (bg) => `<i style="background:${bg}"></i>`;
+        const bands = (cs) => `linear-gradient(90deg, ${cs.map((c, i) => `${c} ${i / cs.length * 100}% ${(i + 1) / cs.length * 100}%`).join(', ')})`;
+        const items = [];
         if (kind === 'all') {
-            items.push(`<span>後告知 ${pct(cnt(h => hitTrigCategory(h) === 'post'))}</span>`);
-            items.push(`<span>小役重複 ${pct(cnt(h => hitTrigCategory(h) === 'dup'))}</span>`);
+            ['b', 'r'].forEach(k => items.push(`<span>${sw(bands(HIT_PIE_CATS.map(([c]) => C[c][k])))}${k === 'b' ? 'BIG' : 'REG'} ${pct(cnt(h => kOf(h) === k))}</span>`));
+            HIT_PIE_CATS.slice(1).forEach(([c, l]) => items.push(`<span>${sw(bands([C[c].b, C[c].r]))}${l} ${pct(cnt(h => hitTrigCategory(h) === c))}</span>`));
+        } else {
+            HIT_PIE_CATS.forEach(([c, l]) => items.push(`<span>${sw(C[c][kind])}${l} ${pct(cnt(h => hitTrigCategory(h) === c))}</span>`));
         }
-        items.push(`<span>${sw(HIT_PIE_COLORS.premium)}プレミア ${pct(nPrem)}</span>`);
+        items.push(`<span>${sw(C.premium)}プレミア ${pct(nPrem)}</span>`);
         return { svg, legend: `<div class="hm-legend">${items.join(' ')}</div>` };
     }
 

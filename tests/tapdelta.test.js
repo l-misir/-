@@ -2,7 +2,7 @@
 // 消える前に同じボタンを操作したら、合計を表示し直して消えるまでの時間をリセットする（例: 2回タップで +2、タップ→長押しで ±0）
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadApp } = require('./helpers');
+const { loadApp, useManualTimers } = require('./helpers');
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // テストの後に画面を閉じる（出したままの表示のタイマーでテストの終了が遅れないように）
@@ -61,15 +61,17 @@ test('実際の増減を出す（ゲーム数は +50、下限で変わらなけ�
 
 test('一定時間で消え、消える前に操作すると時間をリセットする。消えた後はまた +1 から', async () => {
   const app = setup();
-  // テスト用に短く（本番は 4.1 秒）。ほかのテストと並んで重くなってもずれないよう、待ち時間には余裕を持たせる
-  app.ev('tapDeltaMs = 1000');
+  const advance = useManualTimers(app); // 本物の時間は待たない（helpers.js）
+  app.ev('tapDeltaMs = 4100'); // 本番と同じ
   await app.tap('#main-ui [data-id="bell"]');
-  await wait(600);
+  advance(3000);
   await app.tap('#main-ui [data-id="bell"]'); // ここで時間をリセット
-  await wait(600);
-  assert.equal(deltaText(app, 'bell'), '+2', 'リセットしたのでまだ出ている（最初から 1200ms）');
-  await wait(700);
-  assert.equal(deltaText(app, 'bell'), null, '最後の操作から 1000ms で消える');
+  advance(3000);
+  assert.equal(deltaText(app, 'bell'), '+2', 'リセットしたのでまだ出ている（最初から 6 秒）');
+  advance(1099);
+  assert.equal(deltaText(app, 'bell'), '+2', '最後の操作から 4.1 秒の直前');
+  advance(1);
+  assert.equal(deltaText(app, 'bell'), null, '最後の操作から 4.1 秒で消える');
   await app.tap('#main-ui [data-id="bell"]');
   assert.equal(deltaText(app, 'bell'), '+1', '消えた後は数え直し');
 });
