@@ -2,7 +2,7 @@
 // 期待値は仕様書の式から手で計算した値
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadApp } = require('./helpers');
+const { loadApp, sheetRow } = require('./helpers');
 
 // キング: 通常時 1000G・BIG3・REG2・ベル140・BIGスイカ5（うち欠損1）
 const KING = { g: 1000, b: 3, r: 2, bell: 140, suika: 5 };
@@ -159,17 +159,13 @@ test('シート保存: Z 列に1枚掛けの計算、AA 列以降に詳細の項
   assert.ok(cols2.every((c, i) => c.t !== 'detail' || b2.rowData[i] === ''), '記録していない日は空欄（記録なし）');
 });
 
-// キングのシート1行（DATA_MODEL.md §3 の列順）。detail を渡すと AE 列以降も付ける
+// キングのシート1行（DATA_MODEL.md §3 の列）。detail を渡すと詳細記録の列と1枚掛けの計算も入れる。
+// BIG：スイカの列は取得（合計 − 欠損）
 function kingRow(app, { g, b, r, bell, suika }, detail, oneBet) {
-  const bonusG = b * 20 + r * 10;
-  const base = [
-    '', '2026/09/01', g + bonusG, g, bonusG, b, r, bell, suika,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    '', '', '', '',
-  ];
-  if (!detail) return base;
-  const keys = JSON.parse(app.ev(`JSON.stringify(detailItems('king').map(x => x.k))`));
-  return [...base, oneBet, ...keys.map((k) => detail[k] || 0)];
+  const vals = { 日付: '2026/09/01', 総回転数: g + b * 20 + r * 10, 通常時回転数: g, 'BIG：回転数': b * 20, 'REG：回転数': r * 10,
+    BIG: b, REG: r, '通常時：ベル': bell, 'BIG：スイカ': suika - ((detail && detail.lbSui) || 0) };
+  if (detail) vals['1枚掛けの計算'] = oneBet;
+  return sheetRow('king', vals, detail);
 }
 
 test('実戦履歴: 詳細の列がある行は設定推測と同じ計算で差枚を出し、復元で詳細と1枚掛けの計算も戻す', async () => {
@@ -192,7 +188,7 @@ test('実戦履歴: 詳細の列がある行は設定推測と同じ計算で差
   assert.equal(app.ev('data.oneBet'), 'actual', '復元ではその日の1枚掛けの計算を使う');
 });
 
-test('実戦履歴の復元: AE 列の無い行（詳細記録より前）は1枚掛けの計算の設定を変えない', async () => {
+test('実戦履歴の復元: 1枚掛けの計算が空欄の行（詳細記録より前）は1枚掛けの計算の設定を変えない', async () => {
   const app = loadApp();
   app.selectMachine('king');
   app.window.setOneBet('actual');

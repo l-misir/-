@@ -103,4 +103,17 @@ function useManualTimers(app) {
   };
 }
 
-module.exports = { loadApp, extractScript, HTML_PATH, useManualTimers };
+// シート1行（GAS が返す values と同じ形）を見出し → 値で組み立てる。列の並びは sheetColumns(m) から取る（A 列はメモ）。
+// detail を渡すと詳細記録の列（記録した日）も埋める。書かなかった列は空欄
+let columnsApp = null;
+function sheetRow(m, vals = {}, detail = null) {
+  if (!columnsApp) columnsApp = loadApp();
+  const cols = JSON.parse(columnsApp.ev(`JSON.stringify(sheetColumns('${m}'))`));
+  return cols.map((c) => {
+    if (c.h in vals) return vals[c.h];
+    if (detail && c.t === 'detail') return detail[c.k] || 0;
+    return '';
+  });
+}
+
+module.exports = { loadApp, extractScript, HTML_PATH, useManualTimers, sheetRow };

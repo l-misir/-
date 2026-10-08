@@ -1,14 +1,15 @@
 // スプレッドシートの列（2026-10 ユーザー指定の並び。docs/DATA_MODEL.md §3）。1行目は空、2行目が見出し、3行目からデータ。
 // 列の定義は sheetColumns(m) の1か所。保存・TSV・読み込み・復元はすべてそこから作る。
-// 整理前の並びの行（A 列が空欄、B 日付 … Z レトロ発生、AE 以降に詳細）も今までどおり読める
+// 2026-10-08: A 列に1行メモ（アプリは空欄で保存し、シートで書く）。メモ列の無い行（それより前の並び。A 列が日付）も読む。
+// 整理前（2026-10 より前。A 列が空欄、B 日付）の並びはメモ列が空欄の行と見分けられないので読まない（ユーザー判断。シートは整理済み）
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadApp } = require('./helpers');
+const { loadApp, sheetRow } = require('./helpers');
 
 const headers = (app, m) => JSON.parse(app.ev(`JSON.stringify(sheetColumns('${m}').map(c => c.h))`));
 
 // ユーザー指定のニューキングの並び（＋「通常時：スイカ(欠損)」と「当選履歴」。「黃」は「黄」）
-const NEWKING_HEADERS = ['日付', '総回転数', '通常時回転数', 'BIG：回転数', 'REG：回転数', 'BIG', 'REG',
+const NEWKING_HEADERS = ['メモ', '日付', '総回転数', '通常時回転数', 'BIG：回転数', 'REG：回転数', 'BIG', 'REG',
   '通常時：リプレイ', '通常時：ベル', '通常時：チェリー', '通常時：チェリー(欠損)', '通常時：中段チェリー(欠損)',
   '通常時：スイカ', '通常時：スイカ(欠損)', '通常時：ボーナス(欠損)',
   'BIG前半：チェリー', 'BIG前半：チェリー(欠損)', 'BIG前半：スイカ', 'BIG前半：スイカ(欠損)',
@@ -19,7 +20,7 @@ const NEWKING_HEADERS = ['日付', '総回転数', '通常時回転数', 'BIG：
   'REG：筐体ランプ(白)', 'REG：筐体ランプ(青)', 'REG：筐体ランプ(黄)', 'REG：筐体ランプ(緑)', 'REG：筐体ランプ(紫)',
   'レトロ達成', 'レトロ発生', '当選履歴'];
 // ニューキング以外（ユーザーに確認した案）
-const OTHER_HEADERS = ['日付', '総回転数', '通常時回転数', 'BIG：回転数', 'REG：回転数', 'BIG', 'REG',
+const OTHER_HEADERS = ['メモ', '日付', '総回転数', '通常時回転数', 'BIG：回転数', 'REG：回転数', 'BIG', 'REG',
   '通常時：リプレイ', '通常時：ベル', '通常時：チェリー', '通常時：チェリー(欠損)', '通常時：中段チェリー(欠損)',
   '通常時：スイカ', '通常時：スイカ(欠損)',
   '1・2枚掛け：リプレイ', '1・2枚掛け：ベル', '1・2枚掛け：チェリー', '1・2枚掛け：スイカ', '1・2枚掛け：ボーナス(欠損)',
@@ -30,7 +31,7 @@ const OTHER_HEADERS = ['日付', '総回転数', '通常時回転数', 'BIG：�
   'REG：筐体ランプ(白)', 'REG：筐体ランプ(青)', 'REG：筐体ランプ(黄)', 'REG：筐体ランプ(緑)', 'REG：筐体ランプ(赤)', 'REG：筐体ランプ(虹)',
   'レトロ達成', 'レトロ発生', '1枚掛けの計算', '当選履歴'];
 
-test('列の並び: ニューキングはユーザー指定どおり、それ以外は確認した案。詳細記録の項目はどれも1回ずつ', () => {
+test('列の並び: A 列はメモ。その後はニューキングはユーザー指定どおり、それ以外は確認した案。詳細記録の項目はどれも1回ずつ', () => {
   const app = loadApp();
   assert.deepEqual(headers(app, 'newking'), NEWKING_HEADERS);
   for (const m of ['houou', 'king', 'dragon', 'star']) assert.deepEqual(headers(app, m), OTHER_HEADERS, m);
@@ -79,7 +80,9 @@ test('シート保存（ニューキング）: 列の定義どおりの値。取
   assert.deepEqual(body.headers, NEWKING_HEADERS);
   const val = (h) => row[NEWKING_HEADERS.indexOf(h)];
   assert.equal(row.length, NEWKING_HEADERS.length);
+  assert.equal(row[0], '', 'A 列のメモは空欄（シートで書く）');
   assert.match(String(val('日付')), /^\d{4}\/\d{1,2}\/\d{1,2}$/);
+  assert.ok(row[1] && typeof row[2] === 'number', 'GAS が読む条件（2列目が空でなく、3列目が数値）');
   assert.equal(val('通常時回転数'), 1000);
   // BIG: 26×2 + BT中リプレイ3 + BT中ベル4 + BIG前半スイカの欠損1 = 60、REG: 10×1 + REGスイカの欠損1 = 11
   assert.equal(val('BIG：回転数'), 60);
@@ -150,7 +153,8 @@ test('当選履歴の文字列: 大きすぎる数（壊れた値）は読み飛
 
 test('実戦履歴: 新しい並びの行を読み、復元で詳細・取得と欠損・ランプ・当選履歴・1枚掛けの計算を戻す', async () => {
   const src = setupNewking();
-  const saved = captureSave(src).rowData.map((x, i) => (i === 0 ? '2026/10/01 00:00' : x)); // GAS は日付を文字列にして返す
+  // GAS は日付を文字列にして返す。A 列のメモはシートで書いたもの（読み込みでは使わない）
+  const saved = captureSave(src).rowData.map((x, i) => (i === 1 ? '2026/10/01 00:00' : (i === 0 ? '7番台 イベント日' : x)));
   const app = loadApp();
   app.selectMachine('newking');
   app.window._historyRowsRaw = [{ sheet: 'ニューキングハナハナⅤ', row: 3, values: saved }];
@@ -179,20 +183,32 @@ test('実戦履歴: 新しい並びの行を読み、復元で詳細・取得と
   assert.equal(king.ev('getData().cur.suika'), 2);
 });
 
-test('実戦履歴: 整理前の並び（A 列が空欄）の行も今までどおり読める', async () => {
+test('実戦履歴: メモ列の無い行（2026-10-08 より前の並び。A 列が日付）も読める', async () => {
   const app = loadApp();
   app.selectMachine('king');
-  const old = ['', '2026/09/01 00:00', 1080, 1000, 80, 2, 2, 140, 5,
-    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, '設定4', 0.5, 100, '{}'];
-  app.window._historyRowsRaw = [{ sheet: 'キングハナハナ', row: 3, values: old }];
+  const vals = { 日付: '2026/10/05 00:00', 総回転数: 1084, 通常時回転数: 1000, 'BIG：回転数': 60, 'REG：回転数': 20,
+    BIG: 3, REG: 2, '通常時：ベル': 140, 'BIG：スイカ': 5, 'BIG：筐体ランプ(青)': 1, レトロ達成: 1, '1枚掛けの計算': '実測値',
+    当選履歴: 'B120 R45[チェリー]' };
+  const noMemo = sheetRow('king', vals).slice(1);
+  assert.equal(noMemo[0], '2026/10/05 00:00', 'A 列が日付');
+  app.window._historyRowsRaw = [
+    { sheet: 'キングハナハナ', row: 3, values: noMemo },
+    { sheet: 'キングハナハナ', row: 4, values: sheetRow('king', { ...vals, メモ: '' }) },
+  ];
   await app.window.calculateAllHistoryRows();
-  const r = app.window._historyRowsCalculated[0];
-  assert.deepEqual([r.spins, r.big, r.reg], [1000, 2, 2]);
-  assert.match(r.date, /^2026\/09\/01/);
+  const rows = app.window._historyRowsCalculated;
+  assert.equal(rows.length, 2);
+  rows.forEach((r) => {
+    assert.deepEqual([r.spins, r.big, r.reg], [1000, 3, 2]);
+    assert.match(r.date, /^2026\/10\/05/);
+  });
+  assert.equal(rows[0].diff, rows[1].diff, 'メモ列の有無で同じ結果');
   app.window.restoreHistory(0);
-  assert.deepEqual(JSON.parse(app.ev('JSON.stringify(getData().hits)')), [], '整理前の行に当選履歴は無い');
-  assert.equal(app.ev('getData().lamps.big[0]'), 1);
   assert.equal(app.ev('getData().cur.suika'), 5);
+  assert.equal(app.ev('getData().lamps.big[0]'), 1);
+  assert.equal(app.ev('getData().cur.retro_d'), 1);
+  assert.equal(app.ev('data.oneBet'), 'actual');
+  assert.equal(app.ev('getData().hits.length'), 2);
 });
 
 test('実戦履歴: 欠損の列に不正な値（マイナス・文字）があっても、取得の回数を失わない', async () => {

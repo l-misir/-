@@ -176,3 +176,23 @@ test('ボタンの下の +1/−1 は 4.1 秒（1回転分）出す。朝一ラ�
   const css = app.document.querySelector('style').textContent;
   assert.match(css, /\.morning-lamp\s*\{\s*box-shadow:\s*inset 0 0 0 2px #000;\s*\}/);
 });
+
+test('入力モード＋ダミー表示: 打ち始めは（ロックを外していれば）入力できる。それ以外の欄は今までどおり表示だけ（2026-10-08）', () => {
+  const app = loadApp();
+  app.selectMachine('newking');
+  app.ev('const d = getData(); d.start.g = 1200; d.cur.g = 1500; d.cur.bell = 55; renderMain();');
+  app.window.setInputMode('input');
+  app.window.setDummyDefault(true);
+  const doc = app.document;
+  assert.equal(doc.querySelector('#main-ui [data-start="g"] input'), null, 'ロック中（初期値）は今までどおり表示だけ');
+  app.window.toggleCountLock('start-g');
+  const inp = doc.querySelector('#main-ui [data-start="g"] input');
+  assert.ok(inp, 'ロックを外せば入力欄');
+  assert.equal(inp.value, '1200', '打ち始めはダミーにしない本当の数');
+  assert.equal(doc.querySelector('#main-ui [data-id="bell"] input'), null, 'ほかの欄は表示だけ');
+  assert.notEqual(doc.querySelector('#main-ui [data-id="bell"] .value').textContent, '55');
+  inp.value = '1300';
+  inp.dispatchEvent(new app.window.Event('change'));
+  assert.equal(app.ev('getData().start.g'), 1300);
+  assert.equal(app.ev('getData().cur.g'), 1600, '現在も同じだけずらす');
+});

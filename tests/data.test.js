@@ -1,20 +1,17 @@
 // 保存データの読み込み・入力モード・実戦履歴（再計算と復元）
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadApp } = require('./helpers');
+const { loadApp, sheetRow } = require('./helpers');
 
-// ニューキングⅤのシート1行（DATA_MODEL.md §3 の列順）
-function newkingRow({ g, b, r, bell }) {
-  const bonusG = b * 26 + r * 10;
-  return [
-    '', '2026/09/01', g + bonusG, g, bonusG, b, r, bell,
-    3, 1,               // スイカ BIG前半 / REG
-    1, 1, 1, 1, 0,      // BIG後半サイド
-    2, 1, 0, 0, 0,      // BIG筐体
-    1, 0, 0, 0,         // REG筐体
-    0, 0,               // レトロ
-    '', '', '', '',
-  ];
+// ニューキングⅤのシート1行（DATA_MODEL.md §3 の列。詳細記録なし）。extra で列を足す・上書きする
+function newkingRow({ g, b, r, bell }, extra = {}) {
+  return sheetRow('newking', {
+    日付: '2026/09/01', 総回転数: g + b * 26 + r * 10, 通常時回転数: g, 'BIG：回転数': b * 26, 'REG：回転数': r * 10,
+    BIG: b, REG: r, '通常時：ベル': bell, 'BIG前半：スイカ': 3, 'REG：スイカ': 1,
+    'BIG後半：サイド(青)': 1, 'BIG後半：サイド(黄)': 1, 'BIG後半：サイド(緑)': 1, 'BIG後半：サイド(赤)': 1, 'BIG後半：サイド(虹)': 0,
+    'BIG：筐体ランプ(青)': 2, 'BIG：筐体ランプ(黄)': 1, 'REG：筐体ランプ(青)': 1, レトロ達成: 0, レトロ発生: 0,
+    ...extra,
+  });
 }
 
 function setupCurrent(app) {
@@ -129,9 +126,10 @@ test('データコピー(TSV): 「全て」表示でも個人の値を出力す�
   });
   app.window.exportData();
   await new Promise((r) => setTimeout(r, 0));
-  // TSV: 日付, 総回転数, 通常時, BIG回転数, REG回転数, BIG, REG, …（2026-10 の並び）
+  // TSV: メモ（空欄）, 日付, 総回転数, 通常時, BIG回転数, REG回転数, BIG, REG, …（2026-10 の並び、2026-10-08 に A 列へメモ）
+  assert.equal(txt.split('\t')[0], '', 'メモは空欄');
   const t = txt.split('\t').map(Number);
-  assert.deepEqual([t[1], t[2], t[3] + t[4], t[5], t[6]], PERSONAL.slice(0, 5));
+  assert.deepEqual([t[2], t[3], t[4] + t[5], t[6], t[7]], PERSONAL.slice(0, 5));
 });
 
 test('高設定期待度の帯: 切り捨てで判定し、100 は高設定以外の確率が0の日だけ', () => {
@@ -158,8 +156,7 @@ test('高設定期待度の帯: 切り捨てで判定し、100 は高設定以�
 test('高設定期待度の帯: 確定示唆（REG筐体 紫）の日は 100', async () => {
   const app = loadApp();
   app.selectMachine('newking');
-  const row = newkingRow({ g: 3000, b: 12, r: 8, bell: 400 });
-  row[23] = 1; // REG筐体 紫
+  const row = newkingRow({ g: 3000, b: 12, r: 8, bell: 400 }, { 'REG：筐体ランプ(紫)': 1 });
   app.window._historyRowsRaw = [{ sheet: 'ニューキングハナハナⅤ', row: 2, values: row }];
   await app.window.calculateAllHistoryRows();
   assert.equal(app.ev('EXP_BANDS[window._historyRowsCalculated[0].expBand].label'), '100');
