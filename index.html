@@ -3783,8 +3783,8 @@
         });
     }
 
-    // シートの生データ1行から機種データを組み立てる（列は sheetColumns。整理前の並びの行も読む）
-    // シートに無い情報（朝一ランプ・打ち始め）は初期値。当選履歴は「当選履歴」の列から（整理前の行には無いので空）
+    // シートの生データ1行から機種データを組み立てる（列は rowColumns。メモ列の無い行も読む。整理前の並びは読まない）
+    // シートに無い情報（朝一ランプ・打ち始め）は初期値。当選履歴は「当選履歴」の列から
     function machineDataFromRow(m, v) {
         const dat = JSON.parse(JSON.stringify(SINGLE_DEFAULT));
         const num = (x) => Number(x) || 0;
@@ -4075,7 +4075,7 @@
         }
         if (!confirm(`${dateStr} ${machineName} のデータを復元しますか？\n\n※ 現在の入力データは上書きされます。`)) return;
 
-        // スプレッドシートの生データから機種データを作り直す（当選履歴は AT 列から。整理前の行には無いので空）
+        // スプレッドシートの生データから機種データを作り直す（当選履歴は「当選履歴」の列から）
         data.machine = m;
         data[m] = machineDataFromRow(m, r.rawValues || []);
         const ob = oneBetFromRow(r.rawValues || [], m);
