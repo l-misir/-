@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" class="lock-page">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -30,10 +30,6 @@
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
         }
-
-        /* ページそのものを固定（2026-11-11 試し）: 回転のときに iPhone がページをずらせないようにする（メイン画面以外の
-           画面は、ずれた瞬間に戻しても一瞬上にずれるのが見えたため）。戻すときは <html> の class="lock-page" を外すだけ */
-        html.lock-page body { position: fixed; inset: 0; width: 100%; height: 100%; }
 
         .container { 
             padding: 5px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
@@ -3707,8 +3703,6 @@
         if (t === document || t === document.documentElement || t === document.body) resetPageScroll();
     }, true);
     const resetPageScrollSoon = () => { resetPageScroll(); requestAnimationFrame(resetPageScroll); setTimeout(resetPageScroll, 300); };
-    // 入力を終えたら（キーボードを閉じたら）、キーボードのために iOS がずらした分を戻す。次の入力欄へ移ったときは入力中なので触らない
-    document.addEventListener('focusout', () => setTimeout(resetPageScroll, 0));
     window.addEventListener('orientationchange', resetPageScrollSoon);
     window.addEventListener('resize', resetPageScrollSoon);
 

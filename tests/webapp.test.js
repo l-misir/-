@@ -81,30 +81,3 @@ test('ページがスクロールしたら、その場ですぐ戻す。画面�
   doc.dispatchEvent(new w.Event('scroll'));
   assert.equal(calls.length, 0, '入力中はキーボードのために iOS がずらすので触らない');
 });
-
-// 2026-11-11 実機: メイン画面は直ったが、ほかの画面（ページの上に固定して重ねた画面）は回転のとき一瞬上にずれた。
-// ページそのものを固定して iPhone がずらせないようにする（試し）。戻すときは <html> の class="lock-page" を外すだけ
-test('ページそのものを固定（<html class="lock-page"> 1か所でオン・オフ）', () => {
-  const app = loadApp();
-  const doc = app.document;
-  assert.ok(doc.documentElement.classList.contains('lock-page'));
-  const css = doc.querySelector('style').textContent;
-  assert.match(css, /html\.lock-page body\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/);
-  assert.equal(app.window.getComputedStyle(doc.body).position, 'fixed');
-});
-
-test('入力を終えたら（キーボードを閉じたら）、ずれたページを戻す。次の入力欄へ移ったときは触らない', async () => {
-  const app = loadApp();
-  const w = app.window, doc = app.document;
-  const calls = [];
-  w.scrollTo = (x, y) => calls.push([x, y]);
-  Object.defineProperty(w, 'scrollY', { value: 120, configurable: true }); // キーボードのために iOS がずらした
-  const url = doc.getElementById('gas-url'), token = doc.getElementById('gas-token');
-  url.focus();
-  token.focus(); // 次の入力欄へ
-  await new Promise((r) => setTimeout(r, 20));
-  assert.equal(calls.length, 0, '入力中は触らない');
-  token.blur();
-  await new Promise((r) => setTimeout(r, 20));
-  assert.deepEqual(calls[0], [0, 0]);
-});
