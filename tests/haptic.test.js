@@ -58,11 +58,6 @@ test('各画面のボタン（設定・テンキー・当選履歴・確率表�
   app.window.setHitTab('prob');
   await tick();
   [...doc.querySelectorAll('.set-tab')].forEach((el) => assert.ok(hasHaptic(el)));
-  // まとめて加算
-  app.window.openBulkPanel();
-  await tick();
-  [...doc.querySelectorAll('.bulk-target, #bulk-keys .hit-key')].forEach((el) => assert.ok(hasHaptic(el)));
-  app.window.closeBulkPanel();
   // カウントロック
   app.window.openModal('lock-modal');
   await tick();
@@ -166,25 +161,30 @@ test('機種名のタップ: click が来なくても 0.4 秒後には切り替�
   assert.equal(detailScreenNo(app), '2');
 });
 
-test('機種名: pointercancel の後に click が来たら（振動したら）切り替える。長押し（まとめて加算）の後の click では切り替えない', () => {
+test('機種名: pointercancel の後（離したことが分からない）でも click が来たら（振動したら）切り替える。長押しもタップと同じく切り替える', () => {
   const app = detailApp();
   const advance = useManualTimers(app);
-  app.window.startMachinePress();
-  app.window.cancelMachinePress();
+  app.window.startMachinePress(); // pointercancel: 離したことは届かない
   nameLabel(app).click();
   assert.equal(detailScreenNo(app), '2');
+  // 長押し（まとめて加算は 2026-11-11 に廃止）: 何も開かず、離したら切り替える
   app.window.startMachinePress();
-  advance(549);
-  assert.ok(!app.document.getElementById('bulk-panel').classList.contains('active'));
-  advance(1);
-  assert.ok(app.document.getElementById('bulk-panel').classList.contains('active'), '550ms で長押し（まとめて加算）');
+  advance(1500);
+  assert.equal(detailScreenNo(app), '2', '押している間は切り替えない');
   app.window.endMachinePress();
   nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '1');
   advance(1000);
-  assert.equal(detailScreenNo(app), '2', '長押しでは切り替えない');
+  assert.equal(detailScreenNo(app), '1', '1回の長押しで1回だけ');
+  // 長押しで click が来なくても予備のタイマーで切り替える
+  app.window.startMachinePress();
+  advance(1500);
+  app.window.endMachinePress();
+  advance(400);
+  assert.equal(detailScreenNo(app), '2');
 });
 
-test('機種名の連打: 前のタップの click が来ないうちに次を押しても、前のタップの切替は失わない（次が長押しでも）', () => {
+test('機種名の連打: 前のタップの click が来ないうちに次を押しても、前のタップの切替は失わない', () => {
   const app = detailApp();
   const advance = useManualTimers(app);
   app.window.startMachinePress();
@@ -199,18 +199,18 @@ test('機種名の連打: 前のタップの click が来ないうちに次を�
   app.window.endMachinePress(); // click が来ない
   advance(100);
   app.window.startMachinePress(); // 長押し
-  advance(550);
-  assert.ok(app.document.getElementById('bulk-panel').classList.contains('active'));
+  assert.equal(detailScreenNo(app), '2', '前のタップの分');
+  advance(1500);
   app.window.endMachinePress();
   advance(1000);
-  assert.equal(detailScreenNo(app), '2', '長押しの前のタップの分は切り替わる');
+  assert.equal(detailScreenNo(app), '1', '長押しの分');
 });
 
-test('機種名: pointercancel の後の click は、押し始めから2秒以内だけ切り替える', () => {
+test('機種名: pointercancel の後の click は、pointercancel から2秒以内だけ切り替える（pointercancel も来なければ押し始めから）', () => {
   const app = detailApp();
   const advance = useManualTimers(app);
   app.window.startMachinePress();
-  app.window.cancelMachinePress();
+  app.window.cancelMachinePress(); // 離したことは届かない
   advance(2001);
   nameLabel(app).click();
   assert.equal(detailScreenNo(app), '1', '2秒を過ぎた click では切り替えない');
@@ -219,4 +219,21 @@ test('機種名: pointercancel の後の click は、押し始めから2秒以�
   advance(2000);
   nameLabel(app).click();
   assert.equal(detailScreenNo(app), '2');
+  // pointercancel も来ないとき: 押し始めから
+  app.window.startMachinePress();
+  advance(2001);
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '2', '2秒を過ぎた click では切り替えない');
+});
+
+test('機種名: 2秒より長く押して pointercancel になっても、すぐ click が来たら（振動したら）切り替える（Codex 指摘。長押しもタップと同じ）', () => {
+  const app = detailApp();
+  const advance = useManualTimers(app);
+  app.window.startMachinePress();
+  advance(2500);
+  app.window.cancelMachinePress();
+  nameLabel(app).click();
+  assert.equal(detailScreenNo(app), '2');
+  advance(1000);
+  assert.equal(detailScreenNo(app), '2', '1回だけ');
 });

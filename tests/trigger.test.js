@@ -187,15 +187,6 @@ test('テンキー画面（2026-11-11）: 入力した数はキーの上、契�
   assert.equal(panel.style.left, 'auto', '横画面: 右下');
   assert.match(panel.style.right, /env\(safe-area-inset-right\)/);
   app.window.hitEditSave();
-
-  // まとめて加算も同じキー（入力した数はキーの上）
-  app.window.openBulkPanel();
-  const col = doc.querySelector('.bulk-col-r');
-  const disp = doc.getElementById('bulk-display');
-  const keys = doc.querySelector('#bulk-keys .hit-keys');
-  assert.ok(disp.compareDocumentPosition(keys) & app.window.Node.DOCUMENT_POSITION_FOLLOWING, '表示はキーの上');
-  assert.ok(col.contains(disp) && col.contains(keys));
-  assert.doesNotMatch(css, /#bulk-keys \.hit-keys\s*\{[^}]*(max-height|grid-template-rows)/, 'まとめて加算のキーも同じ正方形');
 });
 
 test('アメイジングチャンス: ボタンは無い。今までの記録に付いている分は、開いて直しても残り、備考・プレミア・シートの文字列にも出る', async () => {

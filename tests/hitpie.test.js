@@ -145,7 +145,7 @@ test('一覧: 備考は棒の下の段に出す。備考が無い行にも同じ
   assert.match(css, /\.hm-tagline\s*\{[^}]*white-space:\s*nowrap/, '長い備考も1行（はみ出しは …）');
 });
 
-test('説明文を出さない（当選履歴・確率表・テンキー・まとめて加算・管理画面）', async () => {
+test('説明文を出さない（当選履歴・確率表・テンキー・管理画面）', async () => {
   const app = setup([{ g: null, k: 'b' }, { g: 100, k: 'r' }]);
   const text = () => content(app).textContent;
   assert.doesNotMatch(text(), /タップすると修正/);
@@ -160,9 +160,6 @@ test('説明文を出さない（当選履歴・確率表・テンキー・ま�
   await app.tap('#main-ui [data-id="b"]');
   assert.equal(app.document.querySelector('#hit-panel .hit-hint'), null, '「記録は既に作成済み…」');
   app.window.closeHitPanel();
-  app.window.openBulkPanel();
-  assert.equal(app.document.querySelector('#bulk-panel .hit-hint'), null, '「項目を選んで数を入力 → 加算」');
-  app.window.closeBulkPanel();
   assert.equal(app.document.querySelector('#admin-modal .gas-note'), null, '「※ GASコードのTOKENと同じ…」');
   const empty = setup([], 0);
   assert.doesNotMatch(content(empty).textContent, /加算すると入力できます/);

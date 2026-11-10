@@ -1,5 +1,5 @@
 // カウントロック（2026-10）: 項目ごとに、メイン画面でのタップ・入力を止める。設定の「カウントロック」から専用画面で切り替える。
-// 旧設定「ベルのタップ」「打ち始めの操作」をまとめたもの。まとめて加算・ショートカットのベル送信では今までどおり変えられる。
+// 旧設定「ベルのタップ」「打ち始めの操作」をまとめたもの。ショートカットのベル送信では今までどおり変えられる（まとめて加算は 2026-11-11 に廃止。入力・加算モードでもロック中は変えられない）。
 // あわせて「タップ時の振動」の設定を無くし（常に ON）、要素調整を管理画面へ移す
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -79,7 +79,7 @@ test('専用画面（詳細記録 ON）: 画面1・画面2 の全項目が並ぶ
   assert.ok(isLockedCell(app, '[data-type="big"][data-idx="0"]'));
 });
 
-test('ロックした項目は入力モードでも変えられない。まとめて加算では入れられる', () => {
+test('ロックした項目は入力モード・加算モードでも変えられない', () => {
   const app = loadApp();
   app.selectMachine('king');
   app.window.toggleCountLock('suika');
@@ -88,13 +88,11 @@ test('ロックした項目は入力モードでも変えられない。まと�
   assert.equal(cell.querySelector('input'), null, '入力欄を出さない');
   assert.ok(cell.classList.contains('locked'));
   assert.ok(app.document.querySelector('#main-ui [data-id="bell"] input'), 'ロックしていない項目は入力できる');
-  app.window.setInputMode('tap');
-  app.window.openBulkPanel();
-  app.window.setBulkTarget('suika');
-  ['3', 'ok'].forEach((k) => app.window.bulkKey(k));
-  app.window.closeBulkPanel();
-  assert.equal(app.ev('getData().cur.suika'), 3);
-  assert.equal(app.document.querySelector('#main-ui [data-id="suika"] .value').textContent, '3');
+  app.window.setInputMode('add');
+  const cell2 = app.document.querySelector('#main-ui [data-id="suika"]');
+  assert.equal(cell2.querySelector('input'), null, '加算モードも入力欄を出さない');
+  assert.ok(cell2.classList.contains('locked'));
+  assert.ok(app.document.querySelector('#main-ui [data-id="bell"] input.add-input'));
 });
 
 test('タップ時の振動は設定なしで常に ON（全セルに振動用ラベル、vibrate 対応端末では振動）', async () => {

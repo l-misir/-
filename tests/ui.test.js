@@ -5,7 +5,7 @@ const { loadApp } = require('./helpers');
 
 const isActive = (app, id) => app.document.getElementById(id).classList.contains('active');
 
-// 機種名の長押し（まとめて加算）と、数値表示の設定をすぐ反映することは settings.test.js（2026-09 に仕様変更）
+// 機種名の長押し（まとめて加算は 2026-11-11 に廃止）と、数値表示の設定をすぐ反映することは settings.test.js
 
 test('数値表示: 設定が「隠す」なら起動直後からダミー表示', () => {
   const hidden = loadApp({ storage: { machine: 'newking', dummyDefault: true } });
@@ -37,13 +37,6 @@ test('ベルのロック（旧「ベルのタップ無効」。2026-10 からカ
   // 他のセルは今までどおり
   await app.tap('[data-id="suika"]');
   assert.equal(app.ev('getData().cur.suika'), 1);
-  // まとめて加算では入れられる
-  app.window.openBulkPanel();
-  app.window.setBulkTarget('bell');
-  ['5', 'ok'].forEach((k) => app.window.bulkKey(k));
-  app.window.closeBulkPanel();
-  assert.equal(app.ev('getData().cur.bell'), 6);
-  assert.equal(app.document.querySelector('#main-ui [data-id="bell"] .value').textContent, '6');
 });
 
 test('ベルのロック中でも（旧設定 bellTap:false の保存データ）、ショートカット送信の上書きと発光は効く', async () => {
@@ -141,10 +134,10 @@ test('ハマりG数: 当選後にゲーム数を足すと、前回の当たり�
   await app.tap('[data-id="g"]'); // +50
   assert.equal(hamari(), '50G');
 
-  app.window.openBulkPanel(); // まとめて加算で +30
-  app.window.setBulkTarget('g');
-  ['3', '0', 'ok'].forEach((k) => app.window.bulkKey(k));
-  app.window.closeBulkPanel();
+  app.window.setInputMode('add'); // 加算モードで +30
+  const add = app.document.querySelector('#main-ui [data-id="g"] input');
+  add.value = '30';
+  add.dispatchEvent(new app.window.Event('change'));
   assert.equal(hamari(), '80G');
 
   app.window.setInputMode('input'); // 入力モードで現在G数を 300 に

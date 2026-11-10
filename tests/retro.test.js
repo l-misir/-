@@ -103,11 +103,13 @@ test('BIG を取り消すと、その後の当選の連チャン判定も実際�
   assert.equal(cur(app, 'retro_d'), 0);
 });
 
-test('まとめて加算で BIG を増やしてもレトロ条件達成は増えない', () => {
+test('加算モードで BIG を増やしてもレトロ条件達成は増えない（当選履歴を作らないので）', () => {
   const app = setupTap();
-  app.window.openBulkPanel();
-  app.window.setBulkTarget('b');
-  ['3', 'ok'].forEach((k) => app.window.bulkKey(k));
+  app.window.setInputMode('add');
+  const inp = app.document.querySelector('#main-ui [data-id="b"] input');
+  inp.value = '3';
+  inp.dispatchEvent(new app.window.Event('change'));
+  assert.equal(cur(app, 'b'), 3);
   assert.equal(cur(app, 'retro_d'), 0);
 });
 

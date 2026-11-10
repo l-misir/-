@@ -82,18 +82,21 @@ test('数値表示: 設定を変えるとすぐ切り替わり、再読込後も
   assert.equal(reloaded.ev('dummyMode'), true);
 });
 
-test('機種名: 長押しでまとめて加算。タップでは何もしない（詳細記録 OFF のとき）', async () => {
+test('機種名: 詳細記録 OFF のときはタップでも長押しでも何もしない（まとめて加算は 2026-11-11 に廃止）', async () => {
   const app = loadApp();
-  const bulk = () => app.document.getElementById('bulk-panel').classList.contains('active');
+  const html = () => app.document.getElementById('main-ui').innerHTML;
+  const before = html();
   app.window.startMachinePress();
   app.window.endMachinePress();
-  assert.ok(!bulk(), 'タップではまとめて加算は開かない');
-  assert.equal(app.ev('dummyMode'), false, 'タップでダミー表示にもならない');
+  app.window.machineTapDone();
+  assert.equal(app.ev('dummyMode'), false, 'タップでダミー表示にならない');
   app.window.startMachinePress();
-  await new Promise((r) => setTimeout(r, 600)); // 550ms で長押し
+  await new Promise((r) => setTimeout(r, 600));
   app.window.endMachinePress();
-  assert.ok(bulk(), '長押しでまとめて加算');
-  assert.equal(app.ev('dummyMode'), false, '長押しでダミー表示にはならない');
+  app.window.machineTapDone();
+  assert.equal(app.ev('dummyMode'), false, '長押しでダミー表示にならない');
+  assert.equal(html(), before, 'メイン画面もそのまま');
+  assert.equal(app.document.querySelector('.modal.active'), null, '何も開かない');
 });
 
 // 設定画面の並び（2026-10）は tests/countlock.test.js
