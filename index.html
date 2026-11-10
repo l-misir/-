@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- ホーム画面のWebアプリ（2026-11 iOS 27）: ステータスバーの下まで常にアプリの画面にする。向きでステータスバーが出たり消えたりしても
+         表示領域の大きさが変わらないので、縦に戻したときにページがステータスバーの高さだけずれたままになる不具合が起きない。
+         上端の帯（.header・.modal-header）はステータスバーの高さ env(safe-area-inset-top) だけ下げる（Safari のタブでは 0） -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>ハナハナカウンター</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
@@ -27,7 +33,7 @@
 
         .container { 
             padding: 5px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
-            width: 100%; height: calc(100dvh - 40px);
+            width: 100%; height: calc(100dvh - 40px - env(safe-area-inset-top));
             box-sizing: border-box; overflow: hidden; touch-action: none;
         }
 
@@ -52,10 +58,13 @@
         }
         
         /* ヘッダー */
+        /* 高さは 40px ＋ステータスバーの高さ（ホーム画面のWebアプリはステータスバーの下まで画面。<head> の meta を参照） */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 16px; background: #000; position: sticky; top: 0; z-index: 100;
-            border-bottom: 1px solid #333; height: 40px; box-sizing: border-box;
+            padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+            padding-top: calc(8px + env(safe-area-inset-top));
+            background: #000; position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid #333; height: calc(40px + env(safe-area-inset-top)); box-sizing: border-box;
         }
         /* アイコンの大きさを元に戻しつつ、パディングで当たり判定をタブの高さ(48px)限界まで拡大 */
         .header-icon { 
@@ -145,10 +154,11 @@
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            padding: 0 16px; /* 左右の余白を調整 */
+            padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); /* 左右の余白を調整 */
+            padding-top: env(safe-area-inset-top); /* ステータスバーの下まで画面なので、その分下げる */
             background: #000; 
             border-bottom: 1px solid #333; 
-            height: 40px; 
+            height: calc(40px + env(safe-area-inset-top)); 
             box-sizing: border-box; 
         }
         /* モーダル内のみスクロール許可 */
@@ -3676,6 +3686,17 @@
     }
 
     // --- スプレッドシート連携 ---
+
+    // 画面の向きを変えた後、ページがずれたまま（スクロールした状態）になっていたら戻す（2026-11 iOS 27 のホーム画面のWebアプリで、
+    // 縦に戻すとステータスバーの高さだけ上にずれた）。入力中はキーボードで入力欄を見せるために iOS がずらすので触らない
+    function resetPageScroll() {
+        const a = document.activeElement;
+        if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+        [document.documentElement, document.body].forEach(el => { if (el && el.scrollTop) el.scrollTop = 0; });
+    }
+    window.addEventListener('orientationchange', () => { resetPageScroll(); setTimeout(resetPageScroll, 300); });
+    window.addEventListener('resize', () => setTimeout(resetPageScroll, 100));
 
     // 画面回転時に入力パネルの位置を再調整
     window.addEventListener('resize', () => {
