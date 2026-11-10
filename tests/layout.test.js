@@ -59,11 +59,50 @@ test('回転しても高さは変わらない（縦画面で計算した高さ�
   };
   size(390, 844);
   app.ev('fitButtonHeight()');
-  assert.equal(btnH(), 58, '(844 − 47 − 5 − 34 − 5 − 8×28) ÷ 9');
+  // 縦画面に入るのは (844 − 47 − 5 − 34 − 5 − 8×28) ÷ 9 = 58 だが、横画面（短い辺 390）には
+  // (390 − 時計の帯 20 − 5 − 34 − 4×28) ÷ 5 = 43 までしか入らない。小さい方にする（縦長の iPhone は横画面の方が入らない）
+  assert.equal(btnH(), 43);
   size(844, 390); Object.assign(env, { inset: 0, padBottom: 21 }); // 横画面
   app.ev('fitButtonHeight()');
-  assert.equal(btnH(), 58, '横画面でも同じ高さ');
+  assert.equal(btnH(), 43, '横画面でも同じ高さ');
   size(390, 844); Object.assign(env, { inset: 47, padBottom: 34 });
   app.ev('fitButtonHeight()');
-  assert.equal(btnH(), 58);
+  assert.equal(btnH(), 43);
+});
+
+// 2026-11-11: 縦画面に入る高さと横画面に入る高さの小さい方（横画面は時計の帯 20px の分も引く）
+function measuredApp(env) {
+  const app = loadApp();
+  const w = app.window, doc = app.document;
+  const btnH = () => parseFloat(doc.documentElement.style.getPropertyValue('--btn-h')) || 44;
+  w.HTMLElement.prototype.getBoundingClientRect = function () {
+    return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: this.classList.contains('col-left') ? 4 * (btnH() + 28) : 0 };
+  };
+  const real = w.getComputedStyle.bind(w);
+  w.getComputedStyle = (el, p) => {
+    if (el.classList && el.classList.contains('container')) return { paddingTop: '5px', paddingBottom: env.padBottom + 'px' };
+    if (el.classList && el.classList.contains('header')) return { paddingTop: env.inset + 'px' };
+    return real(el, p);
+  };
+  const size = (wd, ht) => {
+    Object.defineProperty(w, 'innerWidth', { value: wd, configurable: true });
+    Object.defineProperty(w, 'innerHeight', { value: ht, configurable: true });
+    app.ev('fitButtonHeight()');
+    return btnH();
+  };
+  return size;
+}
+
+test('iPhone SE（ホームボタンあり）: 縦横とも 44px（横画面は時計の帯を入れても入る）', () => {
+  const env = { inset: 20, padBottom: 12 };
+  const size = measuredApp(env);
+  assert.equal(size(375, 667), 44, '縦: (667 − 20 − 5 − 12 − 5 − 8×28) ÷ 9 = 44.5、横: (375 − 20 − 5 − 12 − 4×28) ÷ 5 = 45.2');
+  Object.assign(env, { inset: 0 });
+  assert.equal(size(667, 375), 44, '横画面でも同じ');
+});
+
+test('Safari のタブで横画面から開いたとき（縦画面がまだ分からない）: 横画面に入る高さ', () => {
+  const env = { inset: 0, padBottom: 12 };
+  const size = measuredApp(env);
+  assert.equal(size(667, 375), 45, '(375 − 20 − 5 − 12 − 4×28) ÷ 5');
 });

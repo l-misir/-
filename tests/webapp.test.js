@@ -26,12 +26,12 @@ test('上端の帯（メイン画面のヘッダー・各画面のヘッダー�
   const app = loadApp();
   const css = app.document.querySelector('style').textContent;
   const header = rule(css, '.header');
-  assert.match(header, /height:\s*calc\(var\(--btn-h\) \+ env\(safe-area-inset-top\)\)/, header);
-  assert.match(header, /padding:\s*env\(safe-area-inset-top\)/, header);
+  assert.match(header, /height:\s*calc\(var\(--btn-h\) \+ env\(safe-area-inset-top\)/, header);
+  assert.match(header, /padding:\s*calc\(env\(safe-area-inset-top\)/, header);
   const mh = rule(css, '.modal-header');
-  assert.match(mh, /height:\s*calc\(var\(--btn-h\) \+ env\(safe-area-inset-top\)\)/, mh);
-  assert.match(mh, /padding-top:\s*env\(safe-area-inset-top\)/, mh);
-  assert.match(rule(css, '.container'), /height:\s*calc\(100dvh - var\(--btn-h\) - env\(safe-area-inset-top\)\)/);
+  assert.match(mh, /height:\s*calc\(var\(--btn-h\) \+ env\(safe-area-inset-top\)/, mh);
+  assert.match(mh, /padding-top:\s*calc\(env\(safe-area-inset-top\)/, mh);
+  assert.match(rule(css, '.container'), /height:\s*calc\(100dvh - var\(--btn-h\) - env\(safe-area-inset-top\)/);
 });
 
 test('画面を回転したとき、ページがずれていたら戻す（入力中はキーボードのために iOS がずらすので触らない）', () => {

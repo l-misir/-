@@ -21,6 +21,11 @@
             /* メイン画面のボタン・ヘッダー・各画面の上の帯の高さ（fitButtonHeight が縦画面にちょうど入る高さに書き換える）と、
                テンキーのキーの大きさ（正方形。全部のテンキーで共通）。2026-11-11 */
             --btn-h: 44px; --key: 54px;
+            /* 横画面の時計の帯の高さ（縦画面は 0。iPhone は横画面でステータスバーを出さないので自前で出す。2026-11-11） */
+            --strip-h: 0px;
+        }
+        @media (orientation: landscape) {
+            :root { --strip-h: 20px; }
         }
         
         /* メイン部分のスクロール完全無効化とダブルタップ拡大無効化 */
@@ -36,7 +41,7 @@
 
         .container { 
             padding: 5px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
-            width: 100%; height: calc(100dvh - var(--btn-h) - env(safe-area-inset-top));
+            width: 100%; height: calc(100dvh - var(--btn-h) - env(safe-area-inset-top) - var(--strip-h));
             box-sizing: border-box; overflow: hidden; touch-action: none;
         }
 
@@ -65,10 +70,25 @@
            左右のアイコンは幅 56px・帯の高さいっぱい、機種名はその間いっぱいを押せる（2026-11-11。横画面で押しづらかった） */
         .header {
             display: flex; justify-content: space-between; align-items: stretch;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+            padding: calc(env(safe-area-inset-top) + var(--strip-h)) env(safe-area-inset-right) 0 env(safe-area-inset-left);
             background: #000; position: sticky; top: 0; z-index: 100;
-            border-bottom: 1px solid #333; height: calc(var(--btn-h) + env(safe-area-inset-top)); box-sizing: border-box;
+            border-bottom: 1px solid #333; height: calc(var(--btn-h) + env(safe-area-inset-top) + var(--strip-h)); box-sizing: border-box;
         }
+        /* 横画面の時計の帯（左に日付・曜日、真ん中に時刻、右に通信が切れたときだけ「圏外」）。画面の一番上に固定し、各画面より手前・テンキーより奥。
+           帯の分だけヘッダー・各画面の上の帯を下げるので、押す所が画面の上の端（通知センターを出す場所）から離れる。押しても何も起きない */
+        #clock-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: var(--strip-h); z-index: 1300; pointer-events: none;
+            display: none; grid-template-columns: 1fr auto 1fr; align-items: center;
+            padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+            background: #000; color: #fff; font-size: 12px; font-weight: bold; line-height: 1;
+            font-variant-numeric: tabular-nums; box-sizing: border-box;
+        }
+        @media (orientation: landscape) {
+            #clock-bar { display: grid; }
+        }
+        #clock-date { text-align: left; }
+        #clock-time { font-size: 13px; }
+        #clock-net { text-align: right; color: #ff6b6b; }
         .header > .header-icon { width: 56px; padding: 0; margin: 0; flex: 0 0 auto; }
         /* アイコンの大きさを元に戻しつつ、パディングで当たり判定をタブの高さ(48px)限界まで拡大 */
         .header-icon { 
@@ -163,10 +183,10 @@
             justify-content: space-between; 
             align-items: center; 
             padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); /* 左右の余白を調整 */
-            padding-top: env(safe-area-inset-top); /* ステータスバーの下まで画面なので、その分下げる */
+            padding-top: calc(env(safe-area-inset-top) + var(--strip-h)); /* ステータスバー（横画面は時計の帯）の分だけ下げる */
             background: #000; 
             border-bottom: 1px solid #333; 
-            height: calc(var(--btn-h) + env(safe-area-inset-top)); 
+            height: calc(var(--btn-h) + env(safe-area-inset-top) + var(--strip-h)); 
             box-sizing: border-box; 
         }
         /* モーダル内のみスクロール許可 */
@@ -444,6 +464,7 @@
 </head>
 <body>
 
+<div id="clock-bar" aria-hidden="true"><span id="clock-date"></span><span id="clock-time"></span><span id="clock-net"></span></div>
 <div class="header">
     <div class="header-icon" onclick="openHitModal()">🔍</div>
     <div class="header-title" id="disp-machine"
@@ -2372,11 +2393,10 @@
     // メイン画面のボタン（とヘッダー・各画面の上の帯）の高さ --btn-h（2026-11-11 ユーザー指定）:
     // 縦横同じで、縦画面にちょうど入る一番大きい高さ。縦画面は ヘッダー1つ＋見出し付きのボタン8段 が縦に並ぶので
     //   (縦画面の高さ − ステータスバー − 上下の余白 − 左右の列の間 − 見出しなど × 段数) ÷ (段数 + 1)
-    // 見出しなど1段あたりの高さ（見出し・枠・下の余白）は今の画面を測って出す。横画面では、縦画面で計算した高さをそのまま使う
-    // （ノッチのある iPhone は下の余白が縦横で違い、横画面で計算し直すと高さが変わったため。Codex 指摘）。
+    // 見出しなど1段あたりの高さ（見出し・枠・下の余白）は今の画面を測って出す。横画面に入る高さ（時計の帯の分も引く）と比べて小さい方。
+    // 横画面では、縦画面で計算した高さをそのまま使う（ノッチのある iPhone は下の余白が縦横で違い、横画面で計算し直すと高さが変わったため。Codex 指摘）。
     // まだ縦画面で計算していなければ、ホーム画面のWebアプリは長い辺で計算する（ノッチのある iPhone はステータスバー 47pt・下 34pt、
-    // それ以外は 20pt・今の下の余白とみる）。Safari のタブは縦画面の操作バーの分が分からないので計算し直さない。
-    // 測れないとき（テスト）も何もしない（CSS の 44px のまま）
+    // それ以外は 20pt・今の下の余白とみる）。Safari のタブは横画面に入る高さ。測れないとき（テスト）は何もしない（CSS の 44px のまま）
     // ============================================================
     const BTN_H_MIN = 30, BTN_H_MAX = 64;
     function buttonHeightFor({ portraitH, insetTop, padTop, padBottom, gap, rows, nonCellPerRow }) {
@@ -2399,21 +2419,66 @@
         const nonCellPerRow = (colH - rowsInCol * cur) / rowsInCol;
         const cs = getComputedStyle(container);
         const padTop = parseFloat(cs.paddingTop) || 0, padBottom = parseFloat(cs.paddingBottom) || 0;
+        // 横画面に入る高さ: 横画面は左右2列なので、片方の列の段数＋ヘッダー。上に時計の帯（20px）がある（2026-11-11。
+        // 縦長の iPhone は、縦画面に入る高さだと横画面の下がはみ出すので、小さい方にする）
+        const landscapeFit = (landH, padB) => buttonHeightFor({ portraitH: landH, insetTop: 20, padTop, padBottom: padB, gap: 0, rows: rowsInCol, nonCellPerRow });
         let h;
         if (window.innerHeight >= window.innerWidth) {
-            h = portraitBtnH = buttonHeightFor({ portraitH: window.innerHeight, insetTop: parseFloat(getComputedStyle(header).paddingTop) || 0,
-                padTop, padBottom, gap: 5, rows, nonCellPerRow });
-        } else if (portraitBtnH !== null) {
-            h = portraitBtnH;
+            h = portraitBtnH = Math.min(
+                buttonHeightFor({ portraitH: window.innerHeight, insetTop: parseFloat(getComputedStyle(header).paddingTop) || 0, padTop, padBottom, gap: 5, rows, nonCellPerRow }),
+                landscapeFit(window.innerWidth, padBottom)); // 横画面の下の余白は分からないので縦画面の値（大きめ）で
         } else {
-            const standalone = window.navigator.standalone === true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-            if (!standalone) return;
-            const longSide = Math.max(window.innerWidth, window.innerHeight), notch = longSide >= 800;
-            h = buttonHeightFor({ portraitH: longSide, insetTop: notch ? 47 : 20, padTop, padBottom: notch ? 34 : padBottom, gap: 5, rows, nonCellPerRow });
+            const fitNow = landscapeFit(window.innerHeight, padBottom);
+            if (portraitBtnH !== null) {
+                h = Math.min(portraitBtnH, fitNow);
+            } else {
+                const standalone = window.navigator.standalone === true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+                const longSide = Math.max(window.innerWidth, window.innerHeight), notch = longSide >= 800;
+                h = standalone ? Math.min(fitNow, buttonHeightFor({ portraitH: longSide, insetTop: notch ? 47 : 20, padTop, padBottom: notch ? 34 : padBottom, gap: 5, rows, nonCellPerRow }))
+                    : fitNow; // Safari のタブ: 縦画面の操作バーの分が分からないので、まずは横画面に入る高さ（縦画面にしたら計算し直す）
+            }
         }
         if (h !== cur) root.style.setProperty('--btn-h', h + 'px');
     }
     window.addEventListener('resize', () => fitButtonHeight());
+
+    // ============================================================
+    // 横画面の時計の帯（2026-11-11 ユーザー要望）: iPhone は横画面でステータスバー（時計）を出さないので、自前で出す。
+    // 左に日付・曜日、真ん中に時刻（24時間・秒まで。時は0を付けない）、右に通信が切れたときだけ「圏外」。
+    // 電池・電波・Wi-Fi は Safari から分からないので出さない。1秒ごとの書き換えは横画面で画面が出ている間だけ（秒が変わる瞬間に合わせる）
+    // ============================================================
+    function clockBarText(d, online) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return {
+            date: `${d.getMonth() + 1}/${d.getDate()}(${'日月火水木金土'[d.getDay()]})`,
+            time: `${d.getHours()}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`,
+            net: online ? '' : '圏外'
+        };
+    }
+    function renderClockBar() {
+        const t = clockBarText(new Date(), navigator.onLine !== false);
+        [['clock-date', t.date], ['clock-time', t.time], ['clock-net', t.net]].forEach(([id, v]) => {
+            const el = document.getElementById(id);
+            if (el && el.textContent !== v) el.textContent = v;
+        });
+    }
+    let clockTimer = null;
+    const landscapeMQ = window.matchMedia ? window.matchMedia('(orientation: landscape)') : null;
+    function clockTick() {
+        clearTimeout(clockTimer);
+        clockTimer = null;
+        renderClockBar();
+        if (!landscapeMQ || !landscapeMQ.matches || document.hidden) return;
+        clockTimer = setTimeout(clockTick, 1000 - (Date.now() % 1000) + 5);
+    }
+    if (landscapeMQ) {
+        if (landscapeMQ.addEventListener) landscapeMQ.addEventListener('change', clockTick);
+        else if (landscapeMQ.addListener) landscapeMQ.addListener(clockTick);
+    }
+    document.addEventListener('visibilitychange', clockTick);
+    window.addEventListener('online', renderClockBar);
+    window.addEventListener('offline', renderClockBar);
+    clockTick();
 
     // 詳細記録 OFF のメイン画面（今までの画面）
     function normalScreenHtml() {
