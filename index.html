@@ -18,6 +18,9 @@
             --text-white: #ffffff; --lamp-blue: #33aaff; --lamp-yellow: #ffdd44;
             --lamp-green: #44ff44; --lamp-red: #ff4444; --lamp-purple: #d044ff; --lamp-white: #dddddd;
             --active-btn: #007aff;
+            /* メイン画面のボタン・ヘッダー・各画面の上の帯の高さ（fitButtonHeight が縦画面にちょうど入る高さに書き換える）と、
+               テンキーのキーの大きさ（正方形。全部のテンキーで共通）。2026-11-11 */
+            --btn-h: 44px; --key: 54px;
         }
         
         /* メイン部分のスクロール完全無効化とダブルタップ拡大無効化 */
@@ -33,7 +36,7 @@
 
         .container { 
             padding: 5px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
-            width: 100%; height: calc(100dvh - 40px - env(safe-area-inset-top));
+            width: 100%; height: calc(100dvh - var(--btn-h) - env(safe-area-inset-top));
             box-sizing: border-box; overflow: hidden; touch-action: none;
         }
 
@@ -58,14 +61,15 @@
         }
         
         /* ヘッダー */
-        /* 高さは 40px ＋ステータスバーの高さ（ホーム画面のWebアプリはステータスバーの下まで画面。<head> の meta を参照） */
+        /* 高さはメイン画面のボタンと同じ（--btn-h）＋ステータスバーの高さ（ホーム画面のWebアプリはステータスバーの下まで画面。<head> の meta を参照）。
+           左右のアイコンは幅 56px・帯の高さいっぱい、機種名はその間いっぱいを押せる（2026-11-11。横画面で押しづらかった） */
         .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
-            padding-top: calc(8px + env(safe-area-inset-top));
+            display: flex; justify-content: space-between; align-items: stretch;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
             background: #000; position: sticky; top: 0; z-index: 100;
-            border-bottom: 1px solid #333; height: calc(40px + env(safe-area-inset-top)); box-sizing: border-box;
+            border-bottom: 1px solid #333; height: calc(var(--btn-h) + env(safe-area-inset-top)); box-sizing: border-box;
         }
+        .header > .header-icon { width: 56px; padding: 0; margin: 0; flex: 0 0 auto; }
         /* アイコンの大きさを元に戻しつつ、パディングで当たり判定をタブの高さ(48px)限界まで拡大 */
         .header-icon { 
             font-size: 20px; cursor: pointer; color: white; 
@@ -97,6 +101,8 @@
         .grid-4 { grid-template-columns: repeat(4, 1fr); }
         
         .cell { background: var(--cell-bg); padding: 2px 2px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 30px; }
+        /* メイン画面（とカウントロックの画面）のボタンの高さ。縦横同じで、縦画面にちょうど入る一番大きい高さ（2026-11-11。fitButtonHeight） */
+        #main-ui .cell, #lock-body .cell { height: var(--btn-h); min-height: var(--btn-h); }
         /* 縦画面時の文字と数値の隙間を詰める（-3pxの部分を-2や-4にして好みに微調整できます） */
         .label { font-size: 9px; color: white; margin-bottom: -3px; pointer-events: none; }
         .value { font-size: 16px; font-weight: bold; line-height: 1.2; pointer-events: none; }
@@ -128,8 +134,10 @@
         .lock-cell { cursor: pointer; }
         .lock-screen-title { text-align: center; font-size: 13px; font-weight: bold; margin: 10px 0 0; color: #fff; }
         /* 詳細記録 ON: 機種名の左右に ○ / ●（左＝画面1、右＝画面2、表示中が ●） */
-        /* 中身は #disp-machine-name だけ書き換える（機種名の振動用ラベルを描き直しで消さない） */
-        #disp-machine.with-dots { border-bottom: none; }
+        /* 機種名: 左右のアイコンの間いっぱい（帯の高さいっぱい）を押せる。下線は名前の所だけ。
+           中身は #disp-machine-name だけ書き換える（機種名の振動用ラベルを描き直しで消さない） */
+        #disp-machine { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center; border-bottom: none; }
+        #disp-machine:not(.with-dots) > #disp-machine-name { border-bottom: 2px solid white; }
         #disp-machine.with-dots > #disp-machine-name { display: flex; align-items: center; gap: 8px; }
         #disp-machine .mname { border-bottom: 2px solid white; }
         #disp-machine .scr-dot { font-size: 12px; }
@@ -158,7 +166,7 @@
             padding-top: env(safe-area-inset-top); /* ステータスバーの下まで画面なので、その分下げる */
             background: #000; 
             border-bottom: 1px solid #333; 
-            height: calc(40px + env(safe-area-inset-top)); 
+            height: calc(var(--btn-h) + env(safe-area-inset-top)); 
             box-sizing: border-box; 
         }
         /* モーダル内のみスクロール許可 */
@@ -213,56 +221,47 @@
         #img-preview { max-width: 90%; max-height: 80%; border: 1px solid #555; margin-bottom: 10px; }
         #img-controls { display: flex; gap: 20px; }
 
-        /* --- テンキー入力パネル（大当たり回転数） --- */
+        /* --- テンキー（大当たり回転数・まとめて加算で共通）。2026-11-11: 入力した数はキーの上、契機・告知はキーの右（縦横とも）。
+               キーは正方形で、全部のテンキーで同じ大きさ（--key） --- */
         #hit-panel {
             display: none; position: fixed; z-index: 1400;
             background: #1c1c1e; border: 2px solid #0a5; border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.7); padding: 8px;
             box-sizing: border-box;
+            /* 万一画面に入りきらない時だけ、パネルの中をスクロールして全部使えるようにする（ふだんは入る大きさ） */
+            max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow: auto;
         }
         #hit-panel.active { display: flex; flex-direction: column; }
-        #hit-panel-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
         .hit-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
         .hit-kind { font-size:11px; font-weight:bold; }
         .hit-kind.big { color:#ff6b6b; } /* BIG は赤系（2026-09 に黄から変更） */
         .hit-kind.reg { color:#6cf; }
         .hit-close { font-size:15px; color:#888; padding:1px 6px; cursor:pointer; }
         .hit-display {
-            background:#000; color:#fff; font-size:22px; font-weight:bold;
-            text-align:right; padding:5px 10px; border-radius:6px; margin-bottom:6px;
-            font-family: monospace; letter-spacing:1px; min-height:32px; box-sizing:border-box;
+            background:#000; color:#fff; font-size:26px; font-weight:bold;
+            text-align:right; padding:4px 10px; border-radius:6px; margin-bottom:6px;
+            font-family: monospace; letter-spacing:1px; min-height:38px; box-sizing:border-box; white-space:nowrap;
         }
         .hit-display .unit { font-size:12px; color:#888; margin-left:3px; }
-        .hit-keys { display:grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
+        .hit-display .num { display:inline-block; min-width:4ch; text-align:right; }
+        .hit-keys { display:grid; grid-template-columns: repeat(3, var(--key)); grid-auto-rows: var(--key); gap:4px; }
         .hit-key {
-            background:#333; color:#fff; border:none; border-radius:6px;
-            font-size:16px; font-weight:bold; padding:8px 0; cursor:pointer;
+            background:#333; color:#fff; border:none; border-radius:6px; padding:0;
+            font-size:24px; font-weight:bold; cursor:pointer;
             -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
         }
         .hit-key:active { background:#555; }
-        .hit-key.ok { background:#0a5; font-size:13px; }
+        .hit-key.ok { background:#0a5; font-size:18px; }
         .hit-key.ok:active { background:#0c7; }
-        .hit-key.del { background:#833; font-size:14px; }
-        /* キーとG数表示の間はパネルの内側余白(8px)と揃える */
-        .hit-keys-wrap { display:flex; gap:8px; align-items:stretch; flex:1 1 auto; min-width:0; }
-        .hit-keys-wrap .hit-keys { flex:1 1 auto; min-width:0; grid-template-rows: repeat(4, 1fr); }
-        /* G数表示は「4桁＋G」ぴったりの幅（左右の余白は同じ10px）。残りはすべてテンキーへ */
-        .hit-side { flex:0 0 auto; width:min-content; }
-        .hit-side .hit-display { margin-bottom:6px; font-size:26px; min-height:38px; white-space:nowrap; }
-        .hit-display .num { display:inline-block; min-width:4ch; text-align:right; }
-        /* パネル内のキーを大きく（高さはパネルいっぱいまで伸びる） */
-        #hit-panel .hit-key { font-size:24px; padding:12px 0; }
-        /* 万一画面に入りきらない時だけ、パネルの中をスクロールして全部使えるようにする（ふだんは入る配置にしている） */
-        #hit-panel { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
-        #hit-panel .hit-key.ok { font-size:18px; }
-        #hit-panel .hit-key.del { font-size:19px; }
-        /* 当選の契機・告知。テンキーは元の大きさのまま、縦画面はキーの下（パネルを上へ伸ばす）、
-           横画面はキーの右（パネルを左へ伸ばす。.wide）に置く。見た目は UI 調整で詰める */
-        .hit-opts { flex:0 0 auto; margin-top:4px; }
-        #hit-panel.wide #hit-panel-body { flex-direction:row; gap:8px; }
-        #hit-panel.wide .hit-opts { flex:0 0 250px; width:250px; margin-top:0; }
-        .hit-opt-title { font-size:10px; color:#888; margin:3px 0 2px; }
-        .hit-opt-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:3px; margin-bottom:3px; }
+        .hit-key.del { background:#833; font-size:19px; }
+        /* 並び: [入力した数 / キー] [契機・告知]。入力した数の幅はキーと同じ */
+        .tk { display:flex; gap:8px; align-items:flex-start; }
+        .tk-main { flex:0 0 auto; width: calc(var(--key) * 3 + 8px); }
+        /* 当選の契機・告知（1行2つ。告知と付随は続けて並べる） */
+        .hit-opts { flex:0 0 150px; width:150px; }
+        .hit-opt-title { font-size:10px; color:#888; margin:0 0 2px; }
+        .hit-opt-grid + .hit-opt-title { margin-top:4px; }
+        .hit-opt-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:3px; }
         .hit-opt { padding:7px 2px; background:#222; color:#aaa; border:1px solid #333; border-radius:5px; font-size:11px; text-align:center; white-space:nowrap; overflow:hidden; cursor:pointer; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
         .hit-opt.on { background:#0066cc; color:#fff; border-color:#0088ff; }
 
@@ -272,12 +271,11 @@
             z-index:1200; background:#111; flex-direction:column;
         }
         #bulk-panel.active { display:flex; }
-        #bulk-panel .modal-body { flex:1; overflow:hidden; padding:8px 12px max(8px, env(safe-area-inset-bottom)); display:flex; flex-direction:column; }
-        /* 常に上下配置（項目が上、テンキーが下）。テンキーは残りの幅・高さいっぱいに広げる */
+        #bulk-panel .modal-body { flex:1; overflow-y:auto; padding:8px 12px max(8px, env(safe-area-inset-bottom)); display:flex; flex-direction:column; }
+        /* 項目が上、その下に入力した数とテンキー（キーは当選回転数のテンキーと同じ大きさ。2026-11-11） */
         .bulk-wrap { display:flex; flex-direction:column; flex:1; min-height:0; }
         .bulk-col-l { flex:0 0 auto; }
-        /* 縦画面は幅290px・キー高さ330pxまで（大きすぎたので二回りほど小さく）。横画面は下の @media で広げる */
-        .bulk-col-r { flex:1 1 auto; min-height:0; width:100%; max-width:290px; margin:0 auto; display:flex; flex-direction:column; }
+        .bulk-col-r { flex:0 0 auto; width: calc(var(--key) * 3 + 8px); margin:0 auto; }
         /* 項目ボタン: 実戦履歴のフィルタボタンと完全に同じ高さ（1行・padding 7px 2px） */
         .bulk-target-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:3px; margin-bottom:8px; }
         .bulk-target {
@@ -289,26 +287,11 @@
         .bulk-target.active { background:#0066cc; color:#fff; border-color:#0088ff; }
         .bulk-target .cur { color:#fff; font-weight:bold; margin-left:3px; }
         .bulk-target.active .cur { color:#fff; }
-        #bulk-panel .hit-display { font-size:24px; }
-        #bulk-keys { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-        #bulk-keys .hit-keys { flex:1 1 auto; min-height:0; max-height:330px; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr); gap:5px; }
-        #bulk-keys .hit-key { font-size:24px; padding:0; }
-        #bulk-keys .hit-key.ok { font-size:18px; }
-        #bulk-keys .hit-key.del { font-size:20px; }
-        /* 横画面（低い画面）: 表示部を詰めて、テンキーに高さを回す */
+        /* 横画面（低い画面）: 項目は横1行。見出しは出さずにテンキーを入れる */
         @media (min-aspect-ratio: 1/1) {
             #bulk-panel .modal-body { padding:5px 12px max(5px, env(safe-area-inset-bottom)); }
-            /* 横画面: 項目は横1行、入力した数値はテンキーの右（キー左・表示右）にしてテンキーを縦に大きく */
-            .bulk-target-grid { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:1fr; margin-bottom:4px; }
-            .bulk-col-r { max-width:640px; display:grid; grid-template-columns:1fr 150px; grid-template-rows:auto 1fr; column-gap:10px; }
-            .bulk-col-r > .section-title { grid-column:2; grid-row:1; }
-            #bulk-panel #bulk-display { grid-column:2; grid-row:2; align-self:start; font-size:26px; min-height:40px; padding:4px 10px; }
-            #bulk-keys { grid-column:1; grid-row:1 / span 2; }
-            #bulk-keys .hit-keys { gap:4px; max-height:none; }
-            #bulk-keys .hit-key { font-size:20px; }
-            #bulk-keys .hit-key.ok { font-size:15px; }
-            #bulk-panel .hit-display { font-size:18px; padding:2px 10px; min-height:26px; margin-bottom:4px; }
-            #bulk-panel .section-title { margin:4px 0 3px !important; font-size:11px; }
+            .bulk-target-grid { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:1fr; margin-bottom:6px; }
+            #bulk-panel .section-title { display:none; }
             .bulk-target { padding:5px 2px; font-size:10px; }
         }
 
@@ -720,7 +703,9 @@
             { k:'lnChe',  g:'欠損',     label:'通常時チェリー' },
             { k:'nCheM',  g:'欠損',     label:'通常時中段チェリー' },
             { k:'lnSui',  g:'欠損',     label:'通常時スイカ' },
-            { k:'lAlign', g:'欠損',     label:'ボーナス揃えミス' },
+            { k:'lAlign', g:'欠損',     label:'ボーナス揃えミス(1枚掛け)' },
+            { k:'lAlign2', g:'欠損',    label:'ボーナス揃えミス(2枚掛け)' }, // 2026-11-11
+            { k:'lAlign3', g:'欠損',    label:'ボーナス揃えミス(3枚掛け)' }, // 2026-11-11
             { k:'lbChe',  g:'欠損',     label:'BIGチェリー' },
             { k:'lbSui',  g:'欠損',     label:'BIGスイカ', of:'suika' },
             { k:'lrSui',  g:'欠損',     label:'REGスイカ' },
@@ -753,16 +738,17 @@
     // 当選の契機・告知（詳細記録 OFF でも記録。docs/DETAIL_MODE_PLAN.md「当選の契機・告知」）。当選履歴の各記録に持つ
     //   trig: 契機を1つ（初期値 単独(先)。小役重複は後告知に該当）
     //   notice: 点滅／フリーズを1つ（初期値 ノーマル点滅。同時には起きない）
-    //   extras: 特殊テンパイ音・バイブ・バウンドストップ（複数可）。アメイジングチャンスは 2026-10-05 にボタンを無くした
+    //   extras: 特殊テンパイ音・バイブ・その他（複数可）。「その他」はほかのプレミア用（2026-11-11。アメイジングが出て困ったため）。
+    //   アメイジングチャンスは 2026-10-05、バウンドストップは 2026-11-11 にボタンを無くした
     // テンキー画面に回数や割合は出さない（割合は当選履歴の円グラフ）。フリーズはレトロ条件達成の自動加算から外す（retroAutoCount）
     const HIT_TRIGS = [
         { v:'solo1', l:'単独(先)' }, { v:'solo2', l:'単独(後)' }, { v:'che', l:'チェリー' },
         { v:'sui', l:'スイカ' }, { v:'rep', l:'リプレイ' }, { v:'bell', l:'ベル' }
     ];
     const HIT_NOTICES = [ { v:'normal', l:'ノーマル点滅' }, { v:'premium', l:'プレミア点滅' }, { v:'freeze', l:'フリーズ' } ];
-    const HIT_EXTRAS = [ { v:'tenpai', l:'特殊テンパイ音' }, { v:'vibe', l:'バイブ' }, { v:'bound', l:'バウンドストップ', s:'バウンド' } ];
+    const HIT_EXTRAS = [ { v:'tenpai', l:'特殊テンパイ音', s:'特殊テンパイ' }, { v:'vibe', l:'バイブ' }, { v:'other', l:'その他' } ];
     // ボタンを無くした付随（2026-10-05 ユーザー判断。ほぼ出ないため）。今までの記録に付いている分は消さず、備考・プレミア・シートの文字列に残す
-    const HIT_EXTRAS_RETIRED = [ { v:'ac', l:'アメイジングチャンス' } ];
+    const HIT_EXTRAS_RETIRED = [ { v:'ac', l:'アメイジングチャンス' }, { v:'bound', l:'バウンドストップ' } ]; // バウンドストップは 2026-11-11
     const HIT_EXTRAS_ALL = HIT_EXTRAS.concat(HIT_EXTRAS_RETIRED);
     // 契機・告知の無い記録（この機能より前のデータ）や壊れた値は初期値にする
     function normalizeHitInfo(h) {
@@ -1067,9 +1053,12 @@
         const R = Math.max(0, (Number(c.r) || 0) - (Number(s.r) || 0));
         const bell = Math.max(0, Number(c.bell) || 0);
         const actual = oneBet === 'actual';
-        // 1枚掛けのゲーム数 = ボーナス揃えミス + 1枚掛けで取れた小役（後告知の数は使わない）
+        // 1枚掛けのゲーム数 = ボーナス揃えミス(1枚掛け) + 1枚掛けで取れた小役（後告知の数は使わない）
         const oneBetGames = isNew ? 0 : n('lAlign') + n('oRep') + n('oBell') + n('oChe') + n('oSui');
-        const effG = G + oneBetGames * (actual ? 1 : 2 / 3);
+        // 2枚掛けのゲーム数 = ボーナス揃えミス(2枚掛け)（2026-11-11）。予測値はカウンターが 2/3 回転数えているので +1/3、実測値は数えられないので +1。
+        // 3枚掛けの揃えミス（ニューキング以外は lAlign3、ニューキングは lAlign）は普通の1回転としてカウンターに入っているので、回転数も持ちコインもそのまま
+        const twoBetGames = isNew ? 0 : n('lAlign2');
+        const effG = G + oneBetGames * (actual ? 1 : 2 / 3) + twoBetGames * (actual ? 1 : 1 / 3);
         let bigGames, regGames, lossBonus, suiDenom, suiRDenom;
         if (isNew) {
             const bf = n('lbChe') + n('lbSui');   // BIG前半（1枚掛け）の欠損
@@ -1090,7 +1079,8 @@
             suiDenom = pm.suikaDenom * B + bLoss; // BIGスイカ = BIGのG数 × BIG + BIGの欠損 + BIG純ハズレ
             suiRDenom = pm.regG * R + rLoss;
         }
-        const lossNormal = CHE_PAY * n('lnChe') + (CHE_PAY - CHE_M_PAY) * n('nCheM') + cs.sui * n('lnSui') + cs.align * n('lAlign');
+        const lossNormal = CHE_PAY * n('lnChe') + (CHE_PAY - CHE_M_PAY) * n('nCheM') + cs.sui * n('lnSui') + cs.align * n('lAlign')
+            + (isNew ? 0 : 2 * n('lAlign2') + 3 * n('lAlign3')); // 揃えミスの欠損は掛け枚数分
         let coins = -3 * G
             + REP_PAY * n('nRep') + cs.bell * bell + CHE_PAY * n('nChe') + CHE_M_PAY * n('nCheM') + cs.sui * n('nSui')
             + cs.big * B + cs.reg * R - lossBonus;
@@ -1098,10 +1088,10 @@
             coins += cs.btBell * n('btBell');
         } else {
             coins += cs.one.rep * n('oRep') + cs.one.bell * n('oBell') + cs.one.che * n('oChe') + cs.one.sui * n('oSui');
-            if (actual) coins -= oneBetGames; // 実測値: 1枚掛けの投入はカウンターの回転数に入っていない
+            if (actual) coins -= oneBetGames + 2 * twoBetGames; // 実測値: 1・2枚掛けの投入はカウンターの回転数に入っていない
         }
         return {
-            G, B, R, oneBetGames, effG, bigGames, regGames, bonusG: bigGames + regGames, totalG: effG + bigGames + regGames,
+            G, B, R, oneBetGames, twoBetGames, effG, bigGames, regGames, bonusG: bigGames + regGames, totalG: effG + bigGames + regGames,
             suiDenom, suiRDenom, useDetail: n('nRep') >= 1, coins, loss: lossNormal + lossBonus, lossNormal, lossBonus
         };
     }
@@ -1362,19 +1352,7 @@
         label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 回転数を修正';
         label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
 
-        document.getElementById('hit-panel-body').innerHTML = `
-            <div class="hit-keys-wrap">
-                <div class="hit-keys">
-                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
-                    <button class="hit-key del" onclick="hitKey('del')">⌫</button>
-                    <button class="hit-key" onclick="hitKey('0')">0</button>
-                    <button class="hit-key ok" onclick="hitEditSave()">保存</button>
-                </div>
-                <div class="hit-side">
-                    <div class="hit-display" id="hit-display">${hitDisplayHtml()}</div>
-                </div>
-            </div>
-            <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>`;
+        document.getElementById('hit-panel-body').innerHTML = hitPanelBodyHtml('保存');
         panel.classList.add('active');
         positionHitPanel();
     }
@@ -1402,61 +1380,52 @@
         return `<span class="num">${hitInputValue === '' ? '0' : hitInputValue}</span><span class="unit">G</span>`;
     }
 
-    // 契機・告知の欄の幅（横画面でテンキーの右に置くとき）と、テンキーとの間
-    const HIT_OPTS_W = 250, HIT_OPTS_GAP = 8;
+    // テンキー（7 8 9 / 4 5 6 / 1 2 3 / ⌫ 0 決定）。全部のテンキーで共通（キーは正方形で同じ大きさ）。
+    // fn: 数字・⌫ を押したときの関数名、okLabel / okCall: 決定キーの文字と処理
+    function tenkeyHtml(fn, okLabel, okCall) {
+        return `<div class="hit-keys">
+                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="${fn}('${n}')">${n}</button>`).join('')}
+                    <button class="hit-key del" onclick="${fn}('del')">⌫</button>
+                    <button class="hit-key" onclick="${fn}('0')">0</button>
+                    <button class="hit-key ok" onclick="${okCall}">${okLabel}</button>
+                </div>`;
+    }
+    // 当選回転数のテンキー画面: [入力した数（キーの上）/ キー] [契機・告知（キーの右）]。縦横とも同じ並び（2026-11-11）
+    function hitPanelBodyHtml(okLabel) {
+        return `<div class="tk">
+                <div class="tk-main">
+                    <div class="hit-display" id="hit-display">${hitDisplayHtml()}</div>
+                    ${tenkeyHtml('hitKey', okLabel, 'hitEditSave()')}
+                </div>
+                <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>
+            </div>`;
+    }
 
+    // テンキー画面の置き場所（大きさは中身なり）: 大当たり分布からの編集は画面の真ん中、
+    // BIG/REG を押したときは縦画面は画面の下の真ん中、横画面は右下（2026-11-11）
     function positionHitPanel() {
         const panel = document.getElementById('hit-panel');
         const isLandscape = window.innerWidth > window.innerHeight;
         panel.classList.toggle('centered', hitPanelCentered);
-        // 契機・告知の欄: 横画面はテンキーの右、縦画面はテンキーの下（テンキーはどちらも元の大きさ）
-        panel.classList.toggle('wide', isLandscape);
-        const optsExtraW = HIT_OPTS_W + HIT_OPTS_GAP;
+        panel.style.width = '';
         if (hitPanelCentered) {
-            // 大当たり分布からの編集: 画面中央（高さは中身なり。縦画面は下に欄の分だけ伸びる）
             panel.style.top = '50%';
             panel.style.bottom = 'auto';
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = isLandscape ? `min(calc(min(340px, 52%) + ${optsExtraW}px), calc(100% - 16px))` : 'min(340px, 94%)';
             panel.style.transform = 'translate(-50%, -50%)';
             return;
         }
-        // BIG/REG 加算時: 下端は画面の一番下まで伸ばし、キーを縦に大きくする
+        panel.style.top = 'auto';
         panel.style.bottom = 'max(8px, env(safe-area-inset-bottom))';
         if (isLandscape) {
-            // 横画面: 右カラム（ベルの枠と同じ幅）いっぱいに被せ、上端は機種名バーの直下
-            const header = document.querySelector('.header');
-            const top = header ? header.getBoundingClientRect().bottom : 40;
-            panel.style.top = (top + 4) + 'px';
-            const col = document.querySelector('#main-ui .col-right');
-            const r = col ? col.getBoundingClientRect() : null;
-            if (r && r.width > 0) {
-                // テンキーは右カラムの幅のまま、その右に契機・告知の欄。右端は右カラムに揃え、左へ伸ばす
-                const left = Math.max(8, r.right - (r.width + optsExtraW));
-                panel.style.left = left + 'px';
-                panel.style.width = (r.right - left) + 'px';
-                panel.style.right = 'auto';
-            } else {
-                panel.style.right = '10px';
-                panel.style.left = 'auto';
-                panel.style.width = `min(calc(min(340px, 52%) + ${optsExtraW}px), calc(100% - 20px))`;
-            }
+            panel.style.left = 'auto';
+            panel.style.right = 'max(8px, env(safe-area-inset-right))';
             panel.style.transform = 'none';
         } else {
-            // 縦画面: 今までのパネルの上端（スイカの個数の位置）から、下に置く契機・告知の欄の高さ＋余白の分だけ
-            // パネル全体を上へ伸ばす。テンキーは今までと同じ大きさのまま、その分上へずれる（スクロールしなくて済むように）
             panel.style.left = '50%';
             panel.style.right = 'auto';
-            panel.style.width = 'min(340px, 94%)';
             panel.style.transform = 'translateX(-50%)';
-            const suika = document.querySelector('#main-ui .hit-anchor .value') || document.querySelector('.t-btn[data-id="suika"] .value'); // 詳細記録の画面1は4段目
-            const baseTop = suika ? suika.getBoundingClientRect().top : window.innerHeight * 0.38;
-            const opts = panel.querySelector('.hit-opts');
-            const extraH = opts ? opts.getBoundingClientRect().height + 4 : 0; // 4 = 欄の上の余白
-            const header = document.querySelector('.header');
-            const minTop = (header ? header.getBoundingClientRect().bottom : 40) + 4;
-            panel.style.top = Math.max(minTop, baseTop - extraH) + 'px';
         }
     }
 
@@ -1478,20 +1447,7 @@
         label.textContent = (kind === 'b' ? 'BIG' : 'REG') + ' 当選回転数';
         label.className = 'hit-kind ' + (kind === 'b' ? 'big' : 'reg');
 
-        document.getElementById('hit-panel-body').innerHTML = `
-            <div class="hit-keys-wrap">
-                <div class="hit-keys">
-                    ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="hitKey('${n}')">${n}</button>`).join('')}
-                    <button class="hit-key del" onclick="hitKey('del')">⌫</button>
-                    <button class="hit-key" onclick="hitKey('0')">0</button>
-                    <button class="hit-key ok" onclick="hitEditSave()">OK</button>
-                </div>
-                <div class="hit-side">
-                    <div class="hit-display" id="hit-display">${hitDisplayHtml()}</div>
-                </div>
-            </div>
-            <div class="hit-opts" id="hit-opts">${hitOptsHtml()}</div>
-        `;
+        document.getElementById('hit-panel-body').innerHTML = hitPanelBodyHtml('OK');
         panel.classList.add('active');
         positionHitPanel();
     }
@@ -1533,8 +1489,7 @@
             <div class="hit-opt-title">契機</div>
             <div class="hit-opt-grid">${HIT_TRIGS.map(o => btn(h.trig === o.v, 'setHitTrig', o)).join('')}</div>
             <div class="hit-opt-title">告知</div>
-            <div class="hit-opt-grid">${HIT_NOTICES.map(o => btn(h.notice === o.v, 'setHitNotice', o)).join('')}</div>
-            <div class="hit-opt-grid">${HIT_EXTRAS.map(o => btn(h.extras.includes(o.v), 'toggleHitExtra', o)).join('')}</div>`;
+            <div class="hit-opt-grid">${HIT_NOTICES.map(o => btn(h.notice === o.v, 'setHitNotice', o)).join('')}${HIT_EXTRAS.map(o => btn(h.extras.includes(o.v), 'toggleHitExtra', o)).join('')}</div>`;
     }
     // 編集中の記録の契機・告知を変える。フリーズはレトロの自動加算に効くので数え直す（手で直した分は残す）
     function updateHitInfo(fn) {
@@ -1615,14 +1570,7 @@
 
         document.getElementById('bulk-display').textContent = bulkValue === '' ? '0' : ('+' + bulkValue);
 
-        document.getElementById('bulk-keys').innerHTML = `
-            <div class="hit-keys">
-                ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="hit-key" onclick="bulkKey('${n}')">${n}</button>`).join('')}
-                <button class="hit-key del" onclick="bulkKey('del')">⌫</button>
-                <button class="hit-key" onclick="bulkKey('0')">0</button>
-                <button class="hit-key ok" onclick="bulkKey('ok')">加算</button>
-            </div>
-        `;
+        document.getElementById('bulk-keys').innerHTML = tenkeyHtml('bulkKey', '加算', "bulkKey('ok')");
     }
 
     function setBulkTarget(id) {
@@ -1725,7 +1673,7 @@
     // 扇は種別×契機（先告知・後告知・小役重複）。全体のタブも BIG・REG のタブと同じ色（BIG は赤、REG は青の濃淡）で分け、扇の境目に細い線。
     // 当たり1回ごとに円の中の場所を決め（BIG→REG、先告知→後告知→小役重複、通常→プレミアの順。時間の順ではない）、
     // プレミアの金の線はその当たりの場所に出す（扇の中の金の長さ＝その扇の中のプレミアの割合）。
-    // プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・バウンドストップ。ボタンを無くしたアメイジングチャンスの古い記録も〕付き。
+    // プレミア＝告知がプレミア点滅・フリーズ、または備考〔特殊テンパイ音・バイブ・その他。ボタンを無くしたアメイジングチャンス・バウンドストップの古い記録も〕付き。
     // 円の下の割合は、そのタブの当たり全体に対する割合（四捨五入）。契機の無い古い記録は初期値（単独(先)＝先告知）として数える
     const HIT_PIE_COLORS = {
         premium: '#ffdd44',
@@ -2416,8 +2364,56 @@
         if(data.mode === 'tap') attachEvents();
         markMorningLamp();
         updateHeader();
+        fitButtonHeight();
         setTimeout(calc, 0);
     }
+
+    // ============================================================
+    // メイン画面のボタン（とヘッダー・各画面の上の帯）の高さ --btn-h（2026-11-11 ユーザー指定）:
+    // 縦横同じで、縦画面にちょうど入る一番大きい高さ。縦画面は ヘッダー1つ＋見出し付きのボタン8段 が縦に並ぶので
+    //   (縦画面の高さ − ステータスバー − 上下の余白 − 左右の列の間 − 見出しなど × 段数) ÷ (段数 + 1)
+    // 見出しなど1段あたりの高さ（見出し・枠・下の余白）は今の画面を測って出す。横画面では、縦画面で計算した高さをそのまま使う
+    // （ノッチのある iPhone は下の余白が縦横で違い、横画面で計算し直すと高さが変わったため。Codex 指摘）。
+    // まだ縦画面で計算していなければ、ホーム画面のWebアプリは長い辺で計算する（ノッチのある iPhone はステータスバー 47pt・下 34pt、
+    // それ以外は 20pt・今の下の余白とみる）。Safari のタブは縦画面の操作バーの分が分からないので計算し直さない。
+    // 測れないとき（テスト）も何もしない（CSS の 44px のまま）
+    // ============================================================
+    const BTN_H_MIN = 30, BTN_H_MAX = 64;
+    function buttonHeightFor({ portraitH, insetTop, padTop, padBottom, gap, rows, nonCellPerRow }) {
+        const h = Math.floor((portraitH - insetTop - padTop - padBottom - gap - rows * nonCellPerRow) / (rows + 1));
+        return Math.max(BTN_H_MIN, Math.min(BTN_H_MAX, h));
+    }
+    let portraitBtnH = null; // 縦画面で計算した高さ
+    function fitButtonHeight() {
+        const ui = document.getElementById('main-ui');
+        const col = ui && ui.querySelector('.col-left');
+        const container = document.querySelector('.container');
+        const header = document.querySelector('.header');
+        if (!col || !container || !header) return;
+        const colH = col.getBoundingClientRect().height;
+        const rowsInCol = col.querySelectorAll('.grid').length;
+        const rows = ui.querySelectorAll('.grid').length;
+        if (!(colH > 0) || rowsInCol === 0) return;
+        const root = document.documentElement;
+        const cur = parseFloat(root.style.getPropertyValue('--btn-h')) || parseFloat(getComputedStyle(root).getPropertyValue('--btn-h')) || 44;
+        const nonCellPerRow = (colH - rowsInCol * cur) / rowsInCol;
+        const cs = getComputedStyle(container);
+        const padTop = parseFloat(cs.paddingTop) || 0, padBottom = parseFloat(cs.paddingBottom) || 0;
+        let h;
+        if (window.innerHeight >= window.innerWidth) {
+            h = portraitBtnH = buttonHeightFor({ portraitH: window.innerHeight, insetTop: parseFloat(getComputedStyle(header).paddingTop) || 0,
+                padTop, padBottom, gap: 5, rows, nonCellPerRow });
+        } else if (portraitBtnH !== null) {
+            h = portraitBtnH;
+        } else {
+            const standalone = window.navigator.standalone === true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+            if (!standalone) return;
+            const longSide = Math.max(window.innerWidth, window.innerHeight), notch = longSide >= 800;
+            h = buttonHeightFor({ portraitH: longSide, insetTop: notch ? 47 : 20, padTop, padBottom: notch ? 34 : padBottom, gap: 5, rows, nonCellPerRow });
+        }
+        if (h !== cur) root.style.setProperty('--btn-h', h + 'px');
+    }
+    window.addEventListener('resize', () => fitButtonHeight());
 
     // 詳細記録 OFF のメイン画面（今までの画面）
     function normalScreenHtml() {
@@ -2550,7 +2546,7 @@
             left = sec('打ち始め', mkS('g','ゲーム数',s.g,50) + mkS('b','BIG',s.b) + mkS('r','REG',s.r), 3)
                  + sec('現在', mkC('g','ゲーム数',c.g,50) + mkC('b','BIG',c.b) + mkC('r','REG',c.r), 3)
                  + sec('通常時：小役（3）', mkD('nRep','リプレイ') + mkC('bell','ベル',c.bell), 2)
-                 + sec('通常時：小役（3）', mkD('nChe','チェリー') + mkD('nSui','スイカ'), 2, 'hit-anchor'); // テンキーの上端の目安
+                 + sec('通常時：小役（3）', mkD('nChe','チェリー') + mkD('nSui','スイカ'), 2);
             if (isNew) {
                 right = sec('通常時：欠損（3）', mkD('lnChe','チェリー') + mkD('nCheM','中段チェリー'), 2)
                       + sec('通常時：欠損（3）', mkD('lnSui','スイカ') + mkD('lAlign','ボーナス'), 2)
@@ -2560,7 +2556,7 @@
                 right = sec('通常時：小役（1・2）', mkD('oRep','リプレイ') + mkD('oBell','ベル'), 2)
                       + sec('通常時：小役（1・2）', mkD('oChe','チェリー') + mkD('oSui','スイカ'), 2)
                       + sec('通常時：欠損（3）', mkD('lnChe','チェリー') + mkD('nCheM','中段チェリー') + mkD('lnSui','スイカ'), 3)
-                      + sec('通常時：欠損（1）', mkD('lAlign','ボーナス'), 1);
+                      + sec('通常時：欠損（1・2・3）', mkD('lAlign','ボーナス(1)') + mkD('lAlign2','ボーナス(2)') + mkD('lAlign3','ボーナス(3)'), 3); // 掛け枚数別の揃えミス（2026-11-11）
             }
         } else {
             if (isNew) {
@@ -3341,7 +3337,7 @@
         // 出現回数が0の小役と、その機種に無い欄は出さない。1・2枚掛けは回数だけ。筐体ランプの白(不明)は出さない
         const dx = Object.assign({}, DETAIL_DEFAULT, d.detail || {});
         const dn = (k) => Math.max(0, Number(dx[k]) || 0);
-        const effGTxt = st.oneBetGames > 0 ? ` <span class="white-txt">(1枚掛け補正 ${Math.round(effG * 10) / 10})</span>` : '';
+        const effGTxt = (st.oneBetGames + st.twoBetGames) > 0 ? ` <span class="white-txt">(1・2枚掛け補正 ${Math.round(effG * 10) / 10})</span>` : '';
 
         // est = 推測に使う行（要素調整が 0% の要素は使っていないので外す）。項目名の左端に青い線を出す（2026-10-04）
         const used = (k) => (Number(w[k]) || 0) > 0;
@@ -3547,10 +3543,12 @@
             D('BIG：筐体ランプ(白)', 'wBig'), ...lamps('BIG：筐体ランプ', 'big', ['青', '黄', '緑', '紫', '虹']),
             D('REG：筐体ランプ(白)', 'wReg'), ...lamps('REG：筐体ランプ', 'regT', ['青', '黄', '緑', '紫']),
             ...retro, { h: '当選履歴', t: 'hits' }];
-        // ニューキング以外: 揃えミスは1枚掛けの欠損なので「1・2枚掛け：」に置く
+        // ニューキング以外: 揃えミスは掛け枚数別（2026-11-11）。3枚掛けはニューキングと同じ「通常時：ボーナス(欠損)」の場所、
+        // 1枚掛け・2枚掛けは「1・2枚掛け：」の後ろ（前の「1・2枚掛け：ボーナス(欠損)」の列が「1枚掛け：ボーナス(欠損)」）
         return [...head,
+            D('通常時：ボーナス(欠損)', 'lAlign3'),
             D('1・2枚掛け：リプレイ', 'oRep'), D('1・2枚掛け：ベル', 'oBell'), D('1・2枚掛け：チェリー', 'oChe'), D('1・2枚掛け：スイカ', 'oSui'),
-            D('1・2枚掛け：ボーナス(欠損)', 'lAlign'),
+            D('1枚掛け：ボーナス(欠損)', 'lAlign'), D('2枚掛け：ボーナス(欠損)', 'lAlign2'),
             D('BIG：チェリー', 'bChe'), D('BIG：チェリー(欠損)', 'lbChe'),
             { h: 'BIG：スイカ', t: 'take', k: 'suika', loss: 'lbSui' }, D('BIG：スイカ(欠損)', 'lbSui'), D('BIG：純ハズレ', 'bMiss'),
             D('REG：スイカ(欠損)', 'lrSui'), D('REG：純ハズレ', 'rMiss'),

@@ -236,3 +236,25 @@ test('詳細データ: 詳細を記録していない日は今の小役の行だ
   assert.deepEqual(rowLabels(app), ['通常時回転数', 'BIG', 'REG', '合算', 'BIG：スイカ',
     'REG：サイドランプ', 'BIG：筐体ランプ', 'REG：筐体ランプ', 'レトロサウンド']);
 });
+
+// ニューキング以外の揃えミスは掛け枚数別に3つ（2026-11-11）: 1枚掛けは今までどおり、
+// 2枚掛けは欠損2枚・予測値は回転数 +1/3（カウンターが2/3回転数えている）・実測値は +1 して持ちコイン −2、
+// 3枚掛けは欠損3枚・普通の1回転としてカウンターに入っているので回転数も持ちコインもそのまま
+test('揃えミス（1・2・3枚掛け）: 欠損枚数・回転数・持ちコイン', () => {
+  const base = { g: 1000, b: 0, r: 0, bell: 0, suika: 0 };
+  const pred = (detail) => stats(setupMachine('king', base, { nRep: 1, ...detail }), 'king', 'predict');
+  const act = (detail) => stats(setupMachine('king', base, { nRep: 1, ...detail }, 'actual'), 'king', 'actual');
+  const p0 = pred({}), a0 = act({});
+  const p2 = pred({ lAlign2: 3 }), a2 = act({ lAlign2: 3 });
+  assert.ok(Math.abs(p2.effG - (p0.effG + 1)) < 1e-9, '予測値: 3回 × 1/3');
+  assert.equal(p2.coins, p0.coins, '予測値: 投入はカウンターの回転数に入っている');
+  assert.equal(p2.loss, p0.loss + 6);
+  assert.equal(a2.effG, a0.effG + 3, '実測値: 3回 × 1');
+  assert.equal(a2.coins, a0.coins - 6, '実測値: 2枚 × 3回');
+  const p3 = pred({ lAlign3: 2 }), a3 = act({ lAlign3: 2 });
+  assert.deepEqual([p3.effG, p3.coins, p3.loss], [p0.effG, p0.coins, p0.loss + 6], '3枚掛けは欠損だけ');
+  assert.deepEqual([a3.effG, a3.coins, a3.loss], [a0.effG, a0.coins, a0.loss + 6]);
+  const p1 = pred({ lAlign: 3 });
+  assert.ok(Math.abs(p1.effG - (p0.effG + 2)) < 1e-9, '1枚掛けは今までどおり（3回 × 2/3）');
+  assert.equal(p1.loss, p0.loss + 3);
+});

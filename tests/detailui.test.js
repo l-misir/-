@@ -63,9 +63,9 @@ test('ニューキング: 画面1・画面2 の並び（前半4段・後半4段�
 test('ニューキング以外: 画面1・画面2 の並び。見出しの掛け枚数は機種ごと（キング BIG1・REG2、ホウオウ BIG2）', () => {
   const app = setup('king');
   assert.deepEqual(titles(app), ['＜打ち始め＞', '＜現在＞', '＜通常時：小役（3）＞', '＜通常時：小役（3）＞',
-    '＜通常時：小役（1・2）＞', '＜通常時：小役（1・2）＞', '＜通常時：欠損（3）＞', '＜通常時：欠損（1）＞']);
+    '＜通常時：小役（1・2）＞', '＜通常時：小役（1・2）＞', '＜通常時：欠損（3）＞', '＜通常時：欠損（1・2・3）＞']);
   assert.deepEqual(cells(app), ['s:g', 's:b', 's:r', 'c:g', 'c:b', 'c:r', 'd:nRep', 'c:bell', 'd:nChe', 'd:nSui',
-    'd:oRep', 'd:oBell', 'd:oChe', 'd:oSui', 'd:lnChe', 'd:nCheM', 'd:lnSui', 'd:lAlign']);
+    'd:oRep', 'd:oBell', 'd:oChe', 'd:oSui', 'd:lnChe', 'd:nCheM', 'd:lnSui', 'd:lAlign', 'd:lAlign2', 'd:lAlign3']);
   app.window.switchDetailScreen();
   assert.deepEqual(titles(app), ['＜BIG：小役（1）＞', '＜BIG：欠損（1）＞', '＜REG：小役（2）＞', '＜REG：欠損（2）＞',
     '＜REG：サイドランプ＞', '＜BIG：筐体ランプ＞', '＜REG：筐体ランプ＞', '＜レトロサウンド＞']);
@@ -285,4 +285,21 @@ test('ボタンの表記（ユーザー指定の並び）: 画面1', () => {
   const labels = [...app.document.querySelectorAll('#main-ui .cell .label')].map((e) => e.textContent);
   assert.deepEqual(labels, ['ゲーム数', 'BIG', 'REG', 'ゲーム数', 'BIG', 'REG', 'リプレイ', 'ベル', 'チェリー', 'スイカ',
     'チェリー', '中段チェリー', 'スイカ', 'ボーナス', 'チェリー', 'スイカ', 'チェリー', 'スイカ']);
+});
+
+test('ニューキング以外の画面1: ＜通常時：欠損（1・2・3）＞にボーナス(1)・(2)・(3)（掛け枚数別の揃えミス。2026-11-11）', async () => {
+  const app = loadApp();
+  app.selectMachine('king');
+  app.window.setDetailMode(true);
+  const titles = [...app.document.querySelectorAll('#main-ui .section-title')].map((e) => e.textContent);
+  assert.ok(titles.includes('＜通常時：欠損（1・2・3）＞'));
+  assert.ok(!titles.includes('＜通常時：欠損（1）＞'));
+  const cells = ['lAlign', 'lAlign2', 'lAlign3'].map((k) => app.document.querySelector(`#main-ui [data-detail="${k}"]`));
+  assert.deepEqual(cells.map((c) => c.querySelector('.label').textContent), ['ボーナス(1)', 'ボーナス(2)', 'ボーナス(3)']);
+  assert.ok(cells.every((c) => c.classList.contains('loss')), '欠損の色');
+  await app.tap('#main-ui [data-detail="lAlign2"]');
+  await app.tap('#main-ui [data-detail="lAlign3"]');
+  assert.deepEqual(['lAlign', 'lAlign2', 'lAlign3'].map((k) => app.ev(`getData().detail.${k}`)), [0, 1, 1]);
+  app.selectMachine('newking');
+  assert.equal(app.document.querySelector('#main-ui [data-detail="lAlign2"]'), null, 'ニューキングは今までどおり（3枚掛けの揃えミス1つ）');
 });

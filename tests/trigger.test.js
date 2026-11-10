@@ -1,7 +1,8 @@
 // 段階3: 当選の契機・告知の記録と、レトロ条件達成の自動加算のフリーズ除外（docs/DETAIL_MODE_PLAN.md「当選の契機・告知」）
 // 契機: 単独(先)/単独(後)/チェリー/スイカ/リプレイ/ベル から1つ（初期値 単独(先)）
-// 告知: ノーマル点滅/プレミア点滅/フリーズ から1つ（初期値 ノーマル点滅）＋ 特殊テンパイ音/バイブ/バウンドストップ（複数可）。
-// アメイジングチャンスは 2026-10-05 にボタンを無くした（今までの記録に付いている分は残す）
+// 告知: ノーマル点滅/プレミア点滅/フリーズ から1つ（初期値 ノーマル点滅）＋ 特殊テンパイ音/バイブ/その他（複数可）。
+// アメイジングチャンスは 2026-10-05、バウンドストップは 2026-11-11 にボタンを無くした（今までの記録に付いている分は残す）。
+// 「その他」はほかのプレミア用（アメイジングが出て困ったため。2026-11-11）
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadApp } = require('./helpers');
@@ -28,28 +29,28 @@ test('BIG/REG を押して作った当選は、契機 単独(先)・告知 ノ�
   assert.equal(h.notice, 'normal');
   assert.deepEqual(h.extras, []);
   const opts = [...app.document.querySelectorAll('#hit-panel [data-opt]')].map((e) => e.dataset.opt);
-  assert.deepEqual(opts, ['solo1', 'solo2', 'che', 'sui', 'rep', 'bell', 'normal', 'premium', 'freeze', 'tenpai', 'vibe', 'bound']);
+  assert.deepEqual(opts, ['solo1', 'solo2', 'che', 'sui', 'rep', 'bell', 'normal', 'premium', 'freeze', 'tenpai', 'vibe', 'other']);
   assert.ok(optOn(app, 'solo1'));
   assert.ok(optOn(app, 'normal'));
   assert.ok(!optOn(app, 'tenpai'));
 });
 
-test('テンキー画面で契機・告知を選ぶ: 契機と点滅/フリーズは1つだけ、テンパイ音・バイブ・バウンドストップは複数', async () => {
+test('テンキー画面で契機・告知を選ぶ: 契機と点滅/フリーズは1つだけ、テンパイ音・バイブ・その他は複数', async () => {
   const app = setup();
   await hit(app, 'b', '300');
   app.window.setHitTrig('che');
   app.window.setHitNotice('premium');
   app.window.toggleHitExtra('vibe');
-  app.window.toggleHitExtra('bound');
+  app.window.toggleHitExtra('other');
   app.window.toggleHitExtra('tenpai');
   app.window.toggleHitExtra('tenpai'); // もう一度押すと外れる
   const h = hitAt(app, 0);
   assert.equal(h.trig, 'che');
   assert.equal(h.notice, 'premium');
-  assert.deepEqual([...h.extras].sort(), ['bound', 'vibe']);
+  assert.deepEqual([...h.extras].sort(), ['other', 'vibe']);
   assert.ok(optOn(app, 'che') && !optOn(app, 'solo1'), '押したボタンだけ点く');
   assert.ok(optOn(app, 'premium') && !optOn(app, 'normal'));
-  assert.ok(optOn(app, 'vibe') && optOn(app, 'bound') && !optOn(app, 'tenpai'));
+  assert.ok(optOn(app, 'vibe') && optOn(app, 'other') && !optOn(app, 'tenpai'));
   app.window.setHitNotice('freeze');
   assert.equal(hitAt(app, 0).notice, 'freeze', '点滅とフリーズは同時に起きない（1つだけ）');
   assert.equal(hitAt(app, 0).g, 300, 'G数はそのまま');
@@ -148,29 +149,53 @@ function setViewport(app, w, h) {
   Object.defineProperty(app.window, 'innerHeight', { value: h, configurable: true });
 }
 
-test('テンキー画面: キーは元の大きさ。契機・告知の欄は縦画面ならキーの下、横画面ならキーの右（BIG/REG 加算時・当選履歴から）', async () => {
+test('テンキー画面（2026-11-11）: 入力した数はキーの上、契機・告知はキーの右（縦横とも）。キーは正方形で全部のテンキーで同じ大きさ', async () => {
   const app = setup();
-  const panel = app.document.getElementById('hit-panel');
-  const html = require('fs').readFileSync(require('./helpers').HTML_PATH, 'utf-8');
-  assert.match(html, /#hit-panel \.hit-key \{ font-size:24px; padding:12px 0; \}/, 'キーは元の大きさ（縮めない）');
-  assert.doesNotMatch(html, /minmax\(34px/);
+  const doc = app.document;
+  const panel = doc.getElementById('hit-panel');
+  const css = doc.querySelector('style').textContent;
+  assert.match(css, /--key:\s*54px/, 'キーの大きさは1か所');
+  assert.match(css, /\.hit-keys\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*var\(--key\)\)[^}]*grid-auto-rows:\s*var\(--key\)/, 'キーは正方形');
+  assert.doesNotMatch(css, /hit-keys-wrap|#hit-panel\.wide/, '前の並び（表示は右・欄は縦画面で下）は無い');
 
+  const layout = () => {
+    const tk = panel.querySelector('.tk');
+    const main = tk.querySelector(':scope > .tk-main');
+    return {
+      displayFirst: main.firstElementChild.id === 'hit-display' && main.children[1].classList.contains('hit-keys'),
+      optsRight: tk.lastElementChild.id === 'hit-opts' && tk.firstElementChild === main,
+    };
+  };
   setViewport(app, 375, 667); // 縦画面
   await hit(app, 'b', '300');
-  assert.ok(!panel.classList.contains('wide'), '縦画面: 欄はキーの下');
+  assert.deepEqual(layout(), { displayFirst: true, optsRight: true });
   assert.ok(!panel.classList.contains('centered'));
+  assert.equal(panel.style.left, '50%', '縦画面: 画面の下の真ん中');
+  assert.equal(panel.style.top, 'auto');
+  assert.match(panel.style.bottom, /env\(safe-area-inset-bottom\)/);
+  // 告知と付随は1つの欄に続けて（1行2つ）
+  assert.deepEqual([...panel.querySelectorAll('.hit-opt-grid')].map((g) => g.children.length), [6, 6]);
   app.window.hitEditSave();
   app.window.editHitG(0);
-  assert.ok(!panel.classList.contains('wide') && panel.classList.contains('centered'), '当選履歴から（縦画面）: 中央・欄は下');
+  assert.ok(panel.classList.contains('centered'), '当選履歴から: 真ん中');
+  assert.deepEqual(layout(), { displayFirst: true, optsRight: true });
   app.window.hitEditSave();
 
-  setViewport(app, 844, 390); // 横画面
+  setViewport(app, 667, 375); // 横画面
   await hit(app, 'r', '50');
-  assert.ok(panel.classList.contains('wide'), '横画面: 欄はキーの右');
-  assert.ok(!panel.classList.contains('centered'));
+  assert.deepEqual(layout(), { displayFirst: true, optsRight: true }, '横画面も縦画面と同じ並び');
+  assert.equal(panel.style.left, 'auto', '横画面: 右下');
+  assert.match(panel.style.right, /env\(safe-area-inset-right\)/);
   app.window.hitEditSave();
-  app.window.editHitG(0);
-  assert.ok(panel.classList.contains('wide') && panel.classList.contains('centered'), '当選履歴から（横画面）: 中央・欄は右');
+
+  // まとめて加算も同じキー（入力した数はキーの上）
+  app.window.openBulkPanel();
+  const col = doc.querySelector('.bulk-col-r');
+  const disp = doc.getElementById('bulk-display');
+  const keys = doc.querySelector('#bulk-keys .hit-keys');
+  assert.ok(disp.compareDocumentPosition(keys) & app.window.Node.DOCUMENT_POSITION_FOLLOWING, '表示はキーの上');
+  assert.ok(col.contains(disp) && col.contains(keys));
+  assert.doesNotMatch(css, /#bulk-keys \.hit-keys\s*\{[^}]*(max-height|grid-template-rows)/, 'まとめて加算のキーも同じ正方形');
 });
 
 test('アメイジングチャンス: ボタンは無い。今までの記録に付いている分は、開いて直しても残り、備考・プレミア・シートの文字列にも出る', async () => {
@@ -178,7 +203,8 @@ test('アメイジングチャンス: ボタンは無い。今までの記録に
   app.ev(`const d = getData(); d.hits = [{ g: 120, k: 'b', trig: 'che', notice: 'normal', extras: ['ac'] }]; d.cur.g = 120; d.cur.b = 1;`);
   app.window.editHitG(0);
   assert.equal(app.document.querySelector('#hit-panel [data-opt="ac"]'), null, 'ボタンは無い');
-  assert.equal(app.document.querySelector('#hit-panel [data-opt="bound"]').textContent, 'バウンド');
+  assert.equal(app.document.querySelector('#hit-panel [data-opt="other"]').textContent, 'その他');
+  assert.equal(app.document.querySelector('#hit-panel [data-opt="tenpai"]').textContent, '特殊テンパイ', 'ボタンに入るよう略す（備考は正式名）');
   app.window.toggleHitExtra('vibe');
   app.window.toggleHitExtra('ac'); // ボタンの無いものは押せない（何も変えない）
   assert.deepEqual(hitAt(app, 0).extras, ['vibe', 'ac'], '開いて別の付随を押しても消えない');
@@ -188,15 +214,18 @@ test('アメイジングチャンス: ボタンは無い。今までの記録に
   assert.equal(app.ev(`hitsToText(getData().hits)`), 'B120[チェリー・バイブ・アメイジングチャンス]');
 });
 
-test('バウンドストップ: 備考に出し、プレミアに数え、シートの文字列で読み書きできる', async () => {
+test('その他（2026-11-11）: 備考に出し、プレミアに数え、シートの文字列で読み書きできる。今までのバウンドストップの記録は残す', async () => {
   const app = setup();
   await hit(app, 'r', '80');
-  app.window.toggleHitExtra('bound');
+  assert.equal(app.document.querySelector('#hit-panel [data-opt="bound"]'), null, 'バウンドストップのボタンは無い');
+  app.window.toggleHitExtra('other');
   app.window.hitEditSave();
+  app.ev(`getData().hits.push({ g: 40, k: 'b', trig: 'solo1', notice: 'normal', extras: ['bound'] }); save(true);`);
   app.window.openHitModal();
-  assert.match(app.document.querySelector('#hm-content .hm-row .hm-tagline').textContent, /バウンドストップ/);
-  assert.equal(app.document.querySelector('#hm-content .hm-pie [data-seg="premium"]').dataset.n, '1');
+  const tags = [...app.document.querySelectorAll('#hm-content .hm-row .hm-tagline')].map((e) => e.textContent);
+  assert.deepEqual(tags, ['その他', 'バウンドストップ']);
+  assert.equal(app.document.querySelector('#hm-content .hm-pie [data-seg="premium"]').dataset.n, '2', 'どちらもプレミア');
   const text = app.ev(`hitsToText(getData().hits)`);
-  assert.equal(text, 'R80[バウンドストップ]');
-  assert.deepEqual(JSON.parse(app.ev(`JSON.stringify(textToHits(${JSON.stringify(text)}))`))[0].extras, ['bound']);
+  assert.equal(text, 'B40[バウンドストップ] R80[その他]');
+  assert.deepEqual(JSON.parse(app.ev(`JSON.stringify(textToHits(${JSON.stringify(text)}).map(h => h.extras))`)), [['other'], ['bound']]);
 });
