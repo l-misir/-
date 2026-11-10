@@ -55,3 +55,29 @@ test('画面を回転したとき、ページがずれていたら戻す（入�
   w.dispatchEvent(new w.Event('orientationchange'));
   assert.equal(calls.length, 0, 'ずれていなければ何もしない');
 });
+
+// 2026-11-11 実機: 回転し終わってからずれ、0.1〜0.3 秒後に戻す処理が動くので「めり込んでから戻る」のが見えた。
+// ページ（文書・body）がスクロールしたら、その場ですぐ戻す（待たない）
+test('ページがスクロールしたら、その場ですぐ戻す。画面の中のスクロール（設定推測など）や入力中は触らない', () => {
+  const app = loadApp();
+  const w = app.window, doc = app.document;
+  const calls = [];
+  w.scrollTo = (x, y) => calls.push([x, y]);
+  Object.defineProperty(w, 'scrollY', { value: 20, configurable: true });
+  doc.dispatchEvent(new w.Event('scroll'));
+  assert.deepEqual(calls, [[0, 0]], 'ページのスクロールはすぐ戻す（タイマーを待たない）');
+
+  calls.length = 0;
+  w.dispatchEvent(new w.Event('resize'));
+  assert.deepEqual(calls[0], [0, 0], '大きさが変わったときもすぐ');
+
+  calls.length = 0;
+  const body = doc.querySelector('#predict-modal .modal-body');
+  body.dispatchEvent(new w.Event('scroll'));
+  assert.equal(calls.length, 0, '画面の中のスクロールは触らない');
+
+  const input = doc.getElementById('gas-url');
+  input.focus();
+  doc.dispatchEvent(new w.Event('scroll'));
+  assert.equal(calls.length, 0, '入力中はキーボードのために iOS がずらすので触らない');
+});

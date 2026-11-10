@@ -3688,15 +3688,23 @@
     // --- スプレッドシート連携 ---
 
     // 画面の向きを変えた後、ページがずれたまま（スクロールした状態）になっていたら戻す（2026-11 iOS 27 のホーム画面のWebアプリで、
-    // 縦に戻すとステータスバーの高さだけ上にずれた）。入力中はキーボードで入力欄を見せるために iOS がずらすので触らない
+    // 縦に戻すとステータスバーの高さだけ上にずれた）。入力中はキーボードで入力欄を見せるために iOS がずらすので触らない。
+    // このアプリはページ自体をスクロールさせない（スクロールするのは各画面の中だけ）
     function resetPageScroll() {
         const a = document.activeElement;
         if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
         if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
         [document.documentElement, document.body].forEach(el => { if (el && el.scrollTop) el.scrollTop = 0; });
     }
-    window.addEventListener('orientationchange', () => { resetPageScroll(); setTimeout(resetPageScroll, 300); });
-    window.addEventListener('resize', () => setTimeout(resetPageScroll, 100));
+    // ずれた瞬間に戻す（タイマーを待つと「めり込んでから戻る」のが見えた。2026-11-11 実機）。
+    // scroll は要素からは伝わってこないので、取り込み（capture）で受けて、ページ（文書・body）のスクロールだけ戻す
+    window.addEventListener('scroll', (e) => {
+        const t = e.target;
+        if (t === document || t === document.documentElement || t === document.body) resetPageScroll();
+    }, true);
+    const resetPageScrollSoon = () => { resetPageScroll(); requestAnimationFrame(resetPageScroll); setTimeout(resetPageScroll, 300); };
+    window.addEventListener('orientationchange', resetPageScrollSoon);
+    window.addEventListener('resize', resetPageScrollSoon);
 
     // 画面回転時に入力パネルの位置を再調整
     window.addEventListener('resize', () => {
